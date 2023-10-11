@@ -1,0 +1,16 @@
+name: Sprig
+description: Teens make games and get a Sprig
+slack-channels:
+  - name: sprig
+    sla:
+      responseTime: 1h
+  - name: sprig-platform
+    sla:
+      responseTime: 24h
+repos:
+  - uri: https://github.com/hackclub/sprig
+    sla:
+      responseTime: 1h
+  - uri: https://github.com/hackclub/spade
+    sla:
+      responseTime: 24h
