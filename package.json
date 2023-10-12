@@ -1,7 +1,6 @@
 {
   "name": "slacker",
   "version": "1.0.0",
-  "main": "index.js",
   "repository": "git@github.com:hackclub/slacker.git",
   "author": "Faisal Sayed <faisal.sayed502@gmail.com>",
   "license": "MIT",
@@ -10,14 +9,19 @@
     "serve": "tsx index.ts"
   },
   "dependencies": {
-    "@trpc/server": "^10.40.0",
-    "fastify": "^4.24.0",
-    "zod": "^3.22.4",
     "@fastify/cookie": "^8.3.0",
     "@fastify/cors": "^8.2.1",
+    "@seratch_/bolt-fastify": "^1.0.3",
+    "@slack/bolt": "^3.14.0",
+    "@slack/oauth": "^2.6.1",
     "@trpc/client": "^10.34.0",
+    "@trpc/server": "^10.40.0",
     "dayjs": "^1.11.7",
-    "tsx": "^3.12.6"
+    "dotenv": "^16.3.1",
+    "fastify": "^4.24.0",
+    "iron-session": "^6.3.1",
+    "tsx": "^3.12.6",
+    "zod": "^3.22.4"
   },
   "devDependencies": {
     "@types/node": "^18.16.0",

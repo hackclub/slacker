@@ -1,31 +1,37 @@
-import { z } from "zod";
+import { app } from "..";
 import { publicProcedure, router } from "../trpc";
 
-type User = {
-  id: string;
-  name: string;
-  bio?: string;
-};
-
-const users: Record<string, User> = {};
-
 export const mainRouter = router({
-  getUserById: publicProcedure.input(z.string()).query((opts) => {
-    return users[opts.input];
+  loginWithSlack: publicProcedure.query(async ({ ctx }) => {
+    const params = ctx.req.query as { code: string; state: string };
+
+    const response = await app.client.oauth.v2.access({
+      code: params.code,
+      client_id: process.env.SLACK_CLIENT_ID as string,
+      client_secret: process.env.SLACK_CLIENT_SECRET as string,
+      redirect_uri: "https://slacker.underpass.clb.li/trpc/main.loginWithSlack",
+    });
+
+    const user = {
+      id: response.authed_user?.id,
+      token: response.authed_user?.access_token,
+    };
+
+    if (!user.id || !user.token) throw new Error("Something weird happened");
+
+    ctx.session.user = user;
+    await ctx.session.save();
+
+    return "ok";
   }),
-  createUser: publicProcedure
-    .input(
-      z.object({
-        name: z.string().min(3),
-        bio: z.string().max(142).optional(),
-      })
-    )
-    .mutation((opts) => {
-      const id = Date.now().toString();
-      const user: User = { id, ...opts.input };
-      users[user.id] = user;
-      return user;
-    }),
+
+  me: publicProcedure.query(async ({ ctx }) => {
+    if (ctx.session.user) {
+      return { ...ctx.session.user, isLoggedIn: true };
+    } else {
+      return { isLoggedIn: false, id: null, token: "" };
+    }
+  }),
 });
 
 export type AppRouter = typeof mainRouter;
