@@ -1,3 +1,6 @@
+import { readFileSync } from "fs";
+import yaml from "js-yaml";
+import { z } from "zod";
 import { app } from "..";
 import { publicProcedure, router } from "../trpc";
 
@@ -31,6 +34,12 @@ export const mainRouter = router({
     } else {
       return { isLoggedIn: false, id: null, token: "" };
     }
+  }),
+
+  getReport: publicProcedure.input(z.string()).query(async ({ ctx, input }) => {
+    const config = yaml.load(readFileSync(`./config/${input}.yaml`, "utf-8"));
+
+    return config;
   }),
 });
 
