@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package connectrpc.eliza.v1;
+
+message SyncRequest {
+  string project = 1;
+}
+
+message SyncResponse {
+  string response = 1;
+}
+
+service ElizaService {
+  rpc SyncSlackMessages(SyncRequest) returns (SyncResponse) {}
+}
