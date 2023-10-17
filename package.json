@@ -6,7 +6,9 @@
   "license": "MIT",
   "scripts": {
     "dev": "tsx watch index.ts",
-    "serve": "tsx index.ts"
+    "generate": "drizzle-kit generate:sqlite",
+    "migrations:push": "node -r esbuild-register lib/migrate.ts",
+    "migrations:drop": "drizzle-kit drop --config=drizzle.config.ts"
   },
   "dependencies": {
     "@bufbuild/buf": "^1.27.0",

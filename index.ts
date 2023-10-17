@@ -28,7 +28,6 @@ export const slack = new App({
 
 (async () => {
   try {
-    await migrate(db, { migrationsFolder: "./migrations" });
     await slack.start(5000);
     console.log(`Server running on http://localhost:5000`);
   } catch (err) {
