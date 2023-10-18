@@ -1,10 +1,8 @@
 import { expressConnectMiddleware } from "@connectrpc/connect-express";
 import { App, ExpressReceiver, LogLevel } from "@slack/bolt";
 import { config } from "dotenv";
-import { migrate } from "drizzle-orm/libsql/migrator";
 import express from "express";
-import routes from "./connect";
-import db from "./lib/db";
+import routes from "./routes";
 
 config();
 
