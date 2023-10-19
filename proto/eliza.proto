@@ -12,4 +12,5 @@ message SyncResponse {
 
 service ElizaService {
   rpc SyncSlackMessages(SyncRequest) returns (SyncResponse) {}
+  rpc SyncGithubItems(SyncRequest) returns (SyncResponse) {}
 }

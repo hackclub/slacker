@@ -21,6 +21,15 @@ export const ElizaService = {
       O: SyncResponse,
       kind: MethodKind.Unary,
     },
+    /**
+     * @generated from rpc connectrpc.eliza.v1.ElizaService.SyncGithubItems
+     */
+    syncGithubItems: {
+      name: "SyncGithubItems",
+      I: SyncRequest,
+      O: SyncResponse,
+      kind: MethodKind.Unary,
+    },
   }
 } as const;
 

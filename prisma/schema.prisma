@@ -16,7 +16,6 @@ model User {
 
   messagesAsked      SlackMessage[]
   issuesOpened       GithubItem[]
-  itemsResolved      ActionItem[]
   participatingItems Participant[]
 
   createdAt DateTime @default(now())
@@ -78,12 +77,11 @@ model ActionItem {
   githubItemId Int?        @unique
   githubItem   GithubItem? @relation(fields: [githubItemId], references: [id])
 
-  resolvedById Int
-  resolvedBy   User          @relation(fields: [resolvedById], references: [id])
   participants Participant[]
 
   project    String
   status     ActionStatus
+  flag       ExtraFlags?
   resolvedAt DateTime?
 
   createdAt DateTime @default(now())
@@ -92,7 +90,6 @@ model ActionItem {
   @@index([id])
   @@index([slackMessageId])
   @@index([githubItemId])
-  @@index([resolvedById])
 }
 
 // Slack channels that are being monitored
@@ -138,7 +135,10 @@ enum GithubState {
 
 enum ActionStatus {
   open
-  ongoing
-  resolved
+  closed
+}
+
+enum ExtraFlags {
   irrelevant
+  resolved
 }
