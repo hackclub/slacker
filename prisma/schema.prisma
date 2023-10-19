@@ -1,0 +1,134 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id             Int     @id @default(autoincrement())
+  githubUsername String?
+  email          String
+  slackId        String?
+
+  messagesAsked      SlackMessage[]
+  issuesOpened       GithubItem[]
+  itemsResolved      ActionItem[]
+  participatingItems Participant[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([id])
+}
+
+model SlackMessage {
+  id   Int      @id @default(autoincrement())
+  text String
+  ts   DateTime
+
+  channelId Int
+  channel   Channel @relation(fields: [channelId], references: [id])
+
+  authorId   Int
+  author     User        @relation(fields: [authorId], references: [id])
+  actionItem ActionItem?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([id])
+  @@index([authorId])
+}
+
+model GithubItem {
+  id         Int            @id @default(autoincrement())
+  number     Int
+  title      String
+  body       String         @default("")
+  nodeId     String
+  databaseId BigInt
+  state      GithubState
+  type       GithubItemType
+  actionItem ActionItem?
+
+  repositoryId Int
+  repository   Repository @relation(fields: [repositoryId], references: [id])
+
+  authorId Int
+  author   User @relation(fields: [authorId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([id])
+}
+
+model ActionItem {
+  id Int @id @default(autoincrement())
+
+  slackMessageId Int          @unique
+  slackMessage   SlackMessage @relation(fields: [slackMessageId], references: [id])
+
+  githubItemId Int        @unique
+  githubItem   GithubItem @relation(fields: [githubItemId], references: [id])
+
+  resolvedById Int
+  resolvedBy   User          @relation(fields: [resolvedById], references: [id])
+  participants Participant[]
+
+  project    String
+  status     ActionStatus
+  resolvedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([id])
+}
+
+model Channel {
+  id       Int            @id @default(autoincrement())
+  name     String
+  slackId  String
+  messages SlackMessage[]
+
+  @@index([id])
+}
+
+model Participant {
+  userId Int
+  user   User @relation(fields: [userId], references: [id])
+
+  actionItemId Int
+  actionItem   ActionItem @relation(fields: [actionItemId], references: [id])
+
+  @@id([userId, actionItemId])
+}
+
+model Repository {
+  id    Int    @id @default(autoincrement())
+  name  String
+  owner String
+
+  items GithubItem[]
+}
+
+enum GithubItemType {
+  issue
+  pull_request
+}
+
+enum GithubState {
+  open
+  closed
+}
+
+enum ActionStatus {
+  open
+  ongoing
+  resolved
+  irrelevant
+}
