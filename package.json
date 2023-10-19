@@ -6,9 +6,9 @@
   "license": "MIT",
   "scripts": {
     "dev": "tsx watch index.ts",
-    "generate": "drizzle-kit generate:sqlite",
-    "migrations:push": "node -r esbuild-register lib/migrate.ts",
-    "migrations:drop": "drizzle-kit drop --config=drizzle.config.ts"
+    "db:generate": "npx prisma db generate",
+    "db:migrate": "npx prisma migrate dev",
+    "db:push": "npx prisma db push"
   },
   "dependencies": {
     "@bufbuild/buf": "^1.27.0",
@@ -18,22 +18,20 @@
     "@connectrpc/connect-express": "^1.1.2",
     "@connectrpc/connect-node": "^1.1.2",
     "@connectrpc/protoc-gen-connect-es": "^1.1.2",
-    "@libsql/client": "^0.3.5",
+    "@prisma/client": "^5.4.2",
     "@slack/bolt": "^3.14.0",
     "@slack/oauth": "^2.6.1",
     "dayjs": "^1.11.7",
-    "drizzle-orm": "^0.28.6",
     "express": "^4.18.2",
     "js-yaml": "^4.1.0",
-    "sqlite3": "^5.1.6",
+    "prisma": "^5.4.2",
     "tsx": "^3.12.6",
     "zod": "^3.22.4"
   },
   "devDependencies": {
     "@types/js-yaml": "^4.0.7",
     "@types/node": "^18.16.0",
-    "drizzle-kit": "^0.19.13",
-    "drizzle-zod": "^0.5.1",
+    "dotenv": "^16.3.1",
     "eslint": "^8.39.0",
     "ts-node-dev": "^2.0.0",
     "typescript": "^5.0.4"
