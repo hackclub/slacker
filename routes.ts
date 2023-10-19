@@ -6,6 +6,13 @@ import { Config } from "./lib/types";
 import { slack } from ".";
 import { ConversationsHistoryResponse } from "@slack/web-api";
 
+// 1. no need to account backlog for slack messages. use webhooks.
+// 2. account for backlog for github issues and open prs
+// 3. store data such as first reply time, last reply time, total replies, participants
+// 4. store timestamp of last synced github stuff and use that in subsequent syncs
+// 5. snoozing functionality and snooze count, snoozed until - only through admins
+
+
 export default (router: ConnectRouter) =>
   router.service(ElizaService, {
     async syncSlackMessages(req, ctx) {
