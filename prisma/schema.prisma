@@ -7,11 +7,12 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// Users that are either authors, contributors or participants in slack threads, issues or pull requests
 model User {
   id             Int     @id @default(autoincrement())
   githubUsername String?
-  email          String
-  slackId        String?
+  email          String  @unique
+  slackId        String? @unique
 
   messagesAsked      SlackMessage[]
   issuesOpened       GithubItem[]
@@ -41,13 +42,12 @@ model SlackMessage {
 
   @@index([id])
   @@index([authorId])
+  @@index([channelId])
 }
 
 model GithubItem {
   id         Int            @id @default(autoincrement())
   number     Int
-  title      String
-  body       String         @default("")
   nodeId     String
   databaseId BigInt
   state      GithubState
@@ -64,16 +64,19 @@ model GithubItem {
   updatedAt DateTime @updatedAt
 
   @@index([id])
+  @@index([repositoryId])
+  @@index([authorId])
 }
 
+// It can either be a slack message or a github issue / pull request
 model ActionItem {
   id Int @id @default(autoincrement())
 
-  slackMessageId Int          @unique
-  slackMessage   SlackMessage @relation(fields: [slackMessageId], references: [id])
+  slackMessageId Int?          @unique
+  slackMessage   SlackMessage? @relation(fields: [slackMessageId], references: [id])
 
-  githubItemId Int        @unique
-  githubItem   GithubItem @relation(fields: [githubItemId], references: [id])
+  githubItemId Int?        @unique
+  githubItem   GithubItem? @relation(fields: [githubItemId], references: [id])
 
   resolvedById Int
   resolvedBy   User          @relation(fields: [resolvedById], references: [id])
@@ -87,8 +90,12 @@ model ActionItem {
   updatedAt DateTime @updatedAt
 
   @@index([id])
+  @@index([slackMessageId])
+  @@index([githubItemId])
+  @@index([resolvedById])
 }
 
+// Slack channels that are being monitored
 model Channel {
   id       Int            @id @default(autoincrement())
   name     String
@@ -98,6 +105,7 @@ model Channel {
   @@index([id])
 }
 
+// List of users that are involved in the thread or an issue / pull request
 model Participant {
   userId Int
   user   User @relation(fields: [userId], references: [id])
@@ -114,6 +122,8 @@ model Repository {
   owner String
 
   items GithubItem[]
+
+  @@index([id])
 }
 
 enum GithubItemType {
