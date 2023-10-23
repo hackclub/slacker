@@ -6,7 +6,7 @@
   "license": "MIT",
   "scripts": {
     "dev": "tsx watch index.ts",
-    "db:generate": "npx prisma db generate",
+    "db:generate": "npx prisma generate",
     "db:migrate": "npx prisma migrate dev",
     "db:push": "npx prisma db push"
   },

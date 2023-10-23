@@ -7,9 +7,7 @@ import { slack } from ".";
 import { ConversationsHistoryResponse } from "@slack/web-api";
 
 // 1. no need to account backlog for slack messages. use webhooks.
-// 2. account for backlog for github issues and open prs
-// 3. store data such as first reply time, last reply time, total replies, participants
-// 4. store timestamp of last synced github stuff and use that in subsequent syncs
+// 2. use sync func here: account for backlog for github issues and open prs - store timestamp of last synced
 // 5. snoozing functionality and snooze count, snoozed until - only through admins
 
 

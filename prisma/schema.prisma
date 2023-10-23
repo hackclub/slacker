@@ -11,7 +11,7 @@ datasource db {
 model User {
   id             Int     @id @default(autoincrement())
   githubUsername String?
-  email          String  @unique
+  email          String?  @unique
   slackId        String? @unique
 
   messagesAsked      SlackMessage[]
@@ -25,9 +25,9 @@ model User {
 }
 
 model SlackMessage {
-  id   Int      @id @default(autoincrement())
+  id   Int    @id @default(autoincrement())
   text String
-  ts   DateTime
+  ts   String // Cannot convert into DateTime since slack uses this as an ID (string) - 17241837419.1200
 
   channelId Int
   channel   Channel @relation(fields: [channelId], references: [id])
@@ -77,9 +77,11 @@ model ActionItem {
   githubItemId Int?        @unique
   githubItem   GithubItem? @relation(fields: [githubItemId], references: [id])
 
+  firstReplyOn DateTime?
+  lastReplyOn  DateTime?
+  totalReplies Int
   participants Participant[]
 
-  project    String
   status     ActionStatus
   flag       ExtraFlags?
   resolvedAt DateTime?
@@ -96,7 +98,7 @@ model ActionItem {
 model Channel {
   id       Int            @id @default(autoincrement())
   name     String
-  slackId  String
+  slackId  String         @unique
   messages SlackMessage[]
 
   @@index([id])
