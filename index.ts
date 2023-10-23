@@ -32,6 +32,12 @@ export const slack = new App({
 
 slack.event("message", async ({ event, client, logger, message }) => {
   try {
+    if (message.subtype === "message_deleted") {
+      await prisma.slackMessage.deleteMany({
+        where: { ts: message.deleted_ts, channel: { slackId: event.channel } },
+      });
+    }
+
     if (message.subtype || message.bot_id) return;
 
     const parent = await client.conversations

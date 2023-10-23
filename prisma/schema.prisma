@@ -30,10 +30,10 @@ model SlackMessage {
   ts   String // Cannot convert into DateTime since slack uses this as an ID (string) - 17241837419.1200
 
   channelId Int
-  channel   Channel @relation(fields: [channelId], references: [id])
+  channel   Channel @relation(fields: [channelId], references: [id], onDelete: Cascade)
 
   authorId   Int
-  author     User        @relation(fields: [authorId], references: [id])
+  author     User        @relation(fields: [authorId], references: [id], onDelete: Cascade)
   actionItem ActionItem?
 
   createdAt DateTime @default(now())
@@ -54,10 +54,10 @@ model GithubItem {
   actionItem ActionItem?
 
   repositoryId Int
-  repository   Repository @relation(fields: [repositoryId], references: [id])
+  repository   Repository @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
 
   authorId Int
-  author   User @relation(fields: [authorId], references: [id])
+  author   User @relation(fields: [authorId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -72,10 +72,10 @@ model ActionItem {
   id Int @id @default(autoincrement())
 
   slackMessageId Int?          @unique
-  slackMessage   SlackMessage? @relation(fields: [slackMessageId], references: [id])
+  slackMessage   SlackMessage? @relation(fields: [slackMessageId], references: [id], onDelete: Cascade)
 
   githubItemId Int?        @unique
-  githubItem   GithubItem? @relation(fields: [githubItemId], references: [id])
+  githubItem   GithubItem? @relation(fields: [githubItemId], references: [id], onDelete: Cascade)
 
   firstReplyOn DateTime?
   lastReplyOn  DateTime?
