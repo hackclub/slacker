@@ -1,56 +1,49 @@
 import { ConnectRouter } from "@connectrpc/connect";
-import { ElizaService } from "./gen/eliza_connect";
-import { readFileSync, writeFileSync } from "fs";
+import { readFileSync } from "fs";
 import yaml from "js-yaml";
+import { ElizaService } from "./gen/eliza_connect";
+import app from "./lib/octokit";
 import { Config } from "./lib/types";
-import { slack } from ".";
-import { ConversationsHistoryResponse } from "@slack/web-api";
 
 // 1. no need to account backlog for slack messages. use webhooks.
 // 2. use sync func here: account for backlog for github issues and open prs - store timestamp of last synced
 // 5. snoozing functionality and snooze count, snoozed until - only through admins
 
-
 export default (router: ConnectRouter) =>
   router.service(ElizaService, {
-    async syncSlackMessages(req, ctx) {
+    async syncGithubItems(req, ctx) {
       try {
-        // const input = req.project;
-        // const config = yaml.load(readFileSync(`./config/${input}.yaml`, "utf-8")) as Config;
-        // const channels = config["slack-channels"];
+        const input = req.project;
+        const { repos } = yaml.load(readFileSync(`./config/${input}.yaml`, "utf-8")) as Config;
 
-        // for (let i = 0; i < channels.length; i++) {
-        //   const channel = channels[i];
+        for (const repo of repos) {
+          const owner = repo.uri.split("/")[-2];
+          const name = repo.uri.split("/")[-1];
 
-        //   await slack.client.conversations.join({ channel: channel.id });
-        //   const messages = await slack.client.conversations.history({
-        //     channel: channel.id,
-        //     limit: 500,
-        //   });
-        // }
+          const issues = await app.octokit.rest.issues.listForRepo({
+            owner: owner,
+            repo: name,
+            state: "open",
+          });
 
-        // testing with two files right now:
-        const sprigJson = JSON.parse(
-          readFileSync(`sprig.json`, "utf-8")
-        ) as ConversationsHistoryResponse;
+          const prs = await app.octokit.rest.pulls.list({
+            owner: owner,
+            repo: name,
+            state: "open",
+          });
 
-        const sprigPlatformJson = JSON.parse(
-          readFileSync(`sprig-platform.json`, "utf-8")
-        ) as ConversationsHistoryResponse;
+          const items = [...issues.data, ...prs.data];
 
-        for (let i = 0; i < sprigJson.messages!.length; i++) {
-          const message = sprigJson.messages![i];
-
-          if (message.bot_id || message.app_id) continue;
-          if (message.subtype) continue;
-
-          console.log(message.text);
+          for (const item of items) {
+            // create a db item for each issue and pr
+            // if action item already exists, update it
+            // ...
+          }
         }
 
         return { response: "ok" };
       } catch (err) {
-        console.error(err);
-        return { response: "An error occurred: " + err.message };
+        return { response: err.message };
       }
     },
   });
