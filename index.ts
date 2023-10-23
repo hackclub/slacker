@@ -5,9 +5,11 @@ import dayjs from "dayjs";
 import { config } from "dotenv";
 import express from "express";
 import prisma from "./lib/db";
-import { getMaintainers, joinChannels } from "./lib/utils";
+import { getMaintainers, joinChannels, syncParticipants } from "./lib/utils";
 import routes from "./routes";
+import customParseFormat from "dayjs/plugin/customParseFormat";
 
+dayjs.extend(customParseFormat);
 config();
 
 const app = express();
@@ -47,9 +49,8 @@ slack.event("message", async ({ event, client, logger, message }) => {
       .replies({ channel: event.channel, ts: parent.ts as string, limit: 100 })
       .then((res) => res.messages?.slice(1));
 
-    const authorInfo = await client.users
-      .info({ user: parent.user as string })
-      .then((res) => res.user as typeof res.user & { email?: string });
+    const authorInfo = await client.users.info({ user: parent.user as string });
+    const email = authorInfo?.user?.profile?.email || "";
 
     if (parentInDb) {
       // update action item:
@@ -59,8 +60,12 @@ slack.event("message", async ({ event, client, logger, message }) => {
           text: parent.text || "",
           actionItem: {
             update: {
-              firstReplyOn: threadReplies?.[0]?.ts,
-              lastReplyOn: parent.latest_reply ? dayjs(parent.latest_reply).toDate() : undefined,
+              firstReplyOn: threadReplies?.[0]?.ts
+                ? dayjs(threadReplies[0].ts.split(".")[0], "X").toDate()
+                : undefined,
+              lastReplyOn: parent.latest_reply
+                ? dayjs(parent.latest_reply.split(".")[0], "X").toDate()
+                : undefined,
               totalReplies: parent.reply_count || 0,
               participants: { deleteMany: {} },
             },
@@ -68,19 +73,7 @@ slack.event("message", async ({ event, client, logger, message }) => {
         },
       });
 
-      for (let i = 0; i < (parent.reply_users_count ?? 0); i++) {
-        await prisma.participant.create({
-          data: {
-            actionItem: { connect: { id: action.id } },
-            user: {
-              connectOrCreate: {
-                where: { slackId: parent.reply_users?.[i] as string },
-                create: { slackId: parent.reply_users?.[i] as string },
-              },
-            },
-          },
-        });
-      }
+      await syncParticipants(parent.reply_users || [], action.id);
     } else {
       // create new action item:
       const maintainers = await getMaintainers({ channelId: event.channel });
@@ -92,9 +85,11 @@ slack.event("message", async ({ event, client, logger, message }) => {
           ts: parent.ts || "",
           actionItem: {
             create: {
-              lastReplyOn: parent.latest_reply ? dayjs(parent.latest_reply).toDate() : undefined,
+              lastReplyOn: parent.latest_reply
+                ? dayjs(parent.latest_reply.split(".")[0], "X").toDate()
+                : undefined,
               firstReplyOn: threadReplies?.[0]?.ts
-                ? dayjs(threadReplies[0].ts).toDate()
+                ? dayjs(threadReplies[0].ts.split(".")[0], "X").toDate()
                 : undefined,
               totalReplies: parent.reply_count || 0,
               status: ActionStatus.open,
@@ -103,26 +98,14 @@ slack.event("message", async ({ event, client, logger, message }) => {
           channel: { connect: { slackId: event.channel } },
           author: {
             connectOrCreate: {
-              where: { slackId: parent.user as string, email: authorInfo?.email || "" },
-              create: { email: authorInfo?.email || "", slackId: parent.user as string },
+              where: { slackId: parent.user as string, email },
+              create: { email, slackId: parent.user as string },
             },
           },
         },
       });
 
-      for (let i = 0; i < (parent.reply_users_count ?? 0); i++) {
-        await prisma.participant.create({
-          data: {
-            actionItem: { connect: { id: action.id } },
-            user: {
-              connectOrCreate: {
-                where: { slackId: parent.reply_users?.[i] as string },
-                create: { slackId: parent.reply_users?.[i] as string },
-              },
-            },
-          },
-        });
-      }
+      await syncParticipants(parent.reply_users || [], action.id);
     }
   } catch (err) {
     logger.error(err);
@@ -132,7 +115,7 @@ slack.event("message", async ({ event, client, logger, message }) => {
 (async () => {
   try {
     await slack.start(5000);
-    await joinChannels();
+    // await joinChannels();
     console.log(`Server running on http://localhost:5000`);
   } catch (err) {
     console.error(err);

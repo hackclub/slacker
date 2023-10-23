@@ -11,8 +11,8 @@ datasource db {
 model User {
   id             Int     @id @default(autoincrement())
   githubUsername String?
-  email          String?  @unique
-  slackId        String? @unique
+  email          String  @unique
+  slackId        String?
 
   messagesAsked      SlackMessage[]
   issuesOpened       GithubItem[]
@@ -107,10 +107,10 @@ model Channel {
 // List of users that are involved in the thread or an issue / pull request
 model Participant {
   userId Int
-  user   User @relation(fields: [userId], references: [id])
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   actionItemId Int
-  actionItem   ActionItem @relation(fields: [actionItemId], references: [id])
+  actionItem   ActionItem @relation(fields: [actionItemId], references: [id], onDelete: Cascade)
 
   @@id([userId, actionItemId])
 }

@@ -5,7 +5,10 @@ CREATE TYPE "GithubItemType" AS ENUM ('issue', 'pull_request');
 CREATE TYPE "GithubState" AS ENUM ('open', 'closed');
 
 -- CreateEnum
-CREATE TYPE "ActionStatus" AS ENUM ('open', 'ongoing', 'resolved', 'irrelevant');
+CREATE TYPE "ActionStatus" AS ENUM ('open', 'closed');
+
+-- CreateEnum
+CREATE TYPE "ExtraFlags" AS ENUM ('irrelevant', 'resolved');
 
 -- CreateTable
 CREATE TABLE "User" (
@@ -23,7 +26,7 @@ CREATE TABLE "User" (
 CREATE TABLE "SlackMessage" (
     "id" SERIAL NOT NULL,
     "text" TEXT NOT NULL,
-    "ts" TIMESTAMP(3) NOT NULL,
+    "ts" TEXT NOT NULL,
     "channelId" INTEGER NOT NULL,
     "authorId" INTEGER NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -36,8 +39,6 @@ CREATE TABLE "SlackMessage" (
 CREATE TABLE "GithubItem" (
     "id" SERIAL NOT NULL,
     "number" INTEGER NOT NULL,
-    "title" TEXT NOT NULL,
-    "body" TEXT NOT NULL DEFAULT '',
     "nodeId" TEXT NOT NULL,
     "databaseId" BIGINT NOT NULL,
     "state" "GithubState" NOT NULL,
@@ -53,11 +54,13 @@ CREATE TABLE "GithubItem" (
 -- CreateTable
 CREATE TABLE "ActionItem" (
     "id" SERIAL NOT NULL,
-    "slackMessageId" INTEGER NOT NULL,
-    "githubItemId" INTEGER NOT NULL,
-    "resolvedById" INTEGER NOT NULL,
-    "project" TEXT NOT NULL,
+    "slackMessageId" INTEGER,
+    "githubItemId" INTEGER,
+    "firstReplyOn" TIMESTAMP(3),
+    "lastReplyOn" TIMESTAMP(3),
+    "totalReplies" INTEGER NOT NULL,
     "status" "ActionStatus" NOT NULL,
+    "flag" "ExtraFlags",
     "resolvedAt" TIMESTAMP(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
@@ -92,6 +95,9 @@ CREATE TABLE "Repository" (
 );
 
 -- CreateIndex
+CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
+
+-- CreateIndex
 CREATE INDEX "User_id_idx" ON "User"("id");
 
 -- CreateIndex
@@ -101,7 +107,16 @@ CREATE INDEX "SlackMessage_id_idx" ON "SlackMessage"("id");
 CREATE INDEX "SlackMessage_authorId_idx" ON "SlackMessage"("authorId");
 
 -- CreateIndex
+CREATE INDEX "SlackMessage_channelId_idx" ON "SlackMessage"("channelId");
+
+-- CreateIndex
 CREATE INDEX "GithubItem_id_idx" ON "GithubItem"("id");
+
+-- CreateIndex
+CREATE INDEX "GithubItem_repositoryId_idx" ON "GithubItem"("repositoryId");
+
+-- CreateIndex
+CREATE INDEX "GithubItem_authorId_idx" ON "GithubItem"("authorId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "ActionItem_slackMessageId_key" ON "ActionItem"("slackMessageId");
@@ -113,7 +128,19 @@ CREATE UNIQUE INDEX "ActionItem_githubItemId_key" ON "ActionItem"("githubItemId"
 CREATE INDEX "ActionItem_id_idx" ON "ActionItem"("id");
 
 -- CreateIndex
+CREATE INDEX "ActionItem_slackMessageId_idx" ON "ActionItem"("slackMessageId");
+
+-- CreateIndex
+CREATE INDEX "ActionItem_githubItemId_idx" ON "ActionItem"("githubItemId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Channel_slackId_key" ON "Channel"("slackId");
+
+-- CreateIndex
 CREATE INDEX "Channel_id_idx" ON "Channel"("id");
+
+-- CreateIndex
+CREATE INDEX "Repository_id_idx" ON "Repository"("id");
 
 -- AddForeignKey
 ALTER TABLE "SlackMessage" ADD CONSTRAINT "SlackMessage_channelId_fkey" FOREIGN KEY ("channelId") REFERENCES "Channel"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -128,16 +155,13 @@ ALTER TABLE "GithubItem" ADD CONSTRAINT "GithubItem_repositoryId_fkey" FOREIGN K
 ALTER TABLE "GithubItem" ADD CONSTRAINT "GithubItem_authorId_fkey" FOREIGN KEY ("authorId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "ActionItem" ADD CONSTRAINT "ActionItem_slackMessageId_fkey" FOREIGN KEY ("slackMessageId") REFERENCES "SlackMessage"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "ActionItem" ADD CONSTRAINT "ActionItem_slackMessageId_fkey" FOREIGN KEY ("slackMessageId") REFERENCES "SlackMessage"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "ActionItem" ADD CONSTRAINT "ActionItem_githubItemId_fkey" FOREIGN KEY ("githubItemId") REFERENCES "GithubItem"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "ActionItem" ADD CONSTRAINT "ActionItem_githubItemId_fkey" FOREIGN KEY ("githubItemId") REFERENCES "GithubItem"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "ActionItem" ADD CONSTRAINT "ActionItem_resolvedById_fkey" FOREIGN KEY ("resolvedById") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "Participant" ADD CONSTRAINT "Participant_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Participant" ADD CONSTRAINT "Participant_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "Participant" ADD CONSTRAINT "Participant_actionItemId_fkey" FOREIGN KEY ("actionItemId") REFERENCES "ActionItem"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "Participant" ADD CONSTRAINT "Participant_actionItemId_fkey" FOREIGN KEY ("actionItemId") REFERENCES "ActionItem"("id") ON DELETE CASCADE ON UPDATE CASCADE;

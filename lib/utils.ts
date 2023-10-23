@@ -56,3 +56,21 @@ export const getMaintainers = async ({
 
   return maintainers;
 };
+
+export const syncParticipants = async (participants: string[], id: number) => {
+  for (let i = 0; i < participants.length; i++) {
+    const userInfo = await slack.client.users.info({ user: participants[i] as string });
+
+    await prisma.participant.create({
+      data: {
+        actionItem: { connect: { id } },
+        user: {
+          connectOrCreate: {
+            where: { slackId: participants[i] as string, email: userInfo.user?.profile?.email },
+            create: { slackId: participants[i] as string, email: userInfo.user?.profile?.email || "" },
+          },
+        },
+      },
+    });
+  }
+};
