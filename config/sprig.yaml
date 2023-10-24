@@ -1,6 +1,7 @@
 name: Sprig
 description: Teens make games and get a Sprig
-maintainers: [UR6P49Q79, U04QH1TTMBP, U01PJ08PR7S, U022FMN61SB, U04BBP8H9FA]
+slack-managers: [UR6P49Q79, U04QH1TTMBP, U01PJ08PR7S, U022FMN61SB, U04BBP8H9FA]
+maintainers: [faisalsayed10]
 slack-channels:
   - name: sprig
     id: C02UN35M7LG

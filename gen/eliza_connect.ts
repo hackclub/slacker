@@ -13,15 +13,6 @@ export const ElizaService = {
   typeName: "connectrpc.eliza.v1.ElizaService",
   methods: {
     /**
-     * @generated from rpc connectrpc.eliza.v1.ElizaService.SyncSlackMessages
-     */
-    syncSlackMessages: {
-      name: "SyncSlackMessages",
-      I: SyncRequest,
-      O: SyncResponse,
-      kind: MethodKind.Unary,
-    },
-    /**
      * @generated from rpc connectrpc.eliza.v1.ElizaService.SyncGithubItems
      */
     syncGithubItems: {

@@ -47,8 +47,7 @@ model SlackMessage {
 model GithubItem {
   id         Int            @id @default(autoincrement())
   number     Int
-  nodeId     String
-  databaseId BigInt
+  nodeId     String         @unique
   state      GithubState
   type       GithubItemType
   actionItem ActionItem?
@@ -119,6 +118,7 @@ model Repository {
   id    Int    @id @default(autoincrement())
   name  String
   owner String
+  url   String @unique
 
   items GithubItem[]
 

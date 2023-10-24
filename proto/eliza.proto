@@ -10,7 +10,6 @@ message SyncResponse {
   string response = 1;
 }
 
-service ElizaService {
-  rpc SyncSlackMessages(SyncRequest) returns (SyncResponse) {}
+service ElizaService   {
   rpc SyncGithubItems(SyncRequest) returns (SyncResponse) {}
 }

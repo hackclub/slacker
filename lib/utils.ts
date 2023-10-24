@@ -37,24 +37,22 @@ export const getMaintainers = async ({
   repoUrl?: string;
 }) => {
   const files = fs.readdirSync("./config");
-  const maintainers: string[] = [];
+  const arr: string[] = [];
 
   files.forEach(async (file) => {
     try {
       const config = yaml.load(fs.readFileSync(`./config/${file}`, "utf-8")) as Config;
+      const managers = config["slack-managers"];
       const maintainers = config["maintainers"];
       const channels = config["slack-channels"];
       const repos = config["repos"];
 
-      if (
-        (channelId && channels.some((channel) => channel.id === channelId)) ||
-        (repos && repos.some((repo) => repo.uri === repoUrl))
-      )
-        maintainers.push(...maintainers);
+      if (channelId && channels.some((channel) => channel.id === channelId)) arr.push(...managers);
+      else if (repoUrl && repos.some((repo) => repo.uri === repoUrl)) arr.push(...maintainers);
     } catch (err) {}
   });
 
-  return maintainers;
+  return arr;
 };
 
 export const syncParticipants = async (participants: string[], id: number) => {
@@ -67,7 +65,26 @@ export const syncParticipants = async (participants: string[], id: number) => {
         user: {
           connectOrCreate: {
             where: { slackId: participants[i] as string, email: userInfo.user?.profile?.email },
-            create: { slackId: participants[i] as string, email: userInfo.user?.profile?.email || "" },
+            create: {
+              slackId: participants[i] as string,
+              email: userInfo.user?.profile?.email || "",
+            },
+          },
+        },
+      },
+    });
+  }
+};
+
+export const syncGithubParticipants = async (participants: string[], id: number) => {
+  for (let i = 0; i < participants.length; i++) {
+    await prisma.participant.create({
+      data: {
+        actionItem: { connect: { id } },
+        user: {
+          connectOrCreate: {
+            where: { githubUsername: participants[i] as string, email: participants[i] },
+            create: { githubUsername: participants[i] as string, email: participants[i] },
           },
         },
       },

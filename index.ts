@@ -2,12 +2,12 @@ import { expressConnectMiddleware } from "@connectrpc/connect-express";
 import { ActionStatus } from "@prisma/client";
 import { App, ExpressReceiver, LogLevel } from "@slack/bolt";
 import dayjs from "dayjs";
+import customParseFormat from "dayjs/plugin/customParseFormat";
 import { config } from "dotenv";
 import express from "express";
 import prisma from "./lib/db";
-import { getMaintainers, joinChannels, syncParticipants } from "./lib/utils";
+import { getMaintainers, syncParticipants } from "./lib/utils";
 import routes from "./routes";
-import customParseFormat from "dayjs/plugin/customParseFormat";
 
 dayjs.extend(customParseFormat);
 config();
@@ -85,7 +85,13 @@ slack.event("message", async ({ event, client, logger, message }) => {
       const maintainers = await getMaintainers({ channelId: event.channel });
       if (maintainers.includes(parent.user as string)) return;
 
-      const action = await prisma.slackMessage.create({
+      const author = await prisma.user.upsert({
+        where: { email },
+        create: { email, slackId: parent.user as string },
+        update: { slackId: parent.user as string },
+      });
+
+      const slackMessage = await prisma.slackMessage.create({
         data: {
           text: parent.text || "",
           ts: parent.ts || "",
@@ -102,16 +108,12 @@ slack.event("message", async ({ event, client, logger, message }) => {
             },
           },
           channel: { connect: { slackId: event.channel } },
-          author: {
-            connectOrCreate: {
-              where: { slackId: parent.user as string, email },
-              create: { email, slackId: parent.user as string },
-            },
-          },
+          author: { connect: { id: author.id } },
         },
+        include: { actionItem: true },
       });
 
-      await syncParticipants(parent.reply_users || [], action.id);
+      await syncParticipants(parent.reply_users || [], slackMessage.actionItem?.id ?? -1);
     }
   } catch (err) {
     logger.error(err);
