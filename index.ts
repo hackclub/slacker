@@ -6,7 +6,7 @@ import customParseFormat from "dayjs/plugin/customParseFormat";
 import { config } from "dotenv";
 import express from "express";
 import prisma from "./lib/db";
-import { getMaintainers, syncParticipants } from "./lib/utils";
+import { getMaintainers, joinChannels, syncParticipants } from "./lib/utils";
 import routes from "./routes";
 
 dayjs.extend(customParseFormat);
@@ -123,7 +123,7 @@ slack.event("message", async ({ event, client, logger, message }) => {
 (async () => {
   try {
     await slack.start(5000);
-    // await joinChannels();
+    await joinChannels();
     console.log(`Server running on http://localhost:5000`);
   } catch (err) {
     console.error(err);

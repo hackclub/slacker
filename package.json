@@ -5,6 +5,7 @@
   "author": "Faisal Sayed <faisal.sayed502@gmail.com>",
   "license": "MIT",
   "scripts": {
+    "start": "tsx index.ts",
     "dev": "tsx watch index.ts",
     "db:generate": "npx prisma generate",
     "db:migrate": "npx prisma migrate dev",
