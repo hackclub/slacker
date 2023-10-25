@@ -20,8 +20,8 @@ export default (router: ConnectRouter) =>
           const { repos } = yaml.load(readFileSync(`./config/${file}`, "utf-8")) as Config;
 
           for (const repo of repos) {
-            const owner = repo.uri.split("/")[-2];
-            const name = repo.uri.split("/")[-1];
+            const owner = repo.uri.split("/")[3]
+            const name = repo.uri.split("/")[4];
 
             const dbRepo = await prisma.repository.upsert({
               where: { url: repo.uri },
