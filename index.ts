@@ -122,7 +122,7 @@ slack.event("message", async ({ event, client, logger, message }) => {
 
 (async () => {
   try {
-    await slack.start(5000);
+    await slack.start(process.env.PORT || 5000);
     await joinChannels();
     console.log(`Server running on http://localhost:5000`);
   } catch (err) {
