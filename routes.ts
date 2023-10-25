@@ -4,9 +4,10 @@ import { readFileSync, readdirSync } from "fs";
 import yaml from "js-yaml";
 import { ElizaService } from "./gen/eliza_connect";
 import prisma from "./lib/db";
-import app from "./lib/octokit";
+import { getOctokitToken } from "./lib/octokit";
 import { Config, GithubData, SingleIssueOrPullData } from "./lib/types";
 import { getMaintainers, syncGithubParticipants } from "./lib/utils";
+import { Octokit } from "octokit";
 
 // TODO: snoozing functionality and snooze count, snoozed until - only through admins
 
@@ -20,7 +21,7 @@ export default (router: ConnectRouter) =>
           const { repos } = yaml.load(readFileSync(`./config/${file}`, "utf-8")) as Config;
 
           for (const repo of repos) {
-            const owner = repo.uri.split("/")[3]
+            const owner = repo.uri.split("/")[3];
             const name = repo.uri.split("/")[4];
 
             const dbRepo = await prisma.repository.upsert({
@@ -42,7 +43,7 @@ export default (router: ConnectRouter) =>
                     author {
                       login
                     }
-                    participants {
+                    participants (first: 100) {
                       nodes {
                         login
                       }
@@ -64,10 +65,12 @@ export default (router: ConnectRouter) =>
                     id
                     number
                     title
+                    createdAt
+                    updatedAt
                     author {
                       login
                     }
-                    participants {
+                    participants (first: 100) {
                       nodes {
                         login
                       }
@@ -86,11 +89,12 @@ export default (router: ConnectRouter) =>
             }
           `;
 
-            const { data } = (await app.octokit.graphql(query, { owner, name })) as {
-              data: GithubData;
-            };
+            const token = await getOctokitToken(owner, name);
+            const octokit = new Octokit({ auth: "Bearer " + token });
 
-            const items = [...data.repository.issues.nodes, ...data.repository.pullRequests.nodes];
+            const res = (await octokit.graphql(query, { owner, name })) as GithubData;
+
+            const items = [...res.repository.issues.nodes, ...res.repository.pullRequests.nodes];
 
             for (const item of items) {
               const maintainers = await getMaintainers({ repoUrl: repo.uri });
@@ -118,7 +122,7 @@ export default (router: ConnectRouter) =>
                   actionItem: {
                     create: {
                       status: "open",
-                      totalReplies: item.comments.totalCount,
+                      totalReplies: item.comments.totalCount ?? 0,
                       firstReplyOn: item.comments.nodes[0]?.createdAt,
                       lastReplyOn: item.comments.nodes[item.comments.nodes.length - 1]?.createdAt,
                     },
@@ -134,6 +138,7 @@ export default (router: ConnectRouter) =>
                       firstReplyOn: item.comments.nodes[0]?.createdAt,
                       lastReplyOn: item.comments.nodes[item.comments.nodes.length - 1]?.createdAt,
                       resolvedAt: null,
+                      participants: { deleteMany: {} },
                     },
                   },
                 },
@@ -203,9 +208,7 @@ export default (router: ConnectRouter) =>
               }
           `;
 
-              const { data } = (await app.octokit.graphql(query, { id })) as {
-                data: SingleIssueOrPullData;
-              };
+              const res = (await octokit.graphql(query, { id })) as SingleIssueOrPullData;
 
               const githubItem = await prisma.githubItem.update({
                 where: { nodeId: id },
@@ -214,18 +217,19 @@ export default (router: ConnectRouter) =>
                   actionItem: {
                     update: {
                       status: "closed",
-                      totalReplies: data.node.comments.totalCount,
-                      firstReplyOn: data.node.comments.nodes[0]?.createdAt,
+                      totalReplies: res.node.comments.totalCount,
+                      firstReplyOn: res.node.comments.nodes[0]?.createdAt,
                       lastReplyOn:
-                        data.node.comments.nodes[data.node.comments.nodes.length - 1]?.createdAt,
-                      resolvedAt: data.node.closedAt,
+                        res.node.comments.nodes[res.node.comments.nodes.length - 1]?.createdAt,
+                      resolvedAt: res.node.closedAt,
+                      participants: { deleteMany: {} },
                     },
                   },
                 },
-                include: { actionItem: true },
+                include: { actionItem: { include: { participants: true } } },
               });
 
-              const logins = data.node.participants.nodes.map((node) => node.login);
+              const logins = res.node.participants.nodes.map((node) => node.login);
               await syncGithubParticipants(logins, githubItem.actionItem?.id ?? -1);
             }
           }

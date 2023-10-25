@@ -322,7 +322,7 @@
     "@octokit/types" "^12.0.0"
     "@octokit/webhooks" "^12.0.1"
 
-"@octokit/auth-app@^6.0.0":
+"@octokit/auth-app@^6.0.0", "@octokit/auth-app@^6.0.1":
   version "6.0.1"
   resolved "https://registry.yarnpkg.com/@octokit/auth-app/-/auth-app-6.0.1.tgz#7137b1af124189a979de6053da5d4c8cdb1fa4e9"
   integrity sha512-tjCD4nzQNZgmLH62+PSnTF6eGerisFgV4v6euhqJik6yWV96e1ZiiGj+NXIqbgnpjLmtnBqVUrNyGKu3DoGEGA==
