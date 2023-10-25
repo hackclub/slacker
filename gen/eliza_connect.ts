@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { SyncRequest, SyncResponse } from "./eliza_pb.js";
+import { Empty, SyncResponse } from "./eliza_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -17,7 +17,7 @@ export const ElizaService = {
      */
     syncGithubItems: {
       name: "SyncGithubItems",
-      I: SyncRequest,
+      I: Empty,
       O: SyncResponse,
       kind: MethodKind.Unary,
     },

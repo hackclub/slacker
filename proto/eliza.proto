@@ -6,10 +6,13 @@ message SyncRequest {
   string project = 1;
 }
 
+message Empty {
+}
+
 message SyncResponse {
   string response = 1;
 }
 
 service ElizaService   {
-  rpc SyncGithubItems(SyncRequest) returns (SyncResponse) {}
+  rpc SyncGithubItems(Empty) returns (SyncResponse) {}
 }

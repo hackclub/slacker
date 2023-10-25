@@ -40,6 +40,9 @@ slack.event("message", async ({ event, client, logger, message }) => {
 
     if (message.subtype || message.bot_id) return;
 
+    const channel = await prisma.channel.findFirst({ where: { slackId: event.channel } });
+    if (!channel) return;
+
     const parent = await client.conversations
       .history({ channel: event.channel, latest: message.thread_ts, limit: 1, inclusive: true })
       .then((res) => res.messages?.[0]);
