@@ -8,6 +8,9 @@ import express from "express";
 import prisma from "./lib/db";
 import { getMaintainers, joinChannels, syncParticipants } from "./lib/utils";
 import routes from "./routes";
+import yaml from "js-yaml";
+import { readFileSync, readdirSync, writeFileSync } from "fs";
+import { Config } from "./lib/types";
 
 dayjs.extend(customParseFormat);
 config();
@@ -123,10 +126,78 @@ slack.event("message", async ({ event, client, logger, message }) => {
   }
 });
 
+// fix not in channel error
+
+slack.command("/slacker", async ({ command, ack, client, logger, body }) => {
+  await ack();
+
+  try {
+    const { text, user_id, channel_id } = command;
+    const [project, filter] = text.split(" ");
+
+    const files = readdirSync("./config");
+    if (!files.includes(`${project}.yaml`)) {
+      await client.chat.postEphemeral({
+        user: user_id,
+        channel: channel_id,
+        text: `:warning: Project not found. Please check your command and try again.`,
+      });
+      return;
+    }
+
+    if (filter && !["", "all", "github", "slack"].includes(filter.trim())) {
+      await client.chat.postEphemeral({
+        user: user_id,
+        channel: channel_id,
+        text: `:warning: Invalid filter. Please check your command and try again.`,
+      });
+      return;
+    }
+
+    const config = yaml.load(readFileSync(`./config/${project}.yaml`, "utf-8")) as Config;
+    const channels = config["slack-channels"];
+    const repositories = config["repos"];
+
+    const data = await prisma.actionItem.findMany({
+      where: {
+        OR: [
+          ...(!filter || filter === "all" || filter === "slack"
+            ? [{ slackMessage: { channel: { slackId: { in: channels.map((c) => c.id) } } } }]
+            : []),
+          ...(!filter || filter === "all" || filter === "github"
+            ? [
+                {
+                  githubItem: {
+                    repository: {
+                      owner: { in: repositories.map((r) => r.uri.split("/")[3]) },
+                      name: { in: repositories.map((r) => r.uri.split("/")[4]) },
+                    },
+                  },
+                },
+              ]
+            : []),
+        ],
+        status: { not: ActionStatus.closed },
+      },
+      include: {
+        githubItem: { include: { author: true, repository: true } },
+        slackMessage: { include: { author: true, channel: true } },
+        participants: true,
+      },
+    });
+
+    console.log(data.length);
+
+    writeFileSync("./output.json", JSON.stringify(data, null, 2));
+  } catch (err) {
+    logger.error(err);
+  }
+});
+
 (async () => {
   try {
     await slack.start(process.env.PORT || 5000);
-    await joinChannels();
+    // await joinChannels();
     console.log(`Server running on http://localhost:5000`);
   } catch (err) {
     console.error(err);
