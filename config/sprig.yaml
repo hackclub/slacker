@@ -11,6 +11,10 @@ slack-channels:
     id: C04S1A8NT44
     sla:
       responseTime: 24h
+  - name: sprig-device-requests
+    id: C063DFZ532M
+    sla:
+      responseTime: 24h
 repos:
   - uri: https://github.com/hackclub/sprig
     sla:

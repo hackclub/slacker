@@ -1,6 +1,6 @@
 name: Sprig
 description: Teens make games and get a Sprig
-slack-managers: [UR6P49Q79, U04QH1TTMBP, U01PJ08PR7S, U022FMN61SB, U04BBP8H9FA]
+slack-managers: [U014ND5P1N2, U04QH1TTMBP]
 maintainers: [faisalsayed10, grymmy]
 slack-channels:
   - name: bot-spam

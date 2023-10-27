@@ -10,6 +10,9 @@ import { getMaintainers, syncGithubParticipants } from "./lib/utils";
 import { Octokit } from "octokit";
 
 // TODO: snoozing functionality and snooze count, snoozed until - only through admins
+// assignee feature
+// restrict to users who are listed as maintainers in config
+// github oauth for getting gh action items
 
 export default (router: ConnectRouter) =>
   router.service(ElizaService, {

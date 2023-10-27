@@ -3,14 +3,16 @@ import { ActionStatus } from "@prisma/client";
 import { App, ExpressReceiver, LogLevel } from "@slack/bolt";
 import dayjs from "dayjs";
 import customParseFormat from "dayjs/plugin/customParseFormat";
+import relativeTime from "dayjs/plugin/relativeTime";
 import { config } from "dotenv";
 import express from "express";
-import prisma from "./lib/db";
-import { getMaintainers, joinChannels, syncParticipants } from "./lib/utils";
-import routes from "./routes";
+import { readFileSync, readdirSync } from "fs";
 import yaml from "js-yaml";
-import { readFileSync, readdirSync, writeFileSync } from "fs";
+import prisma from "./lib/db";
 import { Config } from "./lib/types";
+import { getMaintainers, syncParticipants } from "./lib/utils";
+import routes from "./routes";
+dayjs.extend(relativeTime);
 
 dayjs.extend(customParseFormat);
 config();
@@ -21,6 +23,18 @@ app.use(expressConnectMiddleware({ routes }));
 app.get("/", async (_, res) => {
   res.send("Hello World!");
 });
+
+app.get("/auth", async (_, res) => {
+  res.redirect(
+    `https://github.com/login/oauth/authorize?client_id=${process.env.GITHUB_CLIENT_ID}&redirect_uri=${"https://slacker.underpass.clb.li/auth/callback"}`
+  );
+})
+
+app.get("/auth/callback", async (req, res) => {
+  console.log(req.query);
+
+  return "ok";
+})
 
 const receiver = new ExpressReceiver({
   signingSecret: process.env.SLACK_SIGNING_SECRET as string,
@@ -157,6 +171,19 @@ slack.command("/slacker", async ({ command, ack, client, logger, body }) => {
     const config = yaml.load(readFileSync(`./config/${project}.yaml`, "utf-8")) as Config;
     const channels = config["slack-channels"];
     const repositories = config["repos"];
+    const managers = config["slack-managers"];
+    const maintainers = config.maintainers;
+
+    if (!managers.includes(user_id)) {
+      await client.chat.postEphemeral({
+        user: user_id,
+        channel: channel_id,
+        text: `:warning: Sorry, you are not a manager for this project. Make sure you're listed inside the config/[project].yaml file.`,
+      });
+      return;
+    }
+
+    const user = await prisma.user.findFirst({ where: { slackId: user_id } });
 
     const data = await prisma.actionItem.findMany({
       where: {
@@ -164,7 +191,8 @@ slack.command("/slacker", async ({ command, ack, client, logger, body }) => {
           ...(!filter || filter === "all" || filter === "slack"
             ? [{ slackMessage: { channel: { slackId: { in: channels.map((c) => c.id) } } } }]
             : []),
-          ...(!filter || filter === "all" || filter === "github"
+          ...((!filter || filter === "all" || filter === "github") &&
+          maintainers.includes(user?.githubUsername ?? "")
             ? [
                 {
                   githubItem: {
@@ -182,13 +210,69 @@ slack.command("/slacker", async ({ command, ack, client, logger, body }) => {
       include: {
         githubItem: { include: { author: true, repository: true } },
         slackMessage: { include: { author: true, channel: true } },
-        participants: true,
+        participants: { include: { user: true } },
       },
     });
 
-    console.log(data.length);
-
-    writeFileSync("./output.json", JSON.stringify(data, null, 2));
+    await client.chat.postMessage({
+      channel: user_id,
+      unfurl_links: false,
+      text: `:white_check_mark: Here are your action items:`,
+      blocks: [
+        {
+          type: "section",
+          text: {
+            type: "mrkdwn",
+            text: `:white_check_mark: Here are your action items:`,
+          },
+        },
+        {
+          type: "divider",
+        },
+        ...data.map((item) => ({
+          type: "section",
+          text: {
+            type: "mrkdwn",
+            text: `Query: *${item.slackMessage?.text}*\n\nOpened by <@${
+              item.slackMessage?.author?.slackId
+            }> on ${dayjs(item.slackMessage?.createdAt).format("MMM DD, YYYY")} at ${dayjs(
+              item.slackMessage?.createdAt
+            ).format("hh:mm A")}\n*Last reply:* ${dayjs(
+              item.lastReplyOn
+            ).fromNow()}\n<https://hackclub.slack.com/archives/${
+              item.slackMessage?.channel?.slackId
+            }/p${item.slackMessage?.ts.replace(".", "")}|View on Slack>`,
+          },
+          accessory: {
+            type: "button",
+            text: {
+              type: "plain_text",
+              emoji: true,
+              text: "Resolve",
+            },
+            style: "primary",
+            value: item.id.toString(),
+          },
+        })),
+        { type: "divider" },
+        {
+          type: "context",
+          elements: [
+            {
+              type: "mrkdwn",
+              text: `*Total action items:* ${data.length}`,
+            },
+          ],
+        },
+        {
+          type: "section",
+          text: {
+            type: "mrkdwn",
+            text: `In order to get github items, please <https://slacker.underpass.clb.li/auth|authenticate> slacker to access your github account.`,
+          },
+        },
+      ],
+    });
   } catch (err) {
     logger.error(err);
   }
