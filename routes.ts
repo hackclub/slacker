@@ -9,7 +9,6 @@ import { Config, GithubData, SingleIssueOrPullData } from "./lib/types";
 import { getMaintainers, syncGithubParticipants } from "./lib/utils";
 import { Octokit } from "octokit";
 
-// TODO: snoozing functionality and snooze count, snoozed until - only through admins
 // airtable integration
 // assignee feature
 

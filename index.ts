@@ -76,7 +76,7 @@ const receiver = new ExpressReceiver({
 });
 
 export const slack = new App({
-  logLevel: LogLevel.INFO,
+  logLevel: LogLevel.DEBUG,
   token: process.env.SLACK_BOT_TOKEN,
   receiver,
 });
@@ -217,34 +217,38 @@ slack.command("/slacker", async ({ command, ack, client, logger, body }) => {
 
     const user = await prisma.user.findFirst({ where: { slackId: user_id } });
 
-    const data = await prisma.actionItem.findMany({
-      where: {
-        OR: [
-          ...(!filter || filter === "all" || filter === "slack"
-            ? [{ slackMessage: { channel: { slackId: { in: channels.map((c) => c.id) } } } }]
-            : []),
-          ...((!filter || filter === "all" || filter === "github") &&
-          maintainers.includes(user?.githubUsername ?? "")
-            ? [
-                {
-                  githubItem: {
-                    repository: {
-                      owner: { in: repositories.map((r) => r.uri.split("/")[3]) },
-                      name: { in: repositories.map((r) => r.uri.split("/")[4]) },
+    const data = await prisma.actionItem
+      .findMany({
+        where: {
+          OR: [
+            ...(!filter || filter === "all" || filter === "slack"
+              ? [{ slackMessage: { channel: { slackId: { in: channels.map((c) => c.id) } } } }]
+              : []),
+            ...((!filter || filter === "all" || filter === "github") &&
+            maintainers.includes(user?.githubUsername ?? "")
+              ? [
+                  {
+                    githubItem: {
+                      repository: {
+                        owner: { in: repositories.map((r) => r.uri.split("/")[3]) },
+                        name: { in: repositories.map((r) => r.uri.split("/")[4]) },
+                      },
                     },
                   },
-                },
-              ]
-            : []),
-        ],
-        status: { not: ActionStatus.closed },
-      },
-      include: {
-        githubItem: { include: { author: true, repository: true } },
-        slackMessage: { include: { author: true, channel: true } },
-        participants: { include: { user: true } },
-      },
-    });
+                ]
+              : []),
+          ],
+          status: { not: ActionStatus.closed },
+        },
+        include: {
+          githubItem: { include: { author: true, repository: true } },
+          slackMessage: { include: { author: true, channel: true } },
+          participants: { include: { user: true } },
+        },
+      })
+      .then((res) =>
+        res.filter((i) => i.snoozedUntil === null || dayjs().isAfter(dayjs(i.snoozedUntil)))
+      );
 
     await client.chat.postMessage({
       channel: user_id,
@@ -261,79 +265,99 @@ slack.command("/slacker", async ({ command, ack, client, logger, body }) => {
         {
           type: "divider",
         },
-        ...data.map((item) => {
-          const diff = dayjs().diff(dayjs(item.lastReplyOn), "day");
+        ...data
+          .slice(0, 15)
+          .map((item) => {
+            const arr: any[] = [];
+            const diff = dayjs().diff(dayjs(item.lastReplyOn), "day");
 
-          if (item.slackMessage !== null) {
-            return {
-              type: "section",
-              text: {
-                type: "mrkdwn",
-                text: `Query: *${item.slackMessage?.text}*\n\nOpened by <@${
-                  item.slackMessage?.author?.slackId
-                }> on ${dayjs(item.slackMessage?.createdAt).format("MMM DD, YYYY")} at ${dayjs(
-                  item.slackMessage?.createdAt
-                ).format("hh:mm A")}${
-                  item.lastReplyOn
-                    ? `\n*Last reply:* ${dayjs(item.lastReplyOn).fromNow()} ${
-                        diff > 10 ? ":panik:" : ""
-                      }`
-                    : "\n:panik: *No replies yet*"
-                }\n<https://hackclub.slack.com/archives/${
-                  item.slackMessage?.channel?.slackId
-                }/p${item.slackMessage?.ts.replace(".", "")}|View on Slack>`,
-              },
-              accessory: {
-                type: "button",
+            if (item.slackMessage !== null) {
+              arr.push({
+                type: "section",
                 text: {
-                  type: "plain_text",
-                  emoji: true,
-                  text: "Resolve",
+                  type: "mrkdwn",
+                  text: `Query: *${item.slackMessage?.text}*\n\nOpened by <@${
+                    item.slackMessage?.author?.slackId
+                  }> on ${dayjs(item.slackMessage?.createdAt).format("MMM DD, YYYY")} at ${dayjs(
+                    item.slackMessage?.createdAt
+                  ).format("hh:mm A")}${
+                    item.lastReplyOn
+                      ? `\n*Last reply:* ${dayjs(item.lastReplyOn).fromNow()} ${
+                          diff > 10 ? ":panik:" : ""
+                        }`
+                      : "\n:panik: *No replies yet*"
+                  }\n<https://hackclub.slack.com/archives/${
+                    item.slackMessage?.channel?.slackId
+                  }/p${item.slackMessage?.ts.replace(".", "")}|View on Slack>`,
                 },
-                style: "primary",
-                value: item.id,
-                action_id: "resolve",
-              },
-            };
-          }
+                accessory: {
+                  type: "button",
+                  text: {
+                    type: "plain_text",
+                    emoji: true,
+                    text: "Resolve",
+                  },
+                  style: "primary",
+                  value: item.id,
+                  action_id: "resolve",
+                },
+              });
+            }
 
-          if (item.githubItem !== null) {
-            const text =
-              (item.githubItem?.type === "issue" ? "Issue: " : "Pull Request: ") +
-              `https://github.com/${item.githubItem?.repository?.owner}/${item.githubItem?.repository?.name}/issues/${item.githubItem?.number}`;
+            if (item.githubItem !== null) {
+              const text =
+                (item.githubItem?.type === "issue" ? "Issue: " : "Pull Request: ") +
+                `https://github.com/${item.githubItem?.repository?.owner}/${item.githubItem?.repository?.name}/issues/${item.githubItem?.number}`;
 
-            return {
-              type: "section",
-              text: {
-                type: "mrkdwn",
-                text: `${text}\n\nOpened by ${item.githubItem?.author?.githubUsername} on ${dayjs(
-                  item.githubItem?.createdAt
-                ).format("MMM DD, YYYY")} at ${dayjs(item.githubItem?.createdAt).format(
-                  "hh:mm A"
-                )}${
-                  item.lastReplyOn
-                    ? `\n*Last reply:* ${dayjs(item.lastReplyOn).fromNow()} ${
-                        diff > 10 ? ":panik:" : ""
-                      }`
-                    : "\n:panik: *No replies yet*"
-                }`,
-              },
-              accessory: {
-                type: "button",
+              arr.push({
+                type: "section",
                 text: {
-                  type: "plain_text",
-                  emoji: true,
-                  text: "Resolve",
+                  type: "mrkdwn",
+                  text: `${text}\n\nOpened by ${item.githubItem?.author?.githubUsername} on ${dayjs(
+                    item.githubItem?.createdAt
+                  ).format("MMM DD, YYYY")} at ${dayjs(item.githubItem?.createdAt).format(
+                    "hh:mm A"
+                  )}${
+                    item.lastReplyOn
+                      ? `\n*Last reply:* ${dayjs(item.lastReplyOn).fromNow()} ${
+                          diff > 10 ? ":panik:" : ""
+                        }`
+                      : "\n:panik: *No replies yet*"
+                  }`,
                 },
-                style: "primary",
-                value: item.id,
-                action_id: "resolve",
-              },
-            };
-          }
+                accessory: {
+                  type: "button",
+                  text: { type: "plain_text", emoji: true, text: "Resolve" },
+                  style: "primary",
+                  value: item.id,
+                  action_id: "resolve",
+                },
+              });
+            }
 
-          return { type: "divider" };
-        }),
+            // Buttons
+            arr.push({
+              type: "actions",
+              elements: [
+                {
+                  type: "button",
+                  text: { type: "plain_text", emoji: true, text: "Snooze" },
+                  style: "danger",
+                  value: item.id,
+                  action_id: "snooze",
+                },
+                {
+                  type: "button",
+                  text: { type: "plain_text", emoji: true, text: "Close - Irrelevant" },
+                  value: item.id,
+                  action_id: "irrelevant",
+                },
+              ],
+            });
+
+            return arr;
+          })
+          .flat(),
         { type: "divider" },
         {
           type: "context",
@@ -355,10 +379,8 @@ slack.command("/slacker", async ({ command, ack, client, logger, body }) => {
   }
 });
 
-slack.action("resolve", async ({ ack, body, client, logger, action }) => {
+slack.action("resolve", async ({ ack, body, client, logger }) => {
   await ack();
-
-  console.log("here");
 
   try {
     const { user, channel, actions } = body as any;
@@ -504,6 +526,262 @@ slack.action("resolve", async ({ ack, body, client, logger, action }) => {
       channel: channel?.id as string,
       user: user.id,
       text: `:white_check_mark: Action item (id=${actionId}) resolved by <@${user.id}>`,
+    });
+  } catch (err) {
+    logger.error(err);
+  }
+});
+
+slack.action("snooze", async ({ ack, body, client, logger }) => {
+  await ack();
+
+  try {
+    const { actions, channel } = body as any;
+    const actionId = actions[0].value;
+
+    const action = await prisma.actionItem.findFirst({
+      where: { id: actionId },
+      include: {
+        slackMessage: { include: { channel: true } },
+        githubItem: { include: { repository: true } },
+      },
+    });
+
+    if (!action) return;
+
+    await client.views.open({
+      trigger_id: (body as any).trigger_id as string,
+      view: {
+        type: "modal",
+        callback_id: "snooze_submit",
+        private_metadata: JSON.stringify({ actionId, channelId: channel?.id as string }),
+        title: {
+          type: "plain_text",
+          text: "Snooze",
+        },
+        submit: {
+          type: "plain_text",
+          text: "Snooze",
+        },
+        blocks: [
+          {
+            type: "input",
+            block_id: "datetime",
+            element: {
+              type: "datetimepicker",
+              action_id: "datetimepicker-action",
+              initial_date_time: Math.floor(dayjs().add(1, "day").valueOf() / 1000),
+              focus_on_load: true,
+            },
+            label: {
+              type: "plain_text",
+              text: "Snooze until",
+            },
+          },
+          {
+            type: "context",
+            elements: [
+              {
+                type: "mrkdwn",
+                text: `:bangbang: Snooze wisely. If you keep snoozing an item repeatedly, you'll be called out for slackin'.`,
+              },
+            ],
+          },
+        ],
+      },
+    });
+  } catch (err) {
+    logger.error(err);
+  }
+});
+
+slack.view("snooze_submit", async ({ ack, body, client, logger }) => {
+  await ack();
+
+  try {
+    const { user, view } = body;
+    const { actionId, channelId } = JSON.parse(view.private_metadata);
+
+    const action = await prisma.actionItem.findFirst({
+      where: { id: actionId },
+      include: {
+        slackMessage: { include: { channel: true } },
+        githubItem: { include: { repository: true } },
+      },
+    });
+
+    if (!action) return;
+
+    const { selected_date_time } = view.state.values.datetime["datetimepicker-action"];
+    const snoozedUntil = dayjs(selected_date_time).toDate();
+    const dbUser = await prisma.user.findFirst({ where: { slackId: user.id } });
+
+    await prisma.actionItem.update({
+      where: { id: actionId },
+      data: { snoozedUntil, snoozeCount: { increment: 1 }, snoozedById: dbUser?.id },
+    });
+
+    await client.chat.postEphemeral({
+      channel: channelId,
+      user: user.id,
+      text: `:white_check_mark: Action item (id=${actionId}) snoozed until ${dayjs(
+        snoozedUntil
+      ).format("MMM DD, YYYY hh:mm A")} by <@${user.id}> (Snooze count: ${action.snoozeCount + 1})`,
+    });
+  } catch (err) {
+    logger.error(err);
+  }
+});
+
+slack.action("irrelevant", async ({ ack, body, client, logger }) => {
+  await ack();
+
+  try {
+    const { user, channel, actions } = body as any;
+    const actionId = actions[0].value;
+
+    const action = await prisma.actionItem.findFirst({
+      where: { id: actionId },
+      include: {
+        slackMessage: { include: { channel: true } },
+        githubItem: { include: { repository: true } },
+      },
+    });
+
+    if (!action) return;
+
+    if (action.githubItem !== null) {
+      const token = await getOctokitToken(
+        action.githubItem.repository.owner,
+        action.githubItem.repository.name
+      );
+      const octokit = new Octokit({ auth: "Bearer " + token });
+
+      const query = `
+        query ($id: String!) {
+          node(id: $id) {
+            ... on Issue {
+              closedAt
+              assignees(first: 100) {
+                nodes {
+                  login
+                }
+              }
+              participants(first: 100) {
+                nodes {
+                  login
+                }
+              }
+              comments(first: 100) {
+                totalCount
+                nodes {
+                  author {
+                    login
+                  }
+                  createdAt
+                }
+              }
+            }
+            ... on PullRequest {
+              closedAt
+              assignees(first: 100) {
+                nodes {
+                  login
+                }
+              }
+              participants(first: 100) {
+                nodes {
+                  login
+                }
+              }
+              comments(first: 100) {
+                totalCount
+                nodes {
+                  author {
+                    login
+                  }
+                  createdAt
+                }
+              }
+            }
+          }
+        }
+      `;
+
+      const res = (await octokit.graphql(query, {
+        id: action.githubItem.nodeId,
+      })) as SingleIssueOrPullData;
+
+      await prisma.githubItem.update({
+        where: { nodeId: action.githubItem.nodeId },
+        data: {
+          state: "closed",
+          actionItem: {
+            update: {
+              status: "closed",
+              totalReplies: res.node.comments.totalCount,
+              firstReplyOn: res.node.comments.nodes[0]?.createdAt,
+              lastReplyOn: res.node.comments.nodes[res.node.comments.nodes.length - 1]?.createdAt,
+              resolvedAt: res.node.closedAt,
+              participants: { deleteMany: {} },
+              flag: "irrelevant",
+            },
+          },
+        },
+        include: { actionItem: { include: { participants: true } } },
+      });
+
+      const logins = res.node.participants.nodes.map((node) => node.login);
+      await syncGithubParticipants(logins, action.id);
+    } else if (action.slackMessage !== null) {
+      const parent = await client.conversations
+        .history({
+          channel: action.slackMessage.channel.slackId,
+          latest: action.slackMessage.ts,
+          limit: 1,
+          inclusive: true,
+        })
+        .then((res) => res.messages?.[0]);
+
+      if (!parent) return;
+
+      const threadReplies = await client.conversations
+        .replies({
+          channel: action.slackMessage.channel.slackId,
+          ts: parent.ts as string,
+          limit: 100,
+        })
+        .then((res) => res.messages?.slice(1));
+
+      await prisma.slackMessage.update({
+        where: { id: action.slackMessage.id },
+        data: {
+          actionItem: {
+            update: {
+              status: "closed",
+              lastReplyOn: parent.latest_reply
+                ? dayjs(parent.latest_reply.split(".")[0], "X").toDate()
+                : undefined,
+              firstReplyOn: threadReplies?.[0]?.ts
+                ? dayjs(threadReplies[0].ts.split(".")[0], "X").toDate()
+                : undefined,
+              totalReplies: parent.reply_count || 0,
+              resolvedAt: new Date(),
+              participants: { deleteMany: {} },
+              flag: "irrelevant",
+            },
+          },
+        },
+        include: { actionItem: { include: { participants: true } } },
+      });
+
+      await syncParticipants(parent.reply_users || [], action.id);
+    }
+
+    await client.chat.postEphemeral({
+      channel: channel?.id as string,
+      user: user.id,
+      text: `:white_check_mark: Action item (id=${actionId}) closed as irrelevant by <@${user.id}>`,
     });
   } catch (err) {
     logger.error(err);

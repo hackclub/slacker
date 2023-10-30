@@ -8,7 +8,8 @@
     "start": "tsx index.ts",
     "dev": "tsx watch index.ts",
     "db:generate": "npx prisma generate",
-    "db:migrate": "npx prisma migrate dev",
+    "db:migrate-dev": "npx prisma migrate dev",
+    "db:migrate-deploy": "npx prisma migrate deploy",
     "db:push": "npx prisma db push"
   },
   "dependencies": {
