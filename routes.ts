@@ -10,9 +10,8 @@ import { getMaintainers, syncGithubParticipants } from "./lib/utils";
 import { Octokit } from "octokit";
 
 // TODO: snoozing functionality and snooze count, snoozed until - only through admins
+// airtable integration
 // assignee feature
-// restrict to users who are listed as maintainers in config
-// github oauth for getting gh action items
 
 export default (router: ConnectRouter) =>
   router.service(ElizaService, {
@@ -149,7 +148,7 @@ export default (router: ConnectRouter) =>
               });
 
               const logins = item.participants.nodes.map((node) => node.login);
-              await syncGithubParticipants(logins, githubItem.actionItem?.id ?? -1);
+              await syncGithubParticipants(logins, githubItem.actionItem!.id);
             }
 
             const dbItems = await prisma.githubItem.findMany({
@@ -233,7 +232,7 @@ export default (router: ConnectRouter) =>
               });
 
               const logins = res.node.participants.nodes.map((node) => node.login);
-              await syncGithubParticipants(logins, githubItem.actionItem?.id ?? -1);
+              await syncGithubParticipants(logins, githubItem.actionItem!.id);
             }
           }
         }

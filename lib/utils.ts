@@ -55,7 +55,7 @@ export const getMaintainers = async ({
   return arr;
 };
 
-export const syncParticipants = async (participants: string[], id: number) => {
+export const syncParticipants = async (participants: string[], id: string) => {
   for (let i = 0; i < participants.length; i++) {
     const userInfo = await slack.client.users.info({ user: participants[i] as string });
 
@@ -76,7 +76,7 @@ export const syncParticipants = async (participants: string[], id: number) => {
   }
 };
 
-export const syncGithubParticipants = async (participants: string[], id: number) => {
+export const syncGithubParticipants = async (participants: string[], id: string) => {
   for (let i = 0; i < participants.length; i++) {
     await prisma.participant.create({
       data: {

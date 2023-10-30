@@ -9,9 +9,12 @@ import express from "express";
 import { readFileSync, readdirSync } from "fs";
 import yaml from "js-yaml";
 import prisma from "./lib/db";
-import { Config } from "./lib/types";
-import { getMaintainers, syncParticipants } from "./lib/utils";
+import { Config, SingleIssueOrPullData } from "./lib/types";
+import { getMaintainers, syncGithubParticipants, syncParticipants } from "./lib/utils";
 import routes from "./routes";
+import { createOAuthUserAuth } from "@octokit/auth-app";
+import { Octokit } from "octokit";
+import { getOctokitToken } from "./lib/octokit";
 dayjs.extend(relativeTime);
 
 dayjs.extend(customParseFormat);
@@ -24,17 +27,48 @@ app.get("/", async (_, res) => {
   res.send("Hello World!");
 });
 
-app.get("/auth", async (_, res) => {
+app.get("/auth", async (req, res) => {
+  const id = req.query.id;
+
+  if (!id) return res.json({ error: "No user id provided for the slack user" });
+
   res.redirect(
-    `https://github.com/login/oauth/authorize?client_id=${process.env.GITHUB_CLIENT_ID}&redirect_uri=${"https://slacker.underpass.clb.li/auth/callback"}`
+    `https://github.com/login/oauth/authorize?client_id=${
+      process.env.GITHUB_CLIENT_ID
+    }&redirect_uri=${"https://slacker.underpass.clb.li/auth/callback?id=" + id}"}`
   );
-})
+});
 
 app.get("/auth/callback", async (req, res) => {
-  console.log(req.query);
+  const { code, id } = req.query;
 
-  return "ok";
-})
+  if (!code) return res.json({ error: "No code provided" });
+  if (!id) return res.json({ error: "No slackId provided" });
+
+  const auth = createOAuthUserAuth({
+    clientId: process.env.GITHUB_CLIENT_ID as string,
+    clientSecret: process.env.GITHUB_CLIENT_SECRET as string,
+    code: code as string,
+    scopes: ["email"],
+  });
+
+  const { token } = await auth();
+  const octokit = new Octokit({ auth: token });
+  const user = await octokit.rest.users.getAuthenticated();
+
+  if (!user.data.email) return res.json({ error: "No email found" });
+
+  await prisma.user.deleteMany({
+    where: { AND: [{ githubUsername: user.data.login }, { slackId: { equals: null } }] },
+  });
+
+  await prisma.user.updateMany({
+    where: { OR: [{ email: user.data.email }, { slackId: id as string }] },
+    data: { githubUsername: user.data.login, githubToken: token },
+  });
+
+  return res.json({ message: "OAuth successful, hacker! Go ahead and start using slacker!" });
+});
 
 const receiver = new ExpressReceiver({
   signingSecret: process.env.SLACK_SIGNING_SECRET as string,
@@ -133,14 +167,12 @@ slack.event("message", async ({ event, client, logger, message }) => {
         include: { actionItem: true },
       });
 
-      await syncParticipants(parent.reply_users || [], slackMessage.actionItem?.id ?? -1);
+      await syncParticipants(parent.reply_users || [], slackMessage.actionItem!.id);
     }
   } catch (err) {
     logger.error(err);
   }
 });
-
-// fix not in channel error
 
 slack.command("/slacker", async ({ command, ack, client, logger, body }) => {
   await ack();
@@ -229,49 +261,249 @@ slack.command("/slacker", async ({ command, ack, client, logger, body }) => {
         {
           type: "divider",
         },
-        ...data.map((item) => ({
-          type: "section",
-          text: {
-            type: "mrkdwn",
-            text: `Query: *${item.slackMessage?.text}*\n\nOpened by <@${
-              item.slackMessage?.author?.slackId
-            }> on ${dayjs(item.slackMessage?.createdAt).format("MMM DD, YYYY")} at ${dayjs(
-              item.slackMessage?.createdAt
-            ).format("hh:mm A")}\n*Last reply:* ${dayjs(
-              item.lastReplyOn
-            ).fromNow()}\n<https://hackclub.slack.com/archives/${
-              item.slackMessage?.channel?.slackId
-            }/p${item.slackMessage?.ts.replace(".", "")}|View on Slack>`,
-          },
-          accessory: {
-            type: "button",
-            text: {
-              type: "plain_text",
-              emoji: true,
-              text: "Resolve",
-            },
-            style: "primary",
-            value: item.id.toString(),
-          },
-        })),
+        ...data.map((item) => {
+          const diff = dayjs().diff(dayjs(item.lastReplyOn), "day");
+
+          if (item.slackMessage !== null) {
+            return {
+              type: "section",
+              text: {
+                type: "mrkdwn",
+                text: `Query: *${item.slackMessage?.text}*\n\nOpened by <@${
+                  item.slackMessage?.author?.slackId
+                }> on ${dayjs(item.slackMessage?.createdAt).format("MMM DD, YYYY")} at ${dayjs(
+                  item.slackMessage?.createdAt
+                ).format("hh:mm A")}${
+                  item.lastReplyOn
+                    ? `\n*Last reply:* ${dayjs(item.lastReplyOn).fromNow()} ${
+                        diff > 10 ? ":panik:" : ""
+                      }`
+                    : "\n:panik: *No replies yet*"
+                }\n<https://hackclub.slack.com/archives/${
+                  item.slackMessage?.channel?.slackId
+                }/p${item.slackMessage?.ts.replace(".", "")}|View on Slack>`,
+              },
+              accessory: {
+                type: "button",
+                text: {
+                  type: "plain_text",
+                  emoji: true,
+                  text: "Resolve",
+                },
+                style: "primary",
+                value: item.id,
+                action_id: "resolve",
+              },
+            };
+          }
+
+          if (item.githubItem !== null) {
+            const text =
+              (item.githubItem?.type === "issue" ? "Issue: " : "Pull Request: ") +
+              `https://github.com/${item.githubItem?.repository?.owner}/${item.githubItem?.repository?.name}/issues/${item.githubItem?.number}`;
+
+            return {
+              type: "section",
+              text: {
+                type: "mrkdwn",
+                text: `${text}\n\nOpened by ${item.githubItem?.author?.githubUsername} on ${dayjs(
+                  item.githubItem?.createdAt
+                ).format("MMM DD, YYYY")} at ${dayjs(item.githubItem?.createdAt).format(
+                  "hh:mm A"
+                )}${
+                  item.lastReplyOn
+                    ? `\n*Last reply:* ${dayjs(item.lastReplyOn).fromNow()} ${
+                        diff > 10 ? ":panik:" : ""
+                      }`
+                    : "\n:panik: *No replies yet*"
+                }`,
+              },
+              accessory: {
+                type: "button",
+                text: {
+                  type: "plain_text",
+                  emoji: true,
+                  text: "Resolve",
+                },
+                style: "primary",
+                value: item.id,
+                action_id: "resolve",
+              },
+            };
+          }
+
+          return { type: "divider" };
+        }),
         { type: "divider" },
         {
           type: "context",
           elements: [
             {
               type: "mrkdwn",
-              text: `*Total action items:* ${data.length}`,
+              text: `*Total action items:* ${data.length} | ${
+                user?.githubUsername
+                  ? `Logged in with github. You're all good.`
+                  : `In order to get github items, please <https://slacker.underpass.clb.li/auth?id=${user_id}|authenticate> slacker to access your github account.`
+              }`,
             },
           ],
         },
-        {
-          type: "section",
-          text: {
-            type: "mrkdwn",
-            text: `In order to get github items, please <https://slacker.underpass.clb.li/auth|authenticate> slacker to access your github account.`,
+      ],
+    });
+  } catch (err) {
+    logger.error(err);
+  }
+});
+
+slack.action("resolve", async ({ ack, body, client, logger, action }) => {
+  await ack();
+
+  console.log("here");
+
+  try {
+    const { user, channel, actions } = body as any;
+    const actionId = actions[0].value;
+
+    const action = await prisma.actionItem.findFirst({
+      where: { id: actionId },
+      include: {
+        slackMessage: { include: { channel: true } },
+        githubItem: { include: { repository: true } },
+      },
+    });
+
+    if (!action) return;
+
+    if (action.githubItem !== null) {
+      const token = await getOctokitToken(
+        action.githubItem.repository.owner,
+        action.githubItem.repository.name
+      );
+      const octokit = new Octokit({ auth: "Bearer " + token });
+
+      const query = `
+        query ($id: String!) {
+          node(id: $id) {
+            ... on Issue {
+              closedAt
+              assignees(first: 100) {
+                nodes {
+                  login
+                }
+              }
+              participants(first: 100) {
+                nodes {
+                  login
+                }
+              }
+              comments(first: 100) {
+                totalCount
+                nodes {
+                  author {
+                    login
+                  }
+                  createdAt
+                }
+              }
+            }
+            ... on PullRequest {
+              closedAt
+              assignees(first: 100) {
+                nodes {
+                  login
+                }
+              }
+              participants(first: 100) {
+                nodes {
+                  login
+                }
+              }
+              comments(first: 100) {
+                totalCount
+                nodes {
+                  author {
+                    login
+                  }
+                  createdAt
+                }
+              }
+            }
+          }
+        }
+      `;
+
+      const res = (await octokit.graphql(query, {
+        id: action.githubItem.nodeId,
+      })) as SingleIssueOrPullData;
+
+      await prisma.githubItem.update({
+        where: { nodeId: action.githubItem.nodeId },
+        data: {
+          state: "closed",
+          actionItem: {
+            update: {
+              status: "closed",
+              totalReplies: res.node.comments.totalCount,
+              firstReplyOn: res.node.comments.nodes[0]?.createdAt,
+              lastReplyOn: res.node.comments.nodes[res.node.comments.nodes.length - 1]?.createdAt,
+              resolvedAt: res.node.closedAt,
+              participants: { deleteMany: {} },
+            },
           },
         },
-      ],
+        include: { actionItem: { include: { participants: true } } },
+      });
+
+      const logins = res.node.participants.nodes.map((node) => node.login);
+      await syncGithubParticipants(logins, action.id);
+    } else if (action.slackMessage !== null) {
+      const parent = await client.conversations
+        .history({
+          channel: action.slackMessage.channel.slackId,
+          latest: action.slackMessage.ts,
+          limit: 1,
+          inclusive: true,
+        })
+        .then((res) => res.messages?.[0]);
+
+      if (!parent) return;
+
+      const threadReplies = await client.conversations
+        .replies({
+          channel: action.slackMessage.channel.slackId,
+          ts: parent.ts as string,
+          limit: 100,
+        })
+        .then((res) => res.messages?.slice(1));
+
+      await prisma.slackMessage.update({
+        where: { id: action.slackMessage.id },
+        data: {
+          actionItem: {
+            update: {
+              status: "closed",
+              lastReplyOn: parent.latest_reply
+                ? dayjs(parent.latest_reply.split(".")[0], "X").toDate()
+                : undefined,
+              firstReplyOn: threadReplies?.[0]?.ts
+                ? dayjs(threadReplies[0].ts.split(".")[0], "X").toDate()
+                : undefined,
+              totalReplies: parent.reply_count || 0,
+              resolvedAt: new Date(),
+              participants: { deleteMany: {} },
+            },
+          },
+        },
+        include: { actionItem: { include: { participants: true } } },
+      });
+
+      await syncParticipants(parent.reply_users || [], action.id);
+    }
+
+    await client.chat.postEphemeral({
+      channel: channel?.id as string,
+      user: user.id,
+      text: `:white_check_mark: Action item (id=${actionId}) resolved by <@${user.id}>`,
     });
   } catch (err) {
     logger.error(err);
@@ -281,6 +513,11 @@ slack.command("/slacker", async ({ command, ack, client, logger, body }) => {
 (async () => {
   try {
     await slack.start(process.env.PORT || 5000);
+    // slack.client.conversations.history({ channel: "D0618PEUGAZ" }).then((r) => {
+    //   r.messages?.forEach(
+    //     async (m) => await slack.client.chat.delete({ channel: "D0618PEUGAZ", ts: m.ts })
+    //   );
+    // });
     // await joinChannels();
     console.log(`Server running on http://localhost:5000`);
   } catch (err) {
