@@ -33,9 +33,7 @@ app.get("/auth", async (req, res) => {
   if (!id) return res.json({ error: "No user id provided for the slack user" });
 
   res.redirect(
-    `https://github.com/login/oauth/authorize?client_id=${
-      process.env.GITHUB_CLIENT_ID
-    }&redirect_uri=${"https://slacker.underpass.clb.li/auth/callback?id=" + id}"}`
+    `https://github.com/login/oauth/authorize?client_id=${process.env.GITHUB_CLIENT_ID}&redirect_uri=${process.env.DEPLOY_URL}/auth/callback?id=${id}`
   );
 });
 
@@ -367,7 +365,7 @@ slack.command("/slacker", async ({ command, ack, client, logger, body }) => {
               text: `*Total action items:* ${data.length} | ${
                 user?.githubUsername
                   ? `Logged in with github. You're all good.`
-                  : `In order to get github items, please <https://slacker.underpass.clb.li/auth?id=${user_id}|authenticate> slacker to access your github account.`
+                  : `In order to get github items, please <${process.env.DEPLOY_URL}/auth?id=${user_id}|authenticate> slacker to access your github account.`
               }`,
             },
           ],
