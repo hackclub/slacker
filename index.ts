@@ -10,7 +10,7 @@ import { readFileSync, readdirSync } from "fs";
 import yaml from "js-yaml";
 import prisma from "./lib/db";
 import { Config, SingleIssueOrPullData } from "./lib/types";
-import { getMaintainers, syncGithubParticipants, syncParticipants } from "./lib/utils";
+import { getMaintainers, joinChannels, syncGithubParticipants, syncParticipants } from "./lib/utils";
 import routes from "./routes";
 import { createOAuthUserAuth } from "@octokit/auth-app";
 import { Octokit } from "octokit";
@@ -789,12 +789,7 @@ slack.action("irrelevant", async ({ ack, body, client, logger }) => {
 (async () => {
   try {
     await slack.start(process.env.PORT || 5000);
-    // slack.client.conversations.history({ channel: "D0618PEUGAZ" }).then((r) => {
-    //   r.messages?.forEach(
-    //     async (m) => await slack.client.chat.delete({ channel: "D0618PEUGAZ", ts: m.ts })
-    //   );
-    // });
-    // await joinChannels();
+    await joinChannels();
     console.log(`Server running on http://localhost:5000`);
   } catch (err) {
     console.error(err);
