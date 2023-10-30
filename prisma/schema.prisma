@@ -9,9 +9,10 @@ datasource db {
 
 // Users that are either authors, contributors or participants in slack threads, issues or pull requests
 model User {
-  id             Int     @id @default(autoincrement())
+  id             String  @id @default(cuid())
   githubUsername String?
   email          String  @unique
+  githubToken    String?
   slackId        String?
 
   messagesAsked      SlackMessage[]
@@ -25,14 +26,14 @@ model User {
 }
 
 model SlackMessage {
-  id   Int    @id @default(autoincrement())
+  id   String @id @default(cuid())
   text String
   ts   String // Cannot convert into DateTime since slack uses this as an ID (string) - 17241837419.1200
 
-  channelId Int
+  channelId String
   channel   Channel @relation(fields: [channelId], references: [id], onDelete: Cascade)
 
-  authorId   Int
+  authorId   String
   author     User        @relation(fields: [authorId], references: [id], onDelete: Cascade)
   actionItem ActionItem?
 
@@ -45,18 +46,18 @@ model SlackMessage {
 }
 
 model GithubItem {
-  id         Int            @id @default(autoincrement())
+  id         String         @id @default(cuid())
   number     Int
   nodeId     String         @unique
   state      GithubState
   type       GithubItemType
   actionItem ActionItem?
 
-  repositoryId Int
+  repositoryId String
   repository   Repository @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
 
-  authorId Int
-  author   User @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  authorId String
+  author   User   @relation(fields: [authorId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -68,12 +69,12 @@ model GithubItem {
 
 // It can either be a slack message or a github issue / pull request
 model ActionItem {
-  id Int @id @default(autoincrement())
+  id String @id @default(cuid())
 
-  slackMessageId Int?          @unique
+  slackMessageId String?       @unique
   slackMessage   SlackMessage? @relation(fields: [slackMessageId], references: [id], onDelete: Cascade)
 
-  githubItemId Int?        @unique
+  githubItemId String?     @unique
   githubItem   GithubItem? @relation(fields: [githubItemId], references: [id], onDelete: Cascade)
 
   firstReplyOn DateTime?
@@ -95,7 +96,7 @@ model ActionItem {
 
 // Slack channels that are being monitored
 model Channel {
-  id       Int            @id @default(autoincrement())
+  id       String         @id @default(cuid())
   name     String
   slackId  String         @unique
   messages SlackMessage[]
@@ -105,17 +106,17 @@ model Channel {
 
 // List of users that are involved in the thread or an issue / pull request
 model Participant {
-  userId Int
-  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  actionItemId Int
+  actionItemId String
   actionItem   ActionItem @relation(fields: [actionItemId], references: [id], onDelete: Cascade)
 
   @@id([userId, actionItemId])
 }
 
 model Repository {
-  id    Int    @id @default(autoincrement())
+  id    String @id @default(cuid())
   name  String
   owner String
   url   String @unique
