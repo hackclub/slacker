@@ -266,7 +266,7 @@ slack.command("/slacker", async ({ command, ack, client, logger, body }) => {
 
     if (project === "all") {
       files.forEach((file) => {
-        const config = yaml.load(readFileSync(`./config/${file}.yaml`, "utf-8")) as Config;
+        const config = yaml.load(readFileSync(`./config/${file}`, "utf-8")) as Config;
 
         if (
           config.maintainers.includes(user?.githubUsername ?? "") ||
