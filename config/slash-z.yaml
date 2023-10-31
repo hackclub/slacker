@@ -11,6 +11,3 @@ repos:
   - uri: https://github.com/hackclub/slash-z
     sla:
       responseTime: 1h
-
-repos:
-hackaf
