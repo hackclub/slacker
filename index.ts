@@ -1,5 +1,6 @@
 import { expressConnectMiddleware } from "@connectrpc/connect-express";
-import { ActionStatus } from "@prisma/client";
+import { createOAuthUserAuth } from "@octokit/auth-app";
+import { ActionStatus, User } from "@prisma/client";
 import { App, ExpressReceiver, LogLevel } from "@slack/bolt";
 import dayjs from "dayjs";
 import customParseFormat from "dayjs/plugin/customParseFormat";
@@ -8,13 +9,17 @@ import { config } from "dotenv";
 import express from "express";
 import { readFileSync, readdirSync } from "fs";
 import yaml from "js-yaml";
-import prisma from "./lib/db";
-import { Config, SingleIssueOrPullData } from "./lib/types";
-import { getMaintainers, joinChannels, syncGithubParticipants, syncParticipants } from "./lib/utils";
-import routes from "./routes";
-import { createOAuthUserAuth } from "@octokit/auth-app";
 import { Octokit } from "octokit";
+import prisma from "./lib/db";
 import { getOctokitToken } from "./lib/octokit";
+import { Config, SingleIssueOrPullData } from "./lib/types";
+import {
+  getMaintainers,
+  joinChannels,
+  syncGithubParticipants,
+  syncParticipants,
+} from "./lib/utils";
+import routes from "./routes";
 dayjs.extend(relativeTime);
 
 dayjs.extend(customParseFormat);
@@ -56,13 +61,51 @@ app.get("/auth/callback", async (req, res) => {
 
   if (!user.data.email) return res.json({ error: "No email found" });
 
-  await prisma.user.deleteMany({
-    where: { AND: [{ githubUsername: user.data.login }, { slackId: { equals: null } }] },
+  // find many users with either the same email / username / slackId
+  const users = await prisma.user.findMany({
+    where: {
+      OR: [
+        { email: user.data.email },
+        { githubUsername: user.data.login },
+        { slackId: id as string },
+      ],
+    },
   });
 
-  await prisma.user.updateMany({
-    where: { OR: [{ email: user.data.email }, { slackId: id as string }] },
-    data: { githubUsername: user.data.login, githubToken: token },
+  // all these users need to be merged into one
+  // save them into one user, connect all the relations to that one user and delete the rest.
+  const saved = await prisma.user.update({
+    where: { id: users[0].id },
+    data: {
+      email: user.data.email,
+      githubUsername: user.data.login,
+      githubToken: token,
+      slackId: id as string,
+    },
+  });
+
+  await prisma.slackMessage.updateMany({
+    where: { authorId: { in: users.map((u) => u.id) } },
+    data: { authorId: saved.id },
+  });
+
+  await prisma.githubItem.updateMany({
+    where: { authorId: { in: users.map((u) => u.id) } },
+    data: { authorId: saved.id },
+  });
+
+  await prisma.participant.updateMany({
+    where: { userId: { in: users.map((u) => u.id) } },
+    data: { userId: saved.id },
+  });
+
+  await prisma.actionItem.updateMany({
+    where: { snoozedById: { in: users.map((u) => u.id) } },
+    data: { snoozedById: saved.id },
+  });
+
+  await prisma.user.deleteMany({
+    where: { id: { in: users.map((u) => u.id).filter((id) => id !== saved.id) } },
   });
 
   return res.json({ message: "OAuth successful, hacker! Go ahead and start using slacker!" });
@@ -137,11 +180,13 @@ slack.event("message", async ({ event, client, logger, message }) => {
       const maintainers = await getMaintainers({ channelId: event.channel });
       if (maintainers.includes(parent.user as string)) return;
 
-      const author = await prisma.user.upsert({
-        where: { email },
-        create: { email, slackId: parent.user as string },
-        update: { slackId: parent.user as string },
-      });
+      // find user by slack id
+      const user = await prisma.user.findFirst({ where: { slackId: parent.user as string } });
+      let author: User;
+
+      if (!user)
+        author = await prisma.user.create({ data: { email, slackId: parent.user as string } });
+      else author = user;
 
       const slackMessage = await prisma.slackMessage.create({
         data: {

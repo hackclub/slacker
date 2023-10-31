@@ -1,5 +1,5 @@
 import { ConnectRouter } from "@connectrpc/connect";
-import { GithubItemType, GithubState } from "@prisma/client";
+import { GithubItemType, GithubState, User } from "@prisma/client";
 import { readFileSync, readdirSync } from "fs";
 import yaml from "js-yaml";
 import { ElizaService } from "./gen/eliza_connect";
@@ -101,11 +101,17 @@ export default (router: ConnectRouter) =>
               const maintainers = await getMaintainers({ repoUrl: repo.uri });
               if (maintainers.includes(item.author.login)) continue;
 
-              const author = await prisma.user.upsert({
-                where: { email: item.author.login },
-                create: { email: item.author.login, githubUsername: item.author.login },
-                update: { githubUsername: item.author.login },
+              // find user by login
+              const user = await prisma.user.findFirst({
+                where: { githubUsername: item.author.login },
               });
+              let author: User;
+
+              if (!user)
+                author = await prisma.user.create({
+                  data: { githubUsername: item.author.login, email: item.author.login },
+                });
+              else author = user;
 
               const githubItem = await prisma.githubItem.upsert({
                 where: { nodeId: item.id },
