@@ -167,7 +167,7 @@ slack.event("message", async ({ event, client, logger, message }) => {
 
     if (parentInDb) {
       // update action item:
-      const action = await prisma.slackMessage.update({
+      const slackMessage = await prisma.slackMessage.update({
         where: { id: parentInDb.id },
         data: {
           text: parent.text || "",
@@ -184,9 +184,10 @@ slack.event("message", async ({ event, client, logger, message }) => {
             },
           },
         },
+        include: { actionItem: true },
       });
 
-      await syncParticipants(parent.reply_users || [], action.id);
+      await syncParticipants(parent.reply_users || [], slackMessage.actionItem!.id);
     } else {
       // create new action item:
       const maintainers = await getMaintainers({ channelId: event.channel });
@@ -234,10 +235,11 @@ slack.command("/slacker", async ({ command, ack, client, logger, body }) => {
 
   try {
     const { text, user_id, channel_id } = command;
-    const [project, filter] = text.split(" ");
+    let [project, filter] = text.split(" ");
+    if (project.trim() === "") project = "all";
 
     const files = readdirSync("./config");
-    if (!files.includes(`${project}.yaml`)) {
+    if (project !== "all" && !files.includes(`${project}.yaml`)) {
       await client.chat.postEphemeral({
         user: user_id,
         channel: channel_id,
@@ -255,22 +257,46 @@ slack.command("/slacker", async ({ command, ack, client, logger, body }) => {
       return;
     }
 
-    const config = yaml.load(readFileSync(`./config/${project}.yaml`, "utf-8")) as Config;
-    const channels = config["slack-channels"];
-    const repositories = config["repos"];
-    const managers = config["slack-managers"];
-    const maintainers = config.maintainers;
+    const user = await prisma.user.findFirst({ where: { slackId: user_id } });
 
-    if (!managers.includes(user_id)) {
-      await client.chat.postEphemeral({
-        user: user_id,
-        channel: channel_id,
-        text: `:warning: Sorry, you are not a manager for this project. Make sure you're listed inside the config/[project].yaml file.`,
+    let channels: Config["slack-channels"] = [];
+    let repositories: Config["repos"] = [];
+    let managers: Config["slack-managers"] = [];
+    let maintainers: Config["maintainers"] = [];
+
+    if (project === "all") {
+      files.forEach((file) => {
+        const config = yaml.load(readFileSync(`./config/${file}.yaml`, "utf-8")) as Config;
+
+        if (
+          config.maintainers.includes(user?.githubUsername ?? "") ||
+          config["slack-managers"].includes(user_id)
+        ) {
+          channels = [...channels, ...config["slack-channels"]];
+          repositories = [...repositories, ...config["repos"]];
+          managers = [...managers, ...config["slack-managers"]];
+          maintainers = [...maintainers, ...config.maintainers];
+        }
       });
-      return;
+    } else {
+      const config = yaml.load(readFileSync(`./config/${project}.yaml`, "utf-8")) as Config;
+      channels = config["slack-channels"];
+      repositories = config["repos"];
+      managers = config["slack-managers"];
+      maintainers = config.maintainers;
     }
 
-    const user = await prisma.user.findFirst({ where: { slackId: user_id } });
+    if (!managers.includes(user_id)) {
+      // not a slack manager... maybe a github maintainer?
+      if (user?.githubUsername && !maintainers.includes(user?.githubUsername ?? "")) {
+        await client.chat.postEphemeral({
+          user: user_id,
+          channel: channel_id,
+          text: `:warning: Sorry, you are not a maintainer for this project. Make sure you're listed inside the config/[project].yaml file.`,
+        });
+        return;
+      }
+    }
 
     const data = await prisma.actionItem
       .findMany({
