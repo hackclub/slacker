@@ -10,7 +10,7 @@ export const joinChannels = async () => {
   files.forEach(async (file) => {
     try {
       const config = yaml.load(fs.readFileSync(`./config/${file}`, "utf-8")) as Config;
-      const channels = config["slack-channels"];
+      const channels = config["slack-channels"] || [];
 
       for (let i = 0; i < channels.length; i++) {
         const channel = channels[i];
@@ -44,7 +44,7 @@ export const getMaintainers = async ({
       const config = yaml.load(fs.readFileSync(`./config/${file}`, "utf-8")) as Config;
       const managers = config["slack-managers"];
       const maintainers = config["maintainers"];
-      const channels = config["slack-channels"];
+      const channels = config["slack-channels"] || [];
       const repos = config["repos"];
 
       if (channelId && channels.some((channel) => channel.id === channelId)) arr.push(...managers);

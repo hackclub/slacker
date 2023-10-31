@@ -272,7 +272,7 @@ slack.command("/slacker", async ({ command, ack, client, logger, body }) => {
           config.maintainers.includes(user?.githubUsername ?? "") ||
           config["slack-managers"].includes(user_id)
         ) {
-          channels = [...channels, ...config["slack-channels"]];
+          channels = [...(channels || []), ...(config["slack-channels"] || [])];
           repositories = [...repositories, ...config["repos"]];
           managers = [...managers, ...config["slack-managers"]];
           maintainers = [...maintainers, ...config.maintainers];
@@ -280,7 +280,7 @@ slack.command("/slacker", async ({ command, ack, client, logger, body }) => {
       });
     } else {
       const config = yaml.load(readFileSync(`./config/${project}.yaml`, "utf-8")) as Config;
-      channels = config["slack-channels"];
+      channels = config["slack-channels"] || [];
       repositories = config["repos"];
       managers = config["slack-managers"];
       maintainers = config.maintainers;

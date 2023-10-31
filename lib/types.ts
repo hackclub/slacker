@@ -3,7 +3,7 @@ export type Config = {
   description: string;
   maintainers: string[];
   "slack-managers": string[];
-  "slack-channels": {
+  "slack-channels"?: {
     id: string;
     name: string;
     sla: { responseTime: number };
