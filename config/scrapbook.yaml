@@ -1,0 +1,18 @@
+name: Scrapbook
+description: Hack Club Scrapbook infrastructure
+slack-managers: [U014ND5P1N2, U04QH1TTMBP, U01PJ08PR7S]
+maintainers: [faisalsayed10, grymmy, JosiasAurel]
+slack-channels:
+repos:
+  - uri: https://github.com/hackclub/scrappy
+    sla:
+      responseTime: 1h
+  - uri: https://github.com/hackclub/scrapbook
+    sla:
+      responseTime: 1h
+
+C0179FFFRRV - development-of-slash-z
+
+repos:
+slash-z
+hackaf

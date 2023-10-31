@@ -1,0 +1,20 @@
+name: HQ Engineering
+description: HQ Engineering stuff for Hack Club
+slack-managers: [U014ND5P1N2, U04QH1TTMBP, U01PJ08PR7S]
+maintainers: [faisalsayed10, grymmy, JosiasAurel]
+slack-channels:
+  - name: infra-alerts
+    id: C05G25Y9M6V
+    sla:
+      responseTime: 1h
+  - name: hq-engineering
+    id: C05SVRTCDGV
+    sla:
+      responseTime: 1h
+repos:
+  - uri: https://github.com/hackclub/slacker
+    sla:
+      responseTime: 1h
+  - uri: https://github.com/hackclub/infra
+    sla:
+      responseTime: 1h
