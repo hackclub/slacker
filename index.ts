@@ -72,41 +72,53 @@ app.get("/auth/callback", async (req, res) => {
     },
   });
 
-  // all these users need to be merged into one
-  // save them into one user, connect all the relations to that one user and delete the rest.
-  const saved = await prisma.user.update({
-    where: { id: users[0].id },
-    data: {
-      email: user.data.email,
-      githubUsername: user.data.login,
-      githubToken: token,
-      slackId: id as string,
-    },
-  });
+  if (users.length > 0) {
+    // all these users need to be merged into one
+    // save them into one user, connect all the relations to that one user and delete the rest.
+    const saved = await prisma.user.update({
+      where: { id: users[0].id },
+      data: {
+        email: user.data.email,
+        githubUsername: user.data.login,
+        githubToken: token,
+        slackId: id as string,
+      },
+    });
 
-  await prisma.slackMessage.updateMany({
-    where: { authorId: { in: users.map((u) => u.id) } },
-    data: { authorId: saved.id },
-  });
+    await prisma.slackMessage.updateMany({
+      where: { authorId: { in: users.map((u) => u.id) } },
+      data: { authorId: saved.id },
+    });
 
-  await prisma.githubItem.updateMany({
-    where: { authorId: { in: users.map((u) => u.id) } },
-    data: { authorId: saved.id },
-  });
+    await prisma.githubItem.updateMany({
+      where: { authorId: { in: users.map((u) => u.id) } },
+      data: { authorId: saved.id },
+    });
 
-  await prisma.participant.updateMany({
-    where: { userId: { in: users.map((u) => u.id) } },
-    data: { userId: saved.id },
-  });
+    await prisma.participant.updateMany({
+      where: { userId: { in: users.map((u) => u.id) } },
+      data: { userId: saved.id },
+    });
 
-  await prisma.actionItem.updateMany({
-    where: { snoozedById: { in: users.map((u) => u.id) } },
-    data: { snoozedById: saved.id },
-  });
+    await prisma.actionItem.updateMany({
+      where: { snoozedById: { in: users.map((u) => u.id) } },
+      data: { snoozedById: saved.id },
+    });
 
-  await prisma.user.deleteMany({
-    where: { id: { in: users.map((u) => u.id).filter((id) => id !== saved.id) } },
-  });
+    await prisma.user.deleteMany({
+      where: { id: { in: users.map((u) => u.id).filter((id) => id !== saved.id) } },
+    });
+  } else {
+    // create a new user
+    await prisma.user.create({
+      data: {
+        email: user.data.email,
+        githubUsername: user.data.login,
+        githubToken: token,
+        slackId: id as string,
+      },
+    });
+  }
 
   return res.json({ message: "OAuth successful, hacker! Go ahead and start using slacker!" });
 });
