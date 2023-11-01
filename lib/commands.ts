@@ -1,11 +1,15 @@
-import { ActionStatus } from "@prisma/client";
-import { Middleware, SlackCommandMiddlewareArgs } from "@slack/bolt";
-import { StringIndexed } from "@slack/bolt/dist/types/helpers";
-import dayjs from "dayjs";
 import { readFileSync, readdirSync } from "fs";
-import yaml from "js-yaml";
 import prisma from "./db";
 import { Config } from "./types";
+import yaml from "js-yaml";
+import dayjs from "dayjs";
+import { ActionStatus } from "@prisma/client";
+import { StringIndexed } from "@slack/bolt/dist/types/helpers";
+import { Middleware, SlackCommandMiddlewareArgs } from "@slack/bolt";
+import customParseFormat from "dayjs/plugin/customParseFormat";
+import relativeTime from "dayjs/plugin/relativeTime";
+dayjs.extend(relativeTime);
+dayjs.extend(customParseFormat);
 
 export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, StringIndexed> = async ({
   command,

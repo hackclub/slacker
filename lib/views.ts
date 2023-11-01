@@ -2,6 +2,10 @@ import dayjs from "dayjs";
 import prisma from "./db";
 import { StringIndexed } from "@slack/bolt/dist/types/helpers";
 import { Middleware, SlackViewAction, SlackViewMiddlewareArgs } from "@slack/bolt";
+import customParseFormat from "dayjs/plugin/customParseFormat";
+import relativeTime from "dayjs/plugin/relativeTime";
+dayjs.extend(relativeTime);
+dayjs.extend(customParseFormat);
 
 export const snoozeSubmit: Middleware<
   SlackViewMiddlewareArgs<SlackViewAction>,
@@ -24,7 +28,7 @@ export const snoozeSubmit: Middleware<
     if (!action) return;
 
     const { selected_date_time } = view.state.values.datetime["datetimepicker-action"];
-    const snoozedUntil = dayjs(selected_date_time).toDate();
+    const snoozedUntil = dayjs(selected_date_time, "X").toDate();
     const dbUser = await prisma.user.findFirst({ where: { slackId: user.id } });
 
     await prisma.actionItem.update({
