@@ -4,17 +4,13 @@ import { readFileSync, readdirSync } from "fs";
 import yaml from "js-yaml";
 import { ElizaService } from "./gen/eliza_connect";
 import prisma from "./lib/db";
-import { getOctokitToken } from "./lib/octokit";
-import { Config, GithubData, SingleIssueOrPullData } from "./lib/types";
+import { getGithubItem, listGithubItems } from "./lib/github";
+import { Config } from "./lib/types";
 import { getMaintainers, syncGithubParticipants } from "./lib/utils";
-import { Octokit } from "octokit";
-
-// airtable integration
-// assignee feature
 
 export default (router: ConnectRouter) =>
   router.service(ElizaService, {
-    async syncGithubItems(req) {
+    async syncGithubItems() {
       try {
         const files = readdirSync("./config");
 
@@ -31,71 +27,7 @@ export default (router: ConnectRouter) =>
               update: { name, owner },
             });
 
-            const query = `
-            query ($owner: String!, $name: String!) {
-              repository(owner: $owner, name: $name) {
-                issues(first: 100, states: OPEN) {
-                  nodes {
-                    id
-                    number
-                    title
-                    createdAt
-                    updatedAt
-                    author {
-                      login
-                    }
-                    participants (first: 100) {
-                      nodes {
-                        login
-                      }
-                    }
-                    comments(first: 100) {
-                      totalCount
-                      nodes {
-                        author {
-                          login
-                        }
-                        createdAt
-                      }
-                    }
-                  }
-                }
-
-                pullRequests(first: 100, states: OPEN) {
-                  nodes {
-                    id
-                    number
-                    title
-                    createdAt
-                    updatedAt
-                    author {
-                      login
-                    }
-                    participants (first: 100) {
-                      nodes {
-                        login
-                      }
-                    }
-                    comments(first: 100) {
-                      nodes {
-                        author {
-                          login
-                        }
-                        createdAt
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          `;
-
-            const token = await getOctokitToken(owner, name);
-            const octokit = new Octokit({ auth: "Bearer " + token });
-
-            const res = (await octokit.graphql(query, { owner, name })) as GithubData;
-
-            const items = [...res.repository.issues.nodes, ...res.repository.pullRequests.nodes];
+            const items = await listGithubItems(owner, name);
 
             for (const item of items) {
               const maintainers = await getMaintainers({ repoUrl: repo.uri });
@@ -163,59 +95,9 @@ export default (router: ConnectRouter) =>
             const openIds = items.map((item) => item.id);
             const closedIds = ids.filter((id) => !openIds.includes(id));
 
+            // close the action items that are closed on github
             for (const id of closedIds) {
-              const query = `
-              query ($id: String!) {
-                node(id: $id) {
-                  ... on Issue {
-                    closedAt
-                    assignees(first: 100) {
-                      nodes {
-                        login
-                      }
-                    }
-                    participants(first: 100) {
-                      nodes {
-                        login
-                      }
-                    }
-                    comments(first: 100) {
-                      totalCount
-                      nodes {
-                        author {
-                          login
-                        }
-                        createdAt
-                      }
-                    }
-                  }
-                  ... on PullRequest {
-                    closedAt
-                    assignees(first: 100) {
-                      nodes {
-                        login
-                      }
-                    }
-                    participants(first: 100) {
-                      nodes {
-                        login
-                      }
-                    }
-                    comments(first: 100) {
-                      totalCount
-                      nodes {
-                        author {
-                          login
-                        }
-                        createdAt
-                      }
-                    }
-                  }
-                }
-              }
-          `;
-
-              const res = (await octokit.graphql(query, { id })) as SingleIssueOrPullData;
+              const res = await getGithubItem(owner, name, id);
 
               const githubItem = await prisma.githubItem.update({
                 where: { nodeId: id },
