@@ -59,6 +59,7 @@ app.get("/auth/callback", async (req, res) => {
     where: {
       OR: [
         { email: user.data.email },
+        { email: user.data.login },
         { githubUsername: user.data.login },
         { slackId: id as string },
       ],
@@ -68,35 +69,35 @@ app.get("/auth/callback", async (req, res) => {
   if (users.length > 0) {
     // all these users need to be merged into one
     // save them into one user, connect all the relations to that one user and delete the rest.
-    const id = users[0].id;
+    const userId = users[0].id;
 
     await prisma.slackMessage.updateMany({
       where: { authorId: { in: users.map((u) => u.id) } },
-      data: { authorId: id },
+      data: { authorId: userId },
     });
 
     await prisma.githubItem.updateMany({
       where: { authorId: { in: users.map((u) => u.id) } },
-      data: { authorId: id },
+      data: { authorId: userId },
     });
 
     await prisma.participant.updateMany({
       where: { userId: { in: users.map((u) => u.id) } },
-      data: { userId: id },
+      data: { userId: userId },
     });
 
     await prisma.actionItem.updateMany({
       where: { snoozedById: { in: users.map((u) => u.id) } },
-      data: { snoozedById: id },
+      data: { snoozedById: userId },
     });
 
     await prisma.user.deleteMany({
-      where: { id: { in: users.map((u) => u.id).filter((i) => i !== id) } },
+      where: { id: { in: users.map((u) => u.id).filter((i) => i !== userId) } },
     });
 
     // update the user
     await prisma.user.update({
-      where: { id: users[0].id },
+      where: { id: userId },
       data: {
         email: user.data.email,
         githubUsername: user.data.login,
