@@ -209,7 +209,6 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
                 {
                   type: "button",
                   text: { type: "plain_text", emoji: true, text: "Snooze" },
-                  style: "danger",
                   value: item.id,
                   action_id: "snooze",
                 },

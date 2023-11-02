@@ -73,7 +73,7 @@ export const listGithubItems = async (owner: string, name: string) => {
 
 export const getGithubItem = async (owner: string, name: string, id: string) => {
   const query = `
-    query ($id: String!) {
+    query ($id: ID!) {
       node(id: $id) {
         ... on Issue {
           closedAt
