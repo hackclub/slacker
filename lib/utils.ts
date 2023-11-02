@@ -1,4 +1,4 @@
-import fs from "fs";
+import fs, { readFileSync, readdirSync } from "fs";
 import { Config } from "./types";
 import yaml from "js-yaml";
 import { slack } from "..";
@@ -91,3 +91,34 @@ export const syncGithubParticipants = async (participants: string[], id: string)
     });
   }
 };
+
+export const getYamlDetails = async (project: string, user_id: string, login: string | null | undefined) => {
+  const files = readdirSync("./config");
+  let channels: Config["slack-channels"] = [];
+  let repositories: Config["repos"] = [];
+  let managers: Config["slack-managers"] = [];
+  let maintainers: Config["maintainers"] = [];
+
+  if (project === "all") {
+    files.forEach((file) => {
+      const config = yaml.load(readFileSync(`./config/${file}`, "utf-8")) as Config;
+      if (
+        config.maintainers.includes(login ?? "") ||
+        config["slack-managers"].includes(user_id)
+      ) {
+        channels = [...(channels || []), ...(config["slack-channels"] || [])];
+        repositories = [...repositories, ...config["repos"]];
+        managers = [...managers, ...config["slack-managers"]];
+        maintainers = [...maintainers, ...config.maintainers];
+      }
+    });
+  } else {
+    const config = yaml.load(readFileSync(`./config/${project}.yaml`, "utf-8")) as Config;
+    channels = config["slack-channels"] || [];
+    repositories = config["repos"];
+    managers = config["slack-managers"];
+    maintainers = config.maintainers;
+  }
+
+  return { channels, repositories, managers, maintainers };
+}

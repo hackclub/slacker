@@ -1,87 +1,84 @@
-const slackItem = ({ length }) => ({
-  blocks: [
-    {
-      type: "section",
-      text: {
-        type: "mrkdwn",
-        text: `Found *${length} action items* that need attention`,
-      },
+import dayjs from "dayjs";
+
+export const slackItem = ({ item }) => {
+  const diff = dayjs().diff(dayjs(item.lastReplyOn), "day");
+
+  return {
+    type: "section",
+    text: {
+      type: "mrkdwn",
+      text: `Query: *${item.slackMessage?.text}*\n\nOpened by <@${
+        item.slackMessage?.author?.slackId
+      }> on ${dayjs(item.slackMessage?.createdAt).format("MMM DD, YYYY")} at ${dayjs(
+        item.slackMessage?.createdAt
+      ).format("hh:mm A")}${
+        item.lastReplyOn
+          ? `\n*Last reply:* ${dayjs(item.lastReplyOn).fromNow()} ${diff > 10 ? ":panik:" : ""}`
+          : "\n:panik: *No replies yet*"
+      }\n<https://hackclub.slack.com/archives/${
+        item.slackMessage?.channel?.slackId
+      }/p${item.slackMessage?.ts.replace(".", "")}|View on Slack>`,
     },
-    { type: "divider" },
-    {
-      type: "section",
-      text: {
-        type: "mrkdwn",
-        text: "*<fakeLink.toHotelPage.com|how to fix this api?>*",
-      },
+    accessory: {
+      type: "button",
+      text: { type: "plain_text", emoji: true, text: "Resolve" },
+      style: "primary",
+      value: item.id,
+      action_id: "resolve",
     },
-    {
-      type: "section",
-      fields: [
-        {
-          type: "mrkdwn",
-          text: "*Channel:*\n<#C02UN35M7LG>",
-        },
-        {
-          type: "mrkdwn",
-          text: "*Author:*\n<@U014ND5P1N2>",
-        },
-        {
-          type: "mrkdwn",
-          text: "*Submitted on:*\nAug 10",
-        },
-        {
-          type: "mrkdwn",
-          text: "*Last reply on:*\n5m ago",
-        },
-      ],
+  };
+};
+
+export const githubItem = ({ item }) => {
+  const diff = dayjs().diff(dayjs(item.lastReplyOn), "day");
+  const text =
+    (item.githubItem?.type === "issue" ? "Issue: " : "Pull Request: ") +
+    `https://github.com/${item.githubItem?.repository?.owner}/${item.githubItem?.repository?.name}/issues/${item.githubItem?.number}`;
+
+  return {
+    type: "section",
+    text: {
+      type: "mrkdwn",
+      text: `${text}\n\nOpened by ${item.githubItem?.author?.githubUsername} on ${dayjs(
+        item.githubItem?.createdAt
+      ).format("MMM DD, YYYY")} at ${dayjs(item.githubItem?.createdAt).format("hh:mm A")}${
+        item.lastReplyOn
+          ? `\n*Last reply:* ${dayjs(item.lastReplyOn).fromNow()} ${diff > 10 ? ":panik:" : ""}`
+          : "\n:panik: *No replies yet*"
+      }`,
     },
-    {
-      type: "context",
-      elements: [
-        {
-          type: "image",
-          image_url:
-            "https://api.slack.com/img/blocks/bkb_template_images/tripAgentLocationMarker.png",
-          alt_text: "Location Pin Icon",
-        },
-        {
-          type: "mrkdwn",
-          text: "Total replies: 3",
-        },
-      ],
+    accessory: {
+      type: "button",
+      text: { type: "plain_text", emoji: true, text: "Resolve" },
+      style: "primary",
+      value: item.id,
+      action_id: "resolve",
     },
+  };
+};
+
+export const buttons = ({ item }) => ({
+  type: "actions",
+  elements: [
     {
-      type: "actions",
-      elements: [
-        {
-          type: "button",
-          text: {
-            type: "plain_text",
-            emoji: true,
-            text: "Resolve",
-          },
-          style: "primary",
-          value: "click_me_123",
-        },
-      ],
-    },
-    {
-      type: "divider",
+      type: "button",
+      text: { type: "plain_text", emoji: true, text: "Snooze" },
+      value: item.id,
+      action_id: "snooze",
     },
     {
-      type: "actions",
-      elements: [
-        {
-          type: "button",
-          text: {
-            type: "plain_text",
-            emoji: true,
-            text: "Next 2 Results",
-          },
-          value: "click_me_123",
-        },
-      ],
+      type: "button",
+      text: { type: "plain_text", emoji: true, text: "Close - Irrelevant" },
+      value: item.id,
+      action_id: "irrelevant",
     },
   ],
 });
+
+export const unauthorizedError = async ({ client, user_id, channel_id }) => {
+  await client.chat.postEphemeral({
+    user: user_id,
+    channel: channel_id,
+    text: `:warning: You're not a manager for this project. Make sure you're listed inside the config/[project].yaml file. Also, consider <${process.env.DEPLOY_URL}/auth?id=${user_id}|logging in with github>`,
+  });
+};
