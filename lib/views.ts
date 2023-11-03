@@ -4,6 +4,7 @@ import { StringIndexed } from "@slack/bolt/dist/types/helpers";
 import { Middleware, SlackViewAction, SlackViewMiddlewareArgs } from "@slack/bolt";
 import customParseFormat from "dayjs/plugin/customParseFormat";
 import relativeTime from "dayjs/plugin/relativeTime";
+import { logActivity } from "./utils";
 dayjs.extend(relativeTime);
 dayjs.extend(customParseFormat);
 
@@ -43,6 +44,8 @@ export const snoozeSubmit: Middleware<
         snoozedUntil
       ).format("MMM DD, YYYY hh:mm A")} by <@${user.id}> (Snooze count: ${action.snoozeCount + 1})`,
     });
+
+    await logActivity(client, user.id, action.id, "snoozed");
   } catch (err) {
     logger.error(err);
   }

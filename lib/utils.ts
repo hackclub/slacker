@@ -92,7 +92,11 @@ export const syncGithubParticipants = async (participants: string[], id: string)
   }
 };
 
-export const getYamlDetails = async (project: string, user_id: string, login: string | null | undefined) => {
+export const getYamlDetails = async (
+  project: string,
+  user_id: string,
+  login: string | null | undefined
+) => {
   const files = readdirSync("./config");
   let channels: Config["slack-channels"] = [];
   let repositories: Config["repos"] = [];
@@ -102,10 +106,7 @@ export const getYamlDetails = async (project: string, user_id: string, login: st
   if (project === "all") {
     files.forEach((file) => {
       const config = yaml.load(readFileSync(`./config/${file}`, "utf-8")) as Config;
-      if (
-        config.maintainers.includes(login ?? "") ||
-        config["slack-managers"].includes(user_id)
-      ) {
+      if (config.maintainers.includes(login ?? "") || config["slack-managers"].includes(user_id)) {
         channels = [...(channels || []), ...(config["slack-channels"] || [])];
         repositories = [...repositories, ...config["repos"]];
         managers = [...managers, ...config["slack-managers"]];
@@ -121,4 +122,38 @@ export const getYamlDetails = async (project: string, user_id: string, login: st
   }
 
   return { channels, repositories, managers, maintainers };
-}
+};
+
+export const logActivity = async (
+  client: typeof slack.client,
+  user: string,
+  actionId: string,
+  type: "resolved" | "irrelevant" | "snoozed" | "reopened" | "unsnoozed"
+) => {
+  if (process.env.ACTIVITY_LOG_CHANNEL_ID === undefined) return;
+
+  const action = await prisma.actionItem.findUnique({
+    where: { id: actionId },
+    include: {
+      slackMessage: { include: { channel: true } },
+      githubItem: { include: { repository: true } },
+    },
+  });
+
+  if (!action) return;
+
+  const url = action.githubItem
+    ? `https://github.com/${action.githubItem.repository.owner}/${action.githubItem.repository.name}/issues/${action.githubItem.number}`
+    : action.slackMessage
+    ? `https://hackclub.slack.com/archives/${
+        action.slackMessage.channel.slackId
+      }/p${action.slackMessage.ts.replace(".", "")}`
+    : undefined;
+
+  await client.chat.postMessage({
+    channel: process.env.ACTIVITY_LOG_CHANNEL_ID,
+    text: `:white_check_mark: <@${user}> ${type} an action item. ID: ${actionId}\n\n${
+      url ? `<${url}|View action item>` : ""
+    }`,
+  });
+};

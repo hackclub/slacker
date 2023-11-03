@@ -9,7 +9,7 @@ import { Middleware, SlackCommandMiddlewareArgs } from "@slack/bolt";
 import customParseFormat from "dayjs/plugin/customParseFormat";
 import relativeTime from "dayjs/plugin/relativeTime";
 import { buttons, githubItem, slackItem, unauthorizedError } from "./blocks";
-import { getYamlDetails } from "./utils";
+import { getYamlDetails, logActivity } from "./utils";
 dayjs.extend(relativeTime);
 dayjs.extend(customParseFormat);
 
@@ -39,7 +39,6 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
         \n• *Get a project report:* \`/slacker report [project]\`
         \n• *Help:* \`/slacker help\``,
       });
-
     } else if (args[0] === "list") {
       const project = args[1]?.trim() || "all";
       const filter = args[2]?.trim() || "";
@@ -168,7 +167,7 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
       if (item.status === ActionStatus.closed) {
         await prisma.actionItem.update({
           where: { id: item.id },
-          data: { status: ActionStatus.open },
+          data: { status: ActionStatus.open, flag: null },
         });
 
         await client.chat.postEphemeral({
@@ -176,6 +175,8 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
           channel: channel_id,
           text: `:white_check_mark: Action item reopened.`,
         });
+
+        await logActivity(client, user_id, item.id, "reopened");
       } else {
         await client.chat.postEphemeral({
           user: user_id,
