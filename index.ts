@@ -139,8 +139,6 @@ slack.event("message", async ({ event, client, logger, message }) => {
       });
     }
 
-    console.log(message);
-
     // B03QGF0H9FU = Airtable bot
     if (message.subtype || (message.bot_id && message.bot_id !== "B03QGF0H9FU")) return;
 
