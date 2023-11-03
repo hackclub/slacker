@@ -1,5 +1,5 @@
 import dayjs from "dayjs";
-import { syncGithubParticipants, syncParticipants } from "./utils";
+import { logActivity, syncGithubParticipants, syncParticipants } from "./utils";
 import prisma from "./db";
 import { StringIndexed } from "@slack/bolt/dist/types/helpers";
 import { Middleware, SlackAction, SlackActionMiddlewareArgs } from "@slack/bolt";
@@ -103,6 +103,8 @@ export const markIrrelevant: Middleware<
       user: user.id,
       text: `:white_check_mark: Action item (id=${actionId}) closed as irrelevant by <@${user.id}>`,
     });
+
+    await logActivity(client, user.id, action.id, "irrelevant");
   } catch (err) {
     logger.error(err);
   }
@@ -274,6 +276,37 @@ export const resolve: Middleware<SlackActionMiddlewareArgs<SlackAction>, StringI
       user: user.id,
       text: `:white_check_mark: Action item (id=${actionId}) resolved by <@${user.id}>`,
     });
+
+    await logActivity(client, user.id, action.id, "resolved");
+  } catch (err) {
+    logger.error(err);
+  }
+};
+
+export const unsnooze: Middleware<SlackActionMiddlewareArgs<SlackAction>, StringIndexed> = async ({
+  ack,
+  body,
+  client,
+  logger,
+}) => {
+  await ack();
+
+  try {
+    const { user, channel, actions } = body as any;
+    const actionId = actions[0].value;
+
+    await prisma.actionItem.update({
+      where: { id: actionId },
+      data: { snoozedUntil: null, snoozeCount: { decrement: 1 }, snoozedById: null },
+    });
+
+    await client.chat.postEphemeral({
+      channel: channel?.id as string,
+      user: user.id,
+      text: `:white_check_mark: Action item (id=${actionId}) unsnoozed by <@${user.id}>`,
+    });
+
+    await logActivity(client, user.id, actionId, "unsnoozed");
   } catch (err) {
     logger.error(err);
   }
