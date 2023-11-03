@@ -5,7 +5,7 @@ features:
     display_name: slacker-dev-123
     always_online: true
   slash_commands:
-    - command: /slacker
+    - command: /slacker-dev-123
       url: https://<YOUR_NGROK_URL>/slack/events
       description: Get action items
       usage_hint: "[help]"
