@@ -1,0 +1,47 @@
+display_information:
+  name: slacker-dev-123
+features:
+  bot_user:
+    display_name: slacker-dev-123
+    always_online: true
+  slash_commands:
+    - command: /slacker
+      url: https://<YOUR_NGROK_URL>/slack/events
+      description: Get action items
+      usage_hint: "[help]"
+      should_escape: false
+oauth_config:
+  redirect_urls:
+    - https://<YOUR_NGROK_URL>
+  scopes:
+    user:
+      - users:read
+      - users:read.email
+      - channels:history
+    bot:
+      - channels:history
+      - channels:join
+      - chat:write
+      - chat:write.public
+      - commands
+      - groups:history
+      - reactions:read
+      - users.profile:read
+      - users:read
+      - users:read.email
+      - im:write
+      - im:history
+settings:
+  event_subscriptions:
+    request_url: https://<YOUR_NGROK_URL>/slack/events
+    bot_events:
+      - message.channels
+      - message.groups
+      - reaction_added
+      - reaction_removed
+  interactivity:
+    is_enabled: true
+    request_url: https://<YOUR_NGROK_URL>/slack/events
+  org_deploy_enabled: false
+  socket_mode_enabled: false
+  token_rotation_enabled: false
