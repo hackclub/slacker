@@ -165,7 +165,7 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
       if (item.status === ActionStatus.closed) {
         await prisma.actionItem.update({
           where: { id: item.id },
-          data: { status: ActionStatus.open, flag: null },
+          data: { status: ActionStatus.open, flag: null, resolvedAt: null },
         });
 
         await client.chat.postEphemeral({

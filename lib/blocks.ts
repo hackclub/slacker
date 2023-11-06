@@ -11,7 +11,7 @@ export const slackItem = ({ item }) => {
     type: "section",
     text: {
       type: "mrkdwn",
-      text: `(${item.id}) Query: *${item.slackMessage?.text}*\n\nOpened by <@${
+      text: `*Action Id:* ${item.id}\n*Query:* ${item.slackMessage?.text}\n\nOpened by <@${
         item.slackMessage?.author?.slackId
       }> on ${dayjs(item.slackMessage?.createdAt).format("MMM DD, YYYY")} at ${dayjs(
         item.slackMessage?.createdAt
@@ -36,16 +36,18 @@ export const slackItem = ({ item }) => {
 export const githubItem = ({ item }) => {
   const diff = dayjs().diff(dayjs(item.lastReplyOn), "day");
   const text =
-    (item.githubItem?.type === "issue" ? "Issue: " : "Pull Request: ") +
+    (item.githubItem?.type === "issue" ? "*Issue:* " : "*Pull Request:* ") +
     `https://github.com/${item.githubItem?.repository?.owner}/${item.githubItem?.repository?.name}/issues/${item.githubItem?.number}`;
 
   return {
     type: "section",
     text: {
       type: "mrkdwn",
-      text: `(${item.id}) ${text}\n\nOpened by ${item.githubItem?.author?.githubUsername} on ${dayjs(
+      text: `*Action Id:* ${item.id}\n${text}\n\nOpened by ${
+        item.githubItem?.author?.githubUsername
+      } on ${dayjs(item.githubItem?.createdAt).format("MMM DD, YYYY")} at ${dayjs(
         item.githubItem?.createdAt
-      ).format("MMM DD, YYYY")} at ${dayjs(item.githubItem?.createdAt).format("hh:mm A")}${
+      ).format("hh:mm A")}${
         item.lastReplyOn
           ? `\n*Last reply:* ${dayjs(item.lastReplyOn).fromNow()} ${diff > 10 ? ":panik:" : ""}`
           : "\n:panik: *No replies yet*"

@@ -5,7 +5,7 @@ import prisma from "./db";
 import { Config, Maintainer } from "./types";
 
 export const MAINTAINERS = yaml.load(
-  readFileSync(`./config/maintainers.yaml`, "utf-8")
+  readFileSync(`./maintainers.yaml`, "utf-8")
 ) as Maintainer[];
 
 export const joinChannels = async () => {
