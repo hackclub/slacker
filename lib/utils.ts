@@ -1,5 +1,5 @@
 import fs, { readFileSync, readdirSync } from "fs";
-import { Config } from "./types";
+import { Config, Maintainer } from "./types";
 import yaml from "js-yaml";
 import { slack } from "..";
 import prisma from "./db";
@@ -10,7 +10,7 @@ export const joinChannels = async () => {
   files.forEach(async (file) => {
     try {
       const config = yaml.load(fs.readFileSync(`./config/${file}`, "utf-8")) as Config;
-      const channels = config["slack-channels"] || [];
+      const channels = config.channels || [];
 
       for (let i = 0; i < channels.length; i++) {
         const channel = channels[i];
@@ -42,29 +42,34 @@ export const getMaintainers = async ({
   files.forEach(async (file) => {
     try {
       const config = yaml.load(fs.readFileSync(`./config/${file}`, "utf-8")) as Config;
-      const managers = config["slack-managers"];
       const maintainers = config["maintainers"];
-      const channels = config["slack-channels"] || [];
+      const channels = config.channels || [];
       const repos = config["repos"];
 
-      if (channelId && channels.some((channel) => channel.id === channelId)) arr.push(...managers);
-      else if (repoUrl && repos.some((repo) => repo.uri === repoUrl)) arr.push(...maintainers);
+      if (
+        channels.some((channel) => channel.id === channelId) ||
+        repos.some((repo) => repo.uri === repoUrl)
+      )
+        arr.push(...maintainers);
     } catch (err) {}
   });
 
-  return arr;
+  const users = yaml.load(fs.readFileSync(`./config/maintainers.yaml`, "utf-8")) as Maintainer[];
+
+  return arr.map((id) => users.find((user) => user.id === id));
 };
 
 export const syncParticipants = async (participants: string[], id: string) => {
   for (let i = 0; i < participants.length; i++) {
     const userInfo = await slack.client.users.info({ user: participants[i] as string });
+    const user = await prisma.user.findFirst({ where: { slackId: participants[i] as string } });
 
     await prisma.participant.create({
       data: {
         actionItem: { connect: { id } },
         user: {
           connectOrCreate: {
-            where: { slackId: participants[i] as string, email: userInfo.user?.profile?.email },
+            where: { id: user?.id },
             create: {
               slackId: participants[i] as string,
               email: userInfo.user?.profile?.email || "",
@@ -78,12 +83,16 @@ export const syncParticipants = async (participants: string[], id: string) => {
 
 export const syncGithubParticipants = async (participants: string[], id: string) => {
   for (let i = 0; i < participants.length; i++) {
+    const user = await prisma.user.findFirst({
+      where: { githubUsername: participants[i] as string },
+    });
+
     await prisma.participant.create({
       data: {
         actionItem: { connect: { id } },
         user: {
           connectOrCreate: {
-            where: { githubUsername: participants[i] as string, email: participants[i] },
+            where: { id: user?.id },
             create: { githubUsername: participants[i] as string, email: participants[i] },
           },
         },
@@ -98,30 +107,41 @@ export const getYamlDetails = async (
   login: string | null | undefined
 ) => {
   const files = readdirSync("./config");
-  let channels: Config["slack-channels"] = [];
+  let channels: Config["channels"] = [];
   let repositories: Config["repos"] = [];
-  let managers: Config["slack-managers"] = [];
   let maintainers: Config["maintainers"] = [];
+  const users = yaml.load(fs.readFileSync(`./config/maintainers.yaml`, "utf-8")) as Maintainer[];
 
   if (project === "all") {
     files.forEach((file) => {
       const config = yaml.load(readFileSync(`./config/${file}`, "utf-8")) as Config;
-      if (config.maintainers.includes(login ?? "") || config["slack-managers"].includes(user_id)) {
-        channels = [...(channels || []), ...(config["slack-channels"] || [])];
+
+      const topLevelMaintainers = config.maintainers.map((id) =>
+        users.find((user) => user.id === id)
+      );
+
+      if (
+        topLevelMaintainers.some(
+          (maintainer) => maintainer?.github === login || maintainer?.slack === user_id
+        )
+      ) {
+        channels = [...(channels || []), ...(config.channels || [])];
         repositories = [...repositories, ...config["repos"]];
-        managers = [...managers, ...config["slack-managers"]];
         maintainers = [...maintainers, ...config.maintainers];
       }
     });
   } else {
     const config = yaml.load(readFileSync(`./config/${project}.yaml`, "utf-8")) as Config;
-    channels = config["slack-channels"] || [];
+    channels = config.channels || [];
     repositories = config["repos"];
-    managers = config["slack-managers"];
     maintainers = config.maintainers;
   }
 
-  return { channels, repositories, managers, maintainers };
+  return {
+    channels,
+    repositories,
+    maintainers: maintainers.map((id) => users.find((user) => user.id === id)) as Maintainer[],
+  };
 };
 
 export const logActivity = async (

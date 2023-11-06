@@ -1,7 +1,6 @@
 name: hack.af
 description: Hack Club URL infrastructure
-slack-managers: [U014ND5P1N2, U04QH1TTMBP, U01PJ08PR7S, U0C7B14Q3]
-maintainers: [faisalsayed10, grymmy, JosiasAurel, maxwofford]
+maintainers: [faisal, graham, josias, max]
 repos:
   - uri: https://github.com/hackclub/hack.af
     sla:

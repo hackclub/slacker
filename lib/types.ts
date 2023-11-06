@@ -2,8 +2,7 @@ export type Config = {
   name: string;
   description: string;
   maintainers: string[];
-  "slack-managers": string[];
-  "slack-channels"?: {
+  channels?: {
     id: string;
     name: string;
     sla: { responseTime: number };
@@ -13,6 +12,8 @@ export type Config = {
     sla: { responseTime: number };
   }[];
 };
+
+export type Maintainer = { id: string; slack: string; github: string };
 
 export type GithubData = {
   repository: {

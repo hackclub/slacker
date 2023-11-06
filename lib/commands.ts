@@ -1,6 +1,6 @@
 import { readFileSync, readdirSync } from "fs";
 import prisma from "./db";
-import { Config } from "./types";
+import { Config, Maintainer } from "./types";
 import yaml from "js-yaml";
 import dayjs from "dayjs";
 import { ActionStatus } from "@prisma/client";
@@ -62,18 +62,18 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
         return;
       }
 
-      const { managers, maintainers, channels, repositories } = await getYamlDetails(
+      const { maintainers, channels, repositories } = await getYamlDetails(
         project,
         user_id,
         user?.githubUsername
       );
 
-      if (!managers.includes(user_id)) {
+      if (!maintainers.find((m) => m.slack === user_id)) {
         if (!user) {
           return await unauthorizedError({ client, user_id, channel_id });
         } else if (!user.githubUsername) {
           return await unauthorizedError({ client, user_id, channel_id });
-        } else if (!maintainers.includes(user.githubUsername)) {
+        } else if (!maintainers.find((m) => m.github === user.githubUsername)) {
           return await unauthorizedError({ client, user_id, channel_id });
         }
       }
@@ -86,7 +86,7 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
                 ? [{ slackMessage: { channel: { slackId: { in: channels.map((c) => c.id) } } } }]
                 : []),
               ...((!filter || filter === "all" || filter === "github") &&
-              maintainers.includes(user?.githubUsername ?? "")
+              !!maintainers.find((m) => m.github === user?.githubUsername)
                 ? [
                     {
                       githubItem: {
@@ -190,12 +190,21 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
         ${files
           .map((file) => {
             const config = yaml.load(readFileSync(`./config/${file}`, "utf-8")) as Config;
+            const users = yaml.load(
+              readFileSync(`./config/maintainers.yaml`, "utf-8")
+            ) as Maintainer[];
+
+            const maintainers = config.maintainers.map((id) =>
+              users.find((user) => user.id === id)
+            );
+
             if (
-              config.maintainers.includes(user?.githubUsername ?? "") ||
-              config["slack-managers"].includes(user_id)
-            ) {
+              maintainers.find(
+                (maintainer) =>
+                  maintainer?.slack === user_id || maintainer?.github === user?.githubUsername
+              )
+            )
               return `\n• *${file.split(".")[0]}* - ${config.description}`;
-            }
           })
           .join("")}`;
 
@@ -213,18 +222,18 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
         return;
       }
 
-      const { managers, maintainers, channels, repositories } = await getYamlDetails(
+      const { maintainers, channels, repositories } = await getYamlDetails(
         project,
         user_id,
         user?.githubUsername
       );
 
-      if (!managers.includes(user_id)) {
+      if (!maintainers.find((m) => m.slack === user_id)) {
         if (!user) {
           return await unauthorizedError({ client, user_id, channel_id });
         } else if (!user.githubUsername) {
           return await unauthorizedError({ client, user_id, channel_id });
-        } else if (!maintainers.includes(user.githubUsername)) {
+        } else if (!maintainers.find((m) => m.github === user.githubUsername)) {
           return await unauthorizedError({ client, user_id, channel_id });
         }
       }
@@ -234,7 +243,7 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
           snoozedUntil: { not: null, lte: dayjs().toDate() },
           OR: [
             { slackMessage: { channel: { slackId: { in: channels.map((c) => c.id) } } } },
-            ...(maintainers.includes(user?.githubUsername ?? "")
+            ...(maintainers.find((m) => m.github === user?.githubUsername)
               ? [
                   {
                     githubItem: {

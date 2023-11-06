@@ -1,7 +1,6 @@
 name: Scrapbook
 description: Hack Club Scrapbook infrastructure
-slack-managers: [U014ND5P1N2, U04QH1TTMBP, U01PJ08PR7S]
-maintainers: [faisalsayed10, grymmy, JosiasAurel]
+maintainers: [graham, josias]
 repos:
   - uri: https://github.com/hackclub/scrappy
     sla:

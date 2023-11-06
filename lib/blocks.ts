@@ -1,4 +1,8 @@
 import dayjs from "dayjs";
+import customParseFormat from "dayjs/plugin/customParseFormat";
+import relativeTime from "dayjs/plugin/relativeTime";
+dayjs.extend(relativeTime);
+dayjs.extend(customParseFormat);
 
 export const slackItem = ({ item }) => {
   const diff = dayjs().diff(dayjs(item.lastReplyOn), "day");
@@ -7,7 +11,7 @@ export const slackItem = ({ item }) => {
     type: "section",
     text: {
       type: "mrkdwn",
-      text: `Query: *${item.slackMessage?.text}*\n\nOpened by <@${
+      text: `(${item.id}) Query: *${item.slackMessage?.text}*\n\nOpened by <@${
         item.slackMessage?.author?.slackId
       }> on ${dayjs(item.slackMessage?.createdAt).format("MMM DD, YYYY")} at ${dayjs(
         item.slackMessage?.createdAt
@@ -39,7 +43,7 @@ export const githubItem = ({ item }) => {
     type: "section",
     text: {
       type: "mrkdwn",
-      text: `${text}\n\nOpened by ${item.githubItem?.author?.githubUsername} on ${dayjs(
+      text: `(${item.id}) ${text}\n\nOpened by ${item.githubItem?.author?.githubUsername} on ${dayjs(
         item.githubItem?.createdAt
       ).format("MMM DD, YYYY")} at ${dayjs(item.githubItem?.createdAt).format("hh:mm A")}${
         item.lastReplyOn

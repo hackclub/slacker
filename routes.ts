@@ -4,7 +4,7 @@ import { readFileSync, readdirSync } from "fs";
 import yaml from "js-yaml";
 import { ElizaService } from "./gen/eliza_connect";
 import prisma from "./lib/db";
-import { getGithubItem, listGithubItems } from "./lib/github";
+import { getGithubItem, listGithubItems } from "./lib/octokit";
 import { Config } from "./lib/types";
 import { getMaintainers, syncGithubParticipants } from "./lib/utils";
 
@@ -31,7 +31,8 @@ export default (router: ConnectRouter) =>
 
             for (const item of items) {
               const maintainers = await getMaintainers({ repoUrl: repo.uri });
-              if (maintainers.includes(item.author.login)) continue;
+              if (maintainers.find((maintainer) => maintainer?.github === item.author.login))
+                return {};
 
               // find user by login
               const user = await prisma.user.findFirst({

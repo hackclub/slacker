@@ -1,8 +1,7 @@
 name: DNS
 description: DNS stuff for Hack Club
-slack-managers: [U014ND5P1N2, U04QH1TTMBP, USNPNJXNX, U0C7B14Q3, U013B6CPV62]
-maintainers: [faisalsayed10, grymmy, sampoder, maxwofford, cjdenio]
-slack-channels:
+maintainers: [faisal, graham, sam, max, caleb]
+channels:
   - name: dns
     id: CS8TQ86GN
     sla:

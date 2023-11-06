@@ -189,7 +189,7 @@ slack.event("message", async ({ event, client, logger, message }) => {
     } else {
       // create new action item:
       const maintainers = await getMaintainers({ channelId: event.channel });
-      if (maintainers.includes(parent.user as string)) return;
+      if (maintainers.find((maintainer) => maintainer?.slack === parent.user)) return;
 
       // find user by slack id
       const user = await prisma.user.findFirst({ where: { slackId: parent.user as string } });

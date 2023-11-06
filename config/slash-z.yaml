@@ -1,8 +1,7 @@
 name: Slash Z
 description: Hack Club zoooom infrastructure
-slack-managers: [U014ND5P1N2, U04QH1TTMBP, U01PJ08PR7S, U0C7B14Q3]
-maintainers: [faisalsayed10, grymmy, JosiasAurel, maxwofford]
-slack-channels:
+maintainers: [graham, josias, max]
+channels:
   - name: development-of-slash-z
     id: C0179FFFRRV
     sla:

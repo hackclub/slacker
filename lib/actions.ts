@@ -3,7 +3,7 @@ import { logActivity, syncGithubParticipants, syncParticipants } from "./utils";
 import prisma from "./db";
 import { StringIndexed } from "@slack/bolt/dist/types/helpers";
 import { Middleware, SlackAction, SlackActionMiddlewareArgs } from "@slack/bolt";
-import { getGithubItem } from "./github";
+import { getGithubItem } from "./octokit";
 
 export const markIrrelevant: Middleware<
   SlackActionMiddlewareArgs<SlackAction>,
