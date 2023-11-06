@@ -1,12 +1,10 @@
 import { ConnectRouter } from "@connectrpc/connect";
 import { GithubItemType, GithubState, User } from "@prisma/client";
-import { readFileSync, readdirSync } from "fs";
-import yaml from "js-yaml";
+import { readdirSync } from "fs";
 import { ElizaService } from "./gen/eliza_connect";
 import prisma from "./lib/db";
 import { getGithubItem, listGithubItems } from "./lib/octokit";
-import { Config } from "./lib/types";
-import { getMaintainers, syncGithubParticipants } from "./lib/utils";
+import { getMaintainers, getYamlFile, syncGithubParticipants } from "./lib/utils";
 
 export default (router: ConnectRouter) =>
   router.service(ElizaService, {
@@ -15,7 +13,7 @@ export default (router: ConnectRouter) =>
         const files = readdirSync("./config");
 
         for await (const file of files) {
-          const { repos } = yaml.load(readFileSync(`./config/${file}`, "utf-8")) as Config;
+          const { repos } = getYamlFile(file);
 
           for (const repo of repos) {
             const owner = repo.uri.split("/")[3];

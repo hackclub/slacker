@@ -1,15 +1,19 @@
 import fs, { readFileSync, readdirSync } from "fs";
-import { Config, Maintainer } from "./types";
 import yaml from "js-yaml";
 import { slack } from "..";
 import prisma from "./db";
+import { Config, Maintainer } from "./types";
+
+export const MAINTAINERS = yaml.load(
+  readFileSync(`./config/maintainers.yaml`, "utf-8")
+) as Maintainer[];
 
 export const joinChannels = async () => {
   const files = fs.readdirSync("./config");
 
   files.forEach(async (file) => {
     try {
-      const config = yaml.load(fs.readFileSync(`./config/${file}`, "utf-8")) as Config;
+      const config = getYamlFile(file);
       const channels = config.channels || [];
 
       for (let i = 0; i < channels.length; i++) {
@@ -41,7 +45,7 @@ export const getMaintainers = async ({
 
   files.forEach(async (file) => {
     try {
-      const config = yaml.load(fs.readFileSync(`./config/${file}`, "utf-8")) as Config;
+      const config = getYamlFile(file);
       const maintainers = config["maintainers"];
       const channels = config.channels || [];
       const repos = config["repos"];
@@ -54,9 +58,7 @@ export const getMaintainers = async ({
     } catch (err) {}
   });
 
-  const users = yaml.load(fs.readFileSync(`./config/maintainers.yaml`, "utf-8")) as Maintainer[];
-
-  return arr.map((id) => users.find((user) => user.id === id));
+  return arr.map((id) => MAINTAINERS.find((user) => user.id === id));
 };
 
 export const syncParticipants = async (participants: string[], id: string) => {
@@ -101,6 +103,10 @@ export const syncGithubParticipants = async (participants: string[], id: string)
   }
 };
 
+export const getYamlFile = (filename: string) => {
+  return yaml.load(readFileSync(`./config/${filename}`, "utf-8")) as Config;
+};
+
 export const getYamlDetails = async (
   project: string,
   user_id: string,
@@ -110,14 +116,13 @@ export const getYamlDetails = async (
   let channels: Config["channels"] = [];
   let repositories: Config["repos"] = [];
   let maintainers: Config["maintainers"] = [];
-  const users = yaml.load(fs.readFileSync(`./config/maintainers.yaml`, "utf-8")) as Maintainer[];
 
   if (project === "all") {
     files.forEach((file) => {
-      const config = yaml.load(readFileSync(`./config/${file}`, "utf-8")) as Config;
+      const config = getYamlFile(file);
 
       const topLevelMaintainers = config.maintainers.map((id) =>
-        users.find((user) => user.id === id)
+        MAINTAINERS.find((user) => user.id === id)
       );
 
       if (
@@ -131,7 +136,7 @@ export const getYamlDetails = async (
       }
     });
   } else {
-    const config = yaml.load(readFileSync(`./config/${project}.yaml`, "utf-8")) as Config;
+    const config = getYamlFile(`${project}.yaml`);
     channels = config.channels || [];
     repositories = config["repos"];
     maintainers = config.maintainers;
@@ -140,7 +145,9 @@ export const getYamlDetails = async (
   return {
     channels,
     repositories,
-    maintainers: maintainers.map((id) => users.find((user) => user.id === id)) as Maintainer[],
+    maintainers: maintainers.map((id) =>
+      MAINTAINERS.find((user) => user.id === id)
+    ) as Maintainer[],
   };
 };
 

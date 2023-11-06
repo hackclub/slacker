@@ -1,15 +1,13 @@
-import { readFileSync, readdirSync } from "fs";
-import prisma from "./db";
-import { Config, Maintainer } from "./types";
-import yaml from "js-yaml";
-import dayjs from "dayjs";
 import { ActionStatus } from "@prisma/client";
-import { StringIndexed } from "@slack/bolt/dist/types/helpers";
 import { Middleware, SlackCommandMiddlewareArgs } from "@slack/bolt";
+import { StringIndexed } from "@slack/bolt/dist/types/helpers";
+import dayjs from "dayjs";
 import customParseFormat from "dayjs/plugin/customParseFormat";
 import relativeTime from "dayjs/plugin/relativeTime";
+import { readdirSync } from "fs";
 import { buttons, githubItem, slackItem, unauthorizedError } from "./blocks";
-import { getYamlDetails, logActivity } from "./utils";
+import prisma from "./db";
+import { MAINTAINERS, getYamlDetails, getYamlFile, logActivity } from "./utils";
 dayjs.extend(relativeTime);
 dayjs.extend(customParseFormat);
 
@@ -189,13 +187,10 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
       const text = `:white_check_mark: Here are your projects:\n\n
         ${files
           .map((file) => {
-            const config = yaml.load(readFileSync(`./config/${file}`, "utf-8")) as Config;
-            const users = yaml.load(
-              readFileSync(`./config/maintainers.yaml`, "utf-8")
-            ) as Maintainer[];
+            const config = getYamlFile(file);
 
             const maintainers = config.maintainers.map((id) =>
-              users.find((user) => user.id === id)
+              MAINTAINERS.find((user) => user.id === id)
             );
 
             if (
