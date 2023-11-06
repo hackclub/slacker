@@ -71,7 +71,7 @@ export const syncParticipants = async (participants: string[], id: string) => {
         actionItem: { connect: { id } },
         user: {
           connectOrCreate: {
-            where: { id: user?.id },
+            where: { id: user?.id || "-1" },
             create: {
               slackId: participants[i] as string,
               email: userInfo.user?.profile?.email || "",
@@ -94,7 +94,7 @@ export const syncGithubParticipants = async (participants: string[], id: string)
         actionItem: { connect: { id } },
         user: {
           connectOrCreate: {
-            where: { id: user?.id },
+            where: { id: user?.id || "-1" },
             create: { githubUsername: participants[i] as string, email: participants[i] },
           },
         },
