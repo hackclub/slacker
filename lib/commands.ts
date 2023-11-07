@@ -433,8 +433,9 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
           status: { not: ActionStatus.closed },
         },
         include: {
-          githubItem: { include: { repository: true } },
-          slackMessage: { include: { channel: true } },
+          githubItem: { include: { repository: true, author: true } },
+          slackMessage: { include: { channel: true, author: true } },
+          assignee: true,
         },
       });
 
@@ -480,6 +481,7 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
             githubItem: { include: { author: true, repository: true } },
             slackMessage: { include: { author: true, channel: true } },
             participants: { include: { user: true } },
+            assignee: true,
           },
           orderBy: { createdAt: "asc" },
           take: 1,

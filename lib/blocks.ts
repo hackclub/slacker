@@ -1,10 +1,19 @@
+import { ActionItem, Channel, GithubItem, Repository, SlackMessage, User } from "@prisma/client";
 import dayjs from "dayjs";
 import customParseFormat from "dayjs/plugin/customParseFormat";
 import relativeTime from "dayjs/plugin/relativeTime";
 dayjs.extend(relativeTime);
 dayjs.extend(customParseFormat);
 
-export const slackItem = ({ item }) => {
+export const slackItem = ({
+  item,
+}: {
+  item: ActionItem & {
+    assignee: User | null | undefined;
+    githubItem: (GithubItem & { repository: Repository }) | null | undefined;
+    slackMessage: (SlackMessage & { channel: Channel; author: User }) | null | undefined;
+  };
+}) => {
   const diff = dayjs().diff(dayjs(item.lastReplyOn), "day");
 
   const assigneeText = item.assignee
@@ -39,7 +48,15 @@ export const slackItem = ({ item }) => {
   };
 };
 
-export const githubItem = ({ item }) => {
+export const githubItem = ({
+  item,
+}: {
+  item: ActionItem & {
+    assignee: User | null | undefined;
+    githubItem: (GithubItem & { repository: Repository; author: User }) | null | undefined;
+    slackMessage: (SlackMessage & { channel: Channel; author: User }) | null | undefined;
+  };
+}) => {
   const diff = dayjs().diff(dayjs(item.lastReplyOn), "day");
   const text =
     (item.githubItem?.type === "issue" ? "*Issue:* " : "*Pull Request:* ") +
