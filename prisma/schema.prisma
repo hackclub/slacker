@@ -19,6 +19,7 @@ model User {
   issuesOpened       GithubItem[]
   participatingItems Participant[]
   snoozedItems       ActionItem[]
+  assignedItems      ActionItem[]   @relation("assignee")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -87,6 +88,9 @@ model ActionItem {
   snoozedUntil DateTime?
   snoozedBy    User?     @relation(fields: [snoozedById], references: [id])
   snoozedById  String?
+
+  assignee   User?   @relation(fields: [assigneeId], references: [id], "assignee")
+  assigneeId String?
 
   status     ActionStatus
   flag       ExtraFlags?

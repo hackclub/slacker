@@ -91,6 +91,11 @@ app.get("/auth/callback", async (req, res) => {
       data: { snoozedById: userId },
     });
 
+    await prisma.actionItem.updateMany({
+      where: { assigneeId: { in: users.map((u) => u.id) } },
+      data: { assigneeId: userId },
+    });
+
     await prisma.user.deleteMany({
       where: { id: { in: users.map((u) => u.id).filter((i) => i !== userId) } },
     });

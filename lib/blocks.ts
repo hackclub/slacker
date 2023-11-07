@@ -7,6 +7,12 @@ dayjs.extend(customParseFormat);
 export const slackItem = ({ item }) => {
   const diff = dayjs().diff(dayjs(item.lastReplyOn), "day");
 
+  const assigneeText = item.assignee
+    ? `Assigned to: ${
+        item.assignee.slackId ? `<@${item.assignee.slackId}>` : item.assignee.githubUsername
+      }`
+    : "Unassigned";
+
   return {
     type: "section",
     text: {
@@ -19,7 +25,7 @@ export const slackItem = ({ item }) => {
         item.lastReplyOn
           ? `\n*Last reply:* ${dayjs(item.lastReplyOn).fromNow()} ${diff > 10 ? ":panik:" : ""}`
           : "\n:panik: *No replies yet*"
-      }\n<https://hackclub.slack.com/archives/${
+      } | ${assigneeText}\n<https://hackclub.slack.com/archives/${
         item.slackMessage?.channel?.slackId
       }/p${item.slackMessage?.ts.replace(".", "")}|View on Slack>`,
     },
@@ -39,6 +45,12 @@ export const githubItem = ({ item }) => {
     (item.githubItem?.type === "issue" ? "*Issue:* " : "*Pull Request:* ") +
     `https://github.com/${item.githubItem?.repository?.owner}/${item.githubItem?.repository?.name}/issues/${item.githubItem?.number}`;
 
+  const assigneeText = item.assignee
+    ? `Assigned to ${
+        item.assignee.slackId ? `<@${item.assignee.slackId}>` : item.assignee.githubUsername
+      }`
+    : "Unassigned";
+
   return {
     type: "section",
     text: {
@@ -51,7 +63,7 @@ export const githubItem = ({ item }) => {
         item.lastReplyOn
           ? `\n*Last reply:* ${dayjs(item.lastReplyOn).fromNow()} ${diff > 10 ? ":panik:" : ""}`
           : "\n:panik: *No replies yet*"
-      }`,
+      } | ${assigneeText}`,
     },
     accessory: {
       type: "button",
