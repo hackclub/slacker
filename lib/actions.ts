@@ -2,7 +2,7 @@ import dayjs from "dayjs";
 import { logActivity, syncGithubParticipants, syncParticipants } from "./utils";
 import prisma from "./db";
 import { StringIndexed } from "@slack/bolt/dist/types/helpers";
-import { Middleware, SlackAction, SlackActionMiddlewareArgs } from "@slack/bolt";
+import { Block, KnownBlock, Middleware, SlackAction, SlackActionMiddlewareArgs } from "@slack/bolt";
 import { getGithubItem } from "./octokit";
 
 export const markIrrelevant: Middleware<
@@ -12,7 +12,7 @@ export const markIrrelevant: Middleware<
   await ack();
 
   try {
-    const { user, channel, actions } = body as any;
+    const { user, channel, actions, message } = body as any;
     const actionId = actions[0].value;
 
     const action = await prisma.actionItem.findFirst({
@@ -99,9 +99,20 @@ export const markIrrelevant: Middleware<
     }
 
     await client.chat.postEphemeral({
-      channel: channel?.id as string,
+      channel: channel.id,
       user: user.id,
       text: `:white_check_mark: Action item (id=${actionId}) closed as irrelevant by <@${user.id}>`,
+    });
+
+    const blocks = message.blocks as (Block | KnownBlock)[];
+    const idx = blocks.findIndex((block: any) => block.text && block.text.text.includes(actionId));
+    const newBlocks = blocks.filter((_, i) => i !== idx && i !== idx + 1);
+
+    await client.chat.update({
+      ts: message.ts,
+      channel: channel.id,
+      text: `Message updated: ${message.ts}`,
+      blocks: newBlocks,
     });
 
     await logActivity(client, user.id, action.id, "irrelevant");
@@ -119,7 +130,7 @@ export const snooze: Middleware<SlackActionMiddlewareArgs<SlackAction>, StringIn
   await ack();
 
   try {
-    const { actions, channel } = body as any;
+    const { actions, channel, message } = body as any;
     const actionId = actions[0].value;
 
     const action = await prisma.actionItem.findFirst({
@@ -137,7 +148,11 @@ export const snooze: Middleware<SlackActionMiddlewareArgs<SlackAction>, StringIn
       view: {
         type: "modal",
         callback_id: "snooze_submit",
-        private_metadata: JSON.stringify({ actionId, channelId: channel?.id as string }),
+        private_metadata: JSON.stringify({
+          actionId,
+          channelId: channel?.id as string,
+          messageId: message.ts,
+        }),
         title: {
           type: "plain_text",
           text: "Snooze",
@@ -187,7 +202,7 @@ export const resolve: Middleware<SlackActionMiddlewareArgs<SlackAction>, StringI
   await ack();
 
   try {
-    const { user, channel, actions } = body as any;
+    const { user, channel, actions, message } = body as any;
     const actionId = actions[0].value;
 
     const action = await prisma.actionItem.findFirst({
@@ -275,6 +290,17 @@ export const resolve: Middleware<SlackActionMiddlewareArgs<SlackAction>, StringI
       channel: channel?.id as string,
       user: user.id,
       text: `:white_check_mark: Action item (id=${actionId}) resolved by <@${user.id}>`,
+    });
+
+    const blocks = message.blocks as (Block | KnownBlock)[];
+    const idx = blocks.findIndex((block: any) => block.text && block.text.text.includes(actionId));
+    const newBlocks = blocks.filter((_, i) => i !== idx && i !== idx + 1);
+
+    await client.chat.update({
+      ts: message.ts,
+      channel: channel.id,
+      text: `Message updated: ${message.ts}`,
+      blocks: newBlocks,
     });
 
     await logActivity(client, user.id, action.id, "resolved");

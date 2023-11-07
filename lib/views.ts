@@ -1,7 +1,13 @@
 import dayjs from "dayjs";
 import prisma from "./db";
 import { StringIndexed } from "@slack/bolt/dist/types/helpers";
-import { Middleware, SlackViewAction, SlackViewMiddlewareArgs } from "@slack/bolt";
+import {
+  Block,
+  KnownBlock,
+  Middleware,
+  SlackViewAction,
+  SlackViewMiddlewareArgs,
+} from "@slack/bolt";
 import customParseFormat from "dayjs/plugin/customParseFormat";
 import relativeTime from "dayjs/plugin/relativeTime";
 import { logActivity } from "./utils";
@@ -16,7 +22,7 @@ export const snoozeSubmit: Middleware<
 
   try {
     const { user, view } = body;
-    const { actionId, channelId } = JSON.parse(view.private_metadata);
+    const { actionId, channelId, messageId } = JSON.parse(view.private_metadata);
 
     const action = await prisma.actionItem.findFirst({
       where: { id: actionId },
@@ -43,6 +49,24 @@ export const snoozeSubmit: Middleware<
       text: `:white_check_mark: Action item (id=${actionId}) snoozed until ${dayjs(
         snoozedUntil
       ).format("MMM DD, YYYY hh:mm A")} by <@${user.id}> (Snooze count: ${action.snoozeCount + 1})`,
+    });
+
+    const { messages } = await client.conversations.history({
+      channel: channelId,
+      latest: messageId,
+      limit: 1,
+      inclusive: true,
+    });
+
+    const blocks = messages?.[0].blocks || [];
+    const idx = blocks.findIndex((block: any) => block.text && block.text.text.includes(actionId));
+    const newBlocks = blocks.filter((_, i) => i !== idx && i !== idx + 1) as (Block | KnownBlock)[];
+
+    await client.chat.update({
+      ts: messageId,
+      channel: channelId,
+      text: `Message updated: ${messageId}`,
+      blocks: newBlocks,
     });
 
     await logActivity(client, user.id, action.id, "snoozed");

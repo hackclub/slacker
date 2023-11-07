@@ -4,9 +4,7 @@ import { slack } from "..";
 import prisma from "./db";
 import { Config, Maintainer } from "./types";
 
-export const MAINTAINERS = yaml.load(
-  readFileSync(`./maintainers.yaml`, "utf-8")
-) as Maintainer[];
+export const MAINTAINERS = yaml.load(readFileSync(`./maintainers.yaml`, "utf-8")) as Maintainer[];
 
 export const joinChannels = async () => {
   const files = fs.readdirSync("./config");
@@ -19,7 +17,7 @@ export const joinChannels = async () => {
       for (let i = 0; i < channels.length; i++) {
         const channel = channels[i];
 
-        const c = await prisma.channel.upsert({
+        await prisma.channel.upsert({
           where: { slackId: channel.id },
           update: { name: channel.name },
           create: { name: channel.name, slackId: channel.id },
