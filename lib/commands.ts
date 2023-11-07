@@ -233,16 +233,7 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
           OR: [
             { slackMessage: { channel: { slackId: { in: channels.map((c) => c.id) } } } },
             ...(maintainers.find((m) => m.github === user?.githubUsername)
-              ? [
-                  {
-                    githubItem: {
-                      repository: {
-                        owner: { in: repositories.map((r) => r.uri.split("/")[3]) },
-                        name: { in: repositories.map((r) => r.uri.split("/")[4]) },
-                      },
-                    },
-                  },
-                ]
+              ? [{ githubItem: { repository: { url: { in: repositories.map((r) => r.uri) } } } }]
               : []),
           ],
           status: { not: ActionStatus.closed },
@@ -460,33 +451,36 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
           user?.githubUsername
         );
 
-        const data = await prisma.actionItem.findMany({
-          where: {
-            OR: [
-              { slackMessage: { channel: { slackId: { in: channels.map((c) => c.id) } } } },
-              { githubItem: { repository: { url: { in: repositories.map((r) => r.uri) } } } },
-            ],
-            status: { not: ActionStatus.closed },
-          },
+        const data = await prisma.actionItem
+          .findMany({
+            where: {
+              OR: [
+                { slackMessage: { channel: { slackId: { in: channels.map((c) => c.id) } } } },
+                { githubItem: { repository: { url: { in: repositories.map((r) => r.uri) } } } },
+              ],
+              status: { not: ActionStatus.closed },
+            },
+            orderBy: { createdAt: "asc" },
+          })
+          .then((res) =>
+            res.filter((i) => i.snoozedUntil === null || dayjs().isAfter(dayjs(i.snoozedUntil)))
+          );
+
+        const item = await prisma.actionItem.update({
+          where: { id: data[0].id },
+          data: { assignee: { connect: { id: user?.id } } },
           include: {
             githubItem: { include: { author: true, repository: true } },
             slackMessage: { include: { author: true, channel: true } },
             participants: { include: { user: true } },
             assignee: true,
           },
-          orderBy: { createdAt: "asc" },
-          take: 1,
-        });
-
-        await prisma.actionItem.update({
-          where: { id: data[0].id },
-          data: { assignee: { connect: { id: user?.id } } },
         });
 
         const arr: any[] = [];
-        if (data[0].slackMessage !== null) arr.push(slackItem({ item: data[0] }));
-        if (data[0].githubItem !== null) arr.push(githubItem({ item: data[0] }));
-        arr.push(buttons({ item: data[0] }));
+        if (item.slackMessage !== null) arr.push(slackItem({ item: item }));
+        if (item.githubItem !== null) arr.push(githubItem({ item: item }));
+        arr.push(buttons({ item: item }));
 
         await client.chat.postMessage({
           channel: user_id,
