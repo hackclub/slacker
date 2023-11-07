@@ -87,16 +87,7 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
                 : []),
               ...((!filter || filter === "all" || filter === "github") &&
               !!maintainers.find((m) => m.github === user?.githubUsername)
-                ? [
-                    {
-                      githubItem: {
-                        repository: {
-                          owner: { in: repositories.map((r) => r.uri.split("/")[3]) },
-                          name: { in: repositories.map((r) => r.uri.split("/")[4]) },
-                        },
-                      },
-                    },
-                  ]
+                ? [{ githubItem: { repository: { url: { in: repositories.map((r) => r.uri) } } } }]
                 : []),
             ],
             status: { not: ActionStatus.closed },
