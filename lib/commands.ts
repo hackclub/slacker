@@ -428,7 +428,10 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
       const maintainer = MAINTAINERS.find((m) => m.slack === user_id);
 
       const item = await prisma.actionItem.findFirst({
-        where: { assignee: { OR: [{ slackId: user_id }, { githubUsername: maintainer?.github }] } },
+        where: {
+          assignee: { OR: [{ slackId: user_id }, { githubUsername: maintainer?.github }] },
+          status: { not: ActionStatus.closed },
+        },
         include: {
           githubItem: { include: { repository: true } },
           slackMessage: { include: { channel: true } },
