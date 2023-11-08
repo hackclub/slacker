@@ -1,0 +1,21 @@
+name: Pizza Grant
+description: Pizza for everyone!
+maintainers: [thomas, arpan, sahiti]
+channels:
+  - name: pizza-party
+    id: C05RZ6K7RS5
+    sla:
+      responseTime: 1h
+  - name: pizza-party-approval
+    owners:
+      default: [thomas, arpan]
+      subsections:
+        - owners: [arpan]
+          pattern: /india/gi
+    id: C05RZATA3QR
+    sla:
+      responseTime: 1h
+repos:
+  - uri: https://github.com/hackclub/pizza-fund
+    sla:
+      responseTime: 1h
