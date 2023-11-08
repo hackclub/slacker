@@ -15,7 +15,7 @@ export default (router: ConnectRouter) =>
         for await (const file of files) {
           const { repos } = getYamlFile(file);
 
-          for (const repo of repos) {
+          for await (const repo of repos) {
             const owner = repo.uri.split("/")[3];
             const name = repo.uri.split("/")[4];
 
@@ -27,10 +27,10 @@ export default (router: ConnectRouter) =>
 
             const items = await listGithubItems(owner, name);
 
-            for (const item of items) {
+            for await (const item of items) {
               const maintainers = await getMaintainers({ repoUrl: repo.uri });
               if (maintainers.find((maintainer) => maintainer?.github === item.author.login))
-                return {};
+                continue;
 
               // find user by login
               const user = await prisma.user.findFirst({
@@ -95,7 +95,7 @@ export default (router: ConnectRouter) =>
             const closedIds = ids.filter((id) => !openIds.includes(id));
 
             // close the action items that are closed on github
-            for (const id of closedIds) {
+            for await (const id of closedIds) {
               const res = await getGithubItem(owner, name, id);
 
               const githubItem = await prisma.githubItem.update({

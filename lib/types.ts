@@ -51,6 +51,9 @@ export type IssueOrPull = {
 
 export type SingleIssueOrPullData = {
   node: {
+    id: string;
+    number: number;
+    title: string;
     closedAt: string;
     assignees: {
       nodes: {

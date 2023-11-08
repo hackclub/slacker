@@ -105,6 +105,9 @@ export const getGithubItem = async (owner: string, name: string, id: string) => 
     query ($id: ID!) {
       node(id: $id) {
         ... on Issue {
+          id
+          number
+          title
           closedAt
           assignees(first: 100) {
             nodes {
@@ -127,6 +130,9 @@ export const getGithubItem = async (owner: string, name: string, id: string) => 
           }
         }
         ... on PullRequest {
+          id
+          number
+          title
           closedAt
           assignees(first: 100) {
             nodes {
