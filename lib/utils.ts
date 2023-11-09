@@ -101,21 +101,6 @@ export const syncGithubParticipants = async (participants: string[], id: string)
   }
 };
 
-export const syncLabels = async (labels: string[], id: string) => {
-  for (let i = 0; i < labels.length; i++) {
-    const label = await prisma.label.upsert({
-      where: { name: labels[i] },
-      create: { name: labels[i] },
-      update: {},
-    });
-
-    await prisma.githubItem.update({
-      where: { id },
-      data: { labelsOnItems: { connect: { labelId_itemId: { labelId: label.id, itemId: id } } } },
-    });
-  }
-};
-
 export const getYamlFile = (filename: string) => {
   return yaml.load(readFileSync(`./config/${filename}`, "utf-8")) as Config;
 };

@@ -4,7 +4,7 @@ import { readdirSync } from "fs";
 import { ElizaService } from "./gen/eliza_connect";
 import prisma from "./lib/db";
 import { getGithubItem, listGithubItems } from "./lib/octokit";
-import { getMaintainers, getYamlFile, syncGithubParticipants, syncLabels } from "./lib/utils";
+import { getMaintainers, getYamlFile, syncGithubParticipants } from "./lib/utils";
 
 export default (router: ConnectRouter) =>
   router.service(ElizaService, {
@@ -70,11 +70,22 @@ export default (router: ConnectRouter) =>
                       lastReplyOn: item.comments.nodes[item.comments.nodes.length - 1]?.createdAt,
                     },
                   },
+                  labelsOnItems: {
+                    create: item.labels.nodes.map(({ name }) => ({
+                      label: { connectOrCreate: { where: { name }, create: { name } } },
+                    })),
+                  },
                 },
                 update: {
                   state: actionItem?.resolvedAt ? "closed" : "open",
                   title: item.title,
                   updatedAt: item.updatedAt,
+                  labelsOnItems: {
+                    deleteMany: {},
+                    create: item.labels.nodes.map(({ name }) => ({
+                      label: { connectOrCreate: { where: { name }, create: { name } } },
+                    })),
+                  },
                   actionItem: {
                     update: {
                       status: actionItem?.resolvedAt ? "closed" : "open",
@@ -91,10 +102,6 @@ export default (router: ConnectRouter) =>
 
               const logins = item.participants.nodes.map((node) => node.login);
               await syncGithubParticipants(logins, githubItem.actionItem!.id);
-              await syncLabels(
-                item.labels.nodes.map((node) => node.name),
-                githubItem.id
-              );
             }
 
             const dbItems = await prisma.githubItem.findMany({
@@ -112,6 +119,12 @@ export default (router: ConnectRouter) =>
                 where: { nodeId: id },
                 data: {
                   state: "closed",
+                  labelsOnItems: {
+                    deleteMany: {},
+                    create: res.node.labels.nodes.map(({ name }) => ({
+                      label: { connectOrCreate: { where: { name }, create: { name } } },
+                    })),
+                  },
                   actionItem: {
                     update: {
                       status: "closed",
@@ -129,10 +142,6 @@ export default (router: ConnectRouter) =>
 
               const logins = res.node.participants.nodes.map((node) => node.login);
               await syncGithubParticipants(logins, githubItem.actionItem!.id);
-              await syncLabels(
-                res.node.labels.nodes.map((node) => node.name),
-                githubItem.id
-              );
             }
           }
         }
