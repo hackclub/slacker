@@ -32,6 +32,11 @@ export type IssueOrPull = {
     author: {
       login: string;
     };
+    labels: {
+      nodes: {
+        name: string;
+      }[];
+    };
     participants: {
       nodes: {
         login: string;
@@ -58,6 +63,11 @@ export type SingleIssueOrPullData = {
     assignees: {
       nodes: {
         login: string;
+      }[];
+    };
+    labels: {
+      nodes: {
+        name: string;
       }[];
     };
     participants: {

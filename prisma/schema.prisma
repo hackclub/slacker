@@ -62,6 +62,8 @@ model GithubItem {
   authorId String
   author   User   @relation(fields: [authorId], references: [id], onDelete: Cascade)
 
+  labelsOnItems LabelsOnItems[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -125,6 +127,24 @@ model Participant {
   actionItem   ActionItem @relation(fields: [actionItemId], references: [id], onDelete: Cascade)
 
   @@id([userId, actionItemId])
+}
+
+model LabelsOnItems {
+  labelId String
+  label   Label  @relation(fields: [labelId], references: [id], onDelete: Cascade)
+
+  itemId String
+  item   GithubItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@id([labelId, itemId])
+}
+
+model Label {
+  id            String          @id @default(cuid())
+  name          String          @unique
+  labelsOnItems LabelsOnItems[]
+
+  @@index([id])
 }
 
 model Repository {

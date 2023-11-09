@@ -45,6 +45,11 @@ export const listGithubItems = async (owner: string, name: string) => {
             author {
               login
             }
+            labels(first:10) {
+              nodes {
+                name
+              }
+            }
             participants (first: 100) {
               nodes {
                 login
@@ -114,6 +119,11 @@ export const getGithubItem = async (owner: string, name: string, id: string) => 
               login
             }
           }
+          labels(first:10) {
+            nodes {
+              name
+            }
+          }
           participants(first: 100) {
             nodes {
               login
@@ -137,6 +147,11 @@ export const getGithubItem = async (owner: string, name: string, id: string) => 
           assignees(first: 100) {
             nodes {
               login
+            }
+          }
+          labels(first:10) {
+            nodes {
+              name
             }
           }
           participants(first: 100) {

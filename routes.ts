@@ -4,7 +4,7 @@ import { readdirSync } from "fs";
 import { ElizaService } from "./gen/eliza_connect";
 import prisma from "./lib/db";
 import { getGithubItem, listGithubItems } from "./lib/octokit";
-import { getMaintainers, getYamlFile, syncGithubParticipants } from "./lib/utils";
+import { getMaintainers, getYamlFile, syncGithubParticipants, syncLabels } from "./lib/utils";
 
 export default (router: ConnectRouter) =>
   router.service(ElizaService, {
@@ -44,6 +44,10 @@ export default (router: ConnectRouter) =>
                 });
               else author = user;
 
+              const actionItem = await prisma.actionItem.findFirst({
+                where: { githubItemId: item.id },
+              });
+
               const githubItem = await prisma.githubItem.upsert({
                 where: { nodeId: item.id },
                 create: {
@@ -68,12 +72,12 @@ export default (router: ConnectRouter) =>
                   },
                 },
                 update: {
-                  state: "open",
+                  state: actionItem?.resolvedAt ? "closed" : "open",
                   title: item.title,
                   updatedAt: item.updatedAt,
                   actionItem: {
                     update: {
-                      status: "open",
+                      status: actionItem?.resolvedAt ? "closed" : "open",
                       totalReplies: item.comments.totalCount,
                       firstReplyOn: item.comments.nodes[0]?.createdAt,
                       lastReplyOn: item.comments.nodes[item.comments.nodes.length - 1]?.createdAt,
@@ -87,6 +91,10 @@ export default (router: ConnectRouter) =>
 
               const logins = item.participants.nodes.map((node) => node.login);
               await syncGithubParticipants(logins, githubItem.actionItem!.id);
+              await syncLabels(
+                item.labels.nodes.map((node) => node.name),
+                githubItem.id
+              );
             }
 
             const dbItems = await prisma.githubItem.findMany({
@@ -121,6 +129,10 @@ export default (router: ConnectRouter) =>
 
               const logins = res.node.participants.nodes.map((node) => node.login);
               await syncGithubParticipants(logins, githubItem.actionItem!.id);
+              await syncLabels(
+                res.node.labels.nodes.map((node) => node.name),
+                githubItem.id
+              );
             }
           }
         }
