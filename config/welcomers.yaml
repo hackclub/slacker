@@ -2,7 +2,7 @@ name: Welcomers
 description: A group of people that give warm welcomes to new Hack Clubbers!
 maintainers: [toby, zrl, graham, kara]
 channels:
-  - name: welcome
-    id: C75M7C0SY
+  - name: welcome-committee
+    id: GLFAEL1SL
     sla:
       responseTime: 1h
