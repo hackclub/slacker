@@ -1,0 +1,16 @@
+name: Leaders
+description: Place where leaders get help
+maintainers: [thomas, arpan, sahiti]
+channels:
+  - name: leaders
+    id: C02PA5G01ND
+    sla:
+      responseTime: 4h
+repos:
+  - uri: https://github.com/hackclub/jams
+    sla:
+      responseTime: 48h
+repos:
+  - uri: https://github.com/hackclub/toolbox
+    sla:
+      responseTime: 48h
