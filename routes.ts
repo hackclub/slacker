@@ -50,6 +50,7 @@ export default (router: ConnectRouter) =>
                   author: { connect: { id: author.id } },
                   repository: { connect: { id: dbRepo.id } },
                   nodeId: item.id,
+                  title: item.title,
                   number: item.number,
                   state: "open",
                   type: item.id.startsWith("I_")
@@ -68,6 +69,7 @@ export default (router: ConnectRouter) =>
                 },
                 update: {
                   state: "open",
+                  title: item.title,
                   updatedAt: item.updatedAt,
                   actionItem: {
                     update: {

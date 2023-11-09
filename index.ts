@@ -51,14 +51,20 @@ app.get("/auth/callback", async (req, res) => {
   const { token } = await auth();
   const octokit = new Octokit({ auth: token });
   const user = await octokit.rest.users.getAuthenticated();
+  let email = user.data.email;
 
-  if (!user.data.email) return res.json({ error: "No email found" });
+  if (!email) {
+    const { user } = await slack.client.users.info({ user: id as string });
+    email = user?.profile?.email || "";
+
+    if (!email) return res.json({ error: "No email found for this user" });
+  }
 
   // find many users with either the same email / username / slackId
   const users = await prisma.user.findMany({
     where: {
       OR: [
-        { email: user.data.email },
+        { email },
         { email: user.data.login },
         { githubUsername: user.data.login },
         { slackId: id as string },
@@ -104,7 +110,7 @@ app.get("/auth/callback", async (req, res) => {
     await prisma.user.update({
       where: { id: userId },
       data: {
-        email: user.data.email,
+        email,
         githubUsername: user.data.login,
         githubToken: token,
         slackId: id as string,
@@ -114,7 +120,7 @@ app.get("/auth/callback", async (req, res) => {
     // create a new user
     await prisma.user.create({
       data: {
-        email: user.data.email,
+        email,
         githubUsername: user.data.login,
         githubToken: token,
         slackId: id as string,
