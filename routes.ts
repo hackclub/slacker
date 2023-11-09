@@ -22,7 +22,7 @@ export default (router: ConnectRouter) =>
             const owner = repo.uri.split("/")[3];
             const name = repo.uri.split("/")[4];
 
-            console.log(`===================== Repository: ${repo} =====================`);
+            console.log(`===================== Repository: ${repo.uri} =====================`);
 
             const dbRepo = await prisma.repository.upsert({
               where: { url: repo.uri },
@@ -110,7 +110,7 @@ export default (router: ConnectRouter) =>
             }
 
             console.log(
-              `===================== Syncing closed items for repository: ${repo} =====================`
+              `===================== Syncing closed items for repository: ${repo.uri} =====================`
             );
 
             const dbItems = await prisma.githubItem.findMany({
@@ -154,7 +154,7 @@ export default (router: ConnectRouter) =>
             }
 
             console.log(
-              `===================== Repository syncing done: ${repo} =====================`
+              `===================== Repository syncing done: ${repo.uri} =====================`
             );
           }
         }

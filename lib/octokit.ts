@@ -77,6 +77,11 @@ export const listGithubItems = async (owner: string, name: string) => {
             author {
               login
             }
+            labels(first:10) {
+              nodes {
+                name
+              }
+            }
             participants (first: 100) {
               nodes {
                 login
