@@ -1,0 +1,8 @@
+name: Welcomers
+description: A group of people that give warm welcomes to new Hack Clubbers!
+maintainers: [arav, toby, zrl, graham, kara]
+channels:
+  - name: welcome-committee
+    id: GLFAEL1SL
+    sla:
+      responseTime: 1h
