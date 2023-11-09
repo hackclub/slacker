@@ -14,10 +14,15 @@ export default (router: ConnectRouter) =>
 
         for await (const file of files) {
           const { repos } = getYamlFile(file);
+          console.log(
+            `===================== Syncing repositories for file: ${file} =====================`
+          );
 
           for await (const repo of repos) {
             const owner = repo.uri.split("/")[3];
             const name = repo.uri.split("/")[4];
+
+            console.log(`===================== Repository: ${repo} =====================`);
 
             const dbRepo = await prisma.repository.upsert({
               where: { url: repo.uri },
@@ -104,6 +109,10 @@ export default (router: ConnectRouter) =>
               await syncGithubParticipants(logins, githubItem.actionItem!.id);
             }
 
+            console.log(
+              `===================== Syncing closed items for repository: ${repo} =====================`
+            );
+
             const dbItems = await prisma.githubItem.findMany({
               where: { repositoryId: dbRepo.id, state: GithubState.open },
             });
@@ -143,8 +152,14 @@ export default (router: ConnectRouter) =>
               const logins = res.node.participants.nodes.map((node) => node.login);
               await syncGithubParticipants(logins, githubItem.actionItem!.id);
             }
+
+            console.log(
+              `===================== Repository syncing done: ${repo} =====================`
+            );
           }
         }
+
+        console.log("===================== Syncing done =====================");
 
         return { response: "ok" };
       } catch (err) {
