@@ -1,6 +1,6 @@
 name: Sprig
 description: Teens make games and get a Sprig
-maintainers: [leo, lucas, kognise, max, graham, josias]
+maintainers: [leo, lucas, kognise, max, graham, josias, shawn]
 channels:
   - name: sprig
     id: C02UN35M7LG
