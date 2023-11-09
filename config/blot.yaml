@@ -6,7 +6,7 @@ channels:
     id: C04GCH8A91D
     sla:
       responseTime: 1h
-  repos:
+repos:
   - uri: https://github.com/hackclub/blot
     sla:
       responseTime: 1h
