@@ -39,6 +39,7 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
         channel: channel_id,
         text: `:wave: Hi there! I'm Slacker, your friendly neighborhood action item manager. Here's what I can do:
         \n• *List your action items:* \`/slacker me\`
+        \n• *Get an action item assigned to you:* \`/slacker gimme\`
         \n• *List action items:* \`/slacker list [project] [filter]\`
         \n• *Reopen action item:* \`/slacker reopen [id]\`
         \n• *List projects:* \`/slacker whatsup\`
