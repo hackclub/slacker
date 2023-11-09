@@ -61,3 +61,7 @@
 - id: kara
   slack: U032A2PMSE9
   github: madcatbot
+
+- id: arav
+  slack: U01MPHKFZ7S
+  github: tregsthedev
