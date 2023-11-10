@@ -1,0 +1,12 @@
+name: Blot
+description: Teens make art and get a Blot
+maintainers: [leo, shawn]
+channels:
+  - name: blot
+    id: C04GCH8A91D
+    sla:
+      responseTime: 1h
+repos:
+  - uri: https://github.com/hackclub/blot
+    sla:
+      responseTime: 1h

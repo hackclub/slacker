@@ -45,6 +45,11 @@ export const listGithubItems = async (owner: string, name: string) => {
             author {
               login
             }
+            labels(first:10) {
+              nodes {
+                name
+              }
+            }
             participants (first: 100) {
               nodes {
                 login
@@ -71,6 +76,11 @@ export const listGithubItems = async (owner: string, name: string) => {
             updatedAt
             author {
               login
+            }
+            labels(first:10) {
+              nodes {
+                name
+              }
             }
             participants (first: 100) {
               nodes {
@@ -105,10 +115,18 @@ export const getGithubItem = async (owner: string, name: string, id: string) => 
     query ($id: ID!) {
       node(id: $id) {
         ... on Issue {
+          id
+          number
+          title
           closedAt
           assignees(first: 100) {
             nodes {
               login
+            }
+          }
+          labels(first:10) {
+            nodes {
+              name
             }
           }
           participants(first: 100) {
@@ -127,10 +145,18 @@ export const getGithubItem = async (owner: string, name: string, id: string) => 
           }
         }
         ... on PullRequest {
+          id
+          number
+          title
           closedAt
           assignees(first: 100) {
             nodes {
               login
+            }
+          }
+          labels(first:10) {
+            nodes {
+              name
             }
           }
           participants(first: 100) {

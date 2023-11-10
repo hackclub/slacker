@@ -37,3 +37,31 @@
 - id: kognise
   slack: UR6P49Q79
   github: kognise
+
+- id: thomas
+  slack: U041FQB8VK2
+  github: serenityUX
+
+- id: arpan
+  slack: U0409FSKU82
+  github: Arpan-206
+
+- id: sahiti
+  slack: U03RU99SGKA
+  github: sahitid
+
+- id: toby
+  slack: U02C9DQ7ZL2
+  github: developedbytoby
+
+- id: zrl
+  slack: U0266FRGP
+  github: zachlatta
+
+- id: kara
+  slack: U032A2PMSE9
+  github: madcatbot
+
+- id: arav
+  slack: U01MPHKFZ7S
+  github: tregsthedev

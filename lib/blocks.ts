@@ -58,9 +58,8 @@ export const githubItem = ({
   };
 }) => {
   const diff = dayjs().diff(dayjs(item.lastReplyOn), "day");
-  const text =
-    (item.githubItem?.type === "issue" ? "*Issue:* " : "*Pull Request:* ") +
-    `https://github.com/${item.githubItem?.repository?.owner}/${item.githubItem?.repository?.name}/issues/${item.githubItem?.number}`;
+  const url = `<https://github.com/${item.githubItem?.repository?.owner}/${item.githubItem?.repository?.name}/issues/${item.githubItem?.number}|View on GitHub>`;
+  const text = item.githubItem?.title ? `Issue: ${item.githubItem?.title}` : url;
 
   const assigneeText = item.assignee
     ? `Assigned to ${
@@ -80,7 +79,7 @@ export const githubItem = ({
         item.lastReplyOn
           ? `\n*Last reply:* ${dayjs(item.lastReplyOn).fromNow()} ${diff > 10 ? ":panik:" : ""}`
           : "\n:panik: *No replies yet*"
-      } | ${assigneeText}`,
+      } | ${assigneeText}\n${item.githubItem?.title ? url : ""}`,
     },
     accessory: {
       type: "button",
@@ -114,6 +113,6 @@ export const unauthorizedError = async ({ client, user_id, channel_id }) => {
   await client.chat.postEphemeral({
     user: user_id,
     channel: channel_id,
-    text: `:warning: You're not a manager for this project. Make sure you're listed inside the config/[project].yaml file. Also, consider <${process.env.DEPLOY_URL}/auth?id=${user_id}|logging in with github>`,
+    text: `:warning: You're not a manager for this project. Make sure you're listed inside the config/[project].yaml file.`,
   });
 };

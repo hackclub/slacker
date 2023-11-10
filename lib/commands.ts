@@ -8,6 +8,7 @@ import { readdirSync } from "fs";
 import { buttons, githubItem, slackItem, unauthorizedError } from "./blocks";
 import prisma from "./db";
 import { MAINTAINERS, getMaintainers, getYamlDetails, getYamlFile, logActivity } from "./utils";
+import { closestMatch } from "closest-match";
 dayjs.extend(relativeTime);
 dayjs.extend(customParseFormat);
 
@@ -21,7 +22,15 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
 
   try {
     const { text, user_id, channel_id } = command;
-    const user = await prisma.user.findFirst({ where: { slackId: user_id } });
+    let user = await prisma.user.findFirst({ where: { slackId: user_id } });
+
+    if (!user) {
+      const userInfo = await client.users.info({ user: user_id });
+      user = await prisma.user.create({
+        data: { slackId: user_id, email: userInfo.user?.profile?.email || "" },
+      });
+    }
+
     const args = text.split(" ");
 
     if (!args[0] || args[0] === "help") {
@@ -30,9 +39,11 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
         channel: channel_id,
         text: `:wave: Hi there! I'm Slacker, your friendly neighborhood action item manager. Here's what I can do:
         \n• *List your action items:* \`/slacker me\`
+        \n• *Get an action item assigned to you:* \`/slacker gimme\`
         \n• *List action items:* \`/slacker list [project] [filter]\`
         \n• *Reopen action item:* \`/slacker reopen [id]\`
         \n• *List projects:* \`/slacker whatsup\`
+        \n• *List all projects:* \`/slacker whatsupfr\`
         \n• *List snoozed items:* \`/slacker snoozed [project]\`
         \n• *Get action item details:* \`/slacker get [id]\`
         \n• *Get a project report:* \`/slacker report [project]\`
@@ -73,7 +84,7 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
           return await unauthorizedError({ client, user_id, channel_id });
         } else if (!user.githubUsername) {
           return await unauthorizedError({ client, user_id, channel_id });
-        } else if (!maintainers.find((m) => m.github === user.githubUsername)) {
+        } else if (!maintainers.find((m) => m.github === user?.githubUsername)) {
           return await unauthorizedError({ client, user_id, channel_id });
         }
       }
@@ -198,6 +209,17 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
           .join("")}`;
 
       await client.chat.postEphemeral({ user: user_id, channel: channel_id, text });
+    } else if (args[0] === "whatsupfr") {
+      const files = readdirSync("./config");
+      const text = `:white_check_mark: Here are your projects:\n\n
+        ${files
+          .map((file) => {
+            const config = getYamlFile(file);
+            return `\n• *${file.split(".")[0]}* - ${config.description}`;
+          })
+          .join("")}`;
+
+      await client.chat.postEphemeral({ user: user_id, channel: channel_id, text });
     } else if (args[0] === "snoozed") {
       const project = args[1]?.trim() || "all";
       const files = readdirSync("./config");
@@ -222,7 +244,7 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
           return await unauthorizedError({ client, user_id, channel_id });
         } else if (!user.githubUsername) {
           return await unauthorizedError({ client, user_id, channel_id });
-        } else if (!maintainers.find((m) => m.github === user.githubUsername)) {
+        } else if (!maintainers.find((m) => m.github === user?.githubUsername)) {
           return await unauthorizedError({ client, user_id, channel_id });
         }
       }
@@ -409,7 +431,7 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
     } else if (args[0] === "me") {
       const maintainer = MAINTAINERS.find((m) => m.slack === user_id);
 
-      const item = await prisma.actionItem.findFirst({
+      const items = await prisma.actionItem.findMany({
         where: {
           assignee: { OR: [{ slackId: user_id }, { githubUsername: maintainer?.github }] },
           status: { not: ActionStatus.closed },
@@ -421,23 +443,25 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
         },
       });
 
-      if (item) {
+      if (items.length > 0) {
         const arr: any[] = [];
 
-        if (item.slackMessage !== null) arr.push(slackItem({ item }));
-        if (item.githubItem !== null) arr.push(githubItem({ item }));
-        arr.push(buttons({ item }));
+        items.forEach((item) => {
+          if (item.slackMessage !== null) arr.push(slackItem({ item }));
+          if (item.githubItem !== null) arr.push(githubItem({ item }));
+          arr.push(buttons({ item }));
+        });
 
         await client.chat.postMessage({
           channel: user_id,
           unfurl_links: false,
-          text: `:white_check_mark: Here is the action item currently assigned to you:`,
+          text: `:white_check_mark: Here are the action items assigned to you:`,
           blocks: [
             {
               type: "section",
               text: {
                 type: "mrkdwn",
-                text: `:white_check_mark: Here is the action item currently assigned to you:`,
+                text: `:white_check_mark: Here are the action item assigned to you:`,
               },
             },
             { type: "divider" },
@@ -445,60 +469,82 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
           ],
         });
       } else {
-        const { channels, repositories } = await getYamlDetails(
-          "all",
-          user_id,
-          user?.githubUsername
-        );
-
-        const data = await prisma.actionItem
-          .findMany({
-            where: {
-              OR: [
-                { slackMessage: { channel: { slackId: { in: channels.map((c) => c.id) } } } },
-                { githubItem: { repository: { url: { in: repositories.map((r) => r.uri) } } } },
-              ],
-              status: { not: ActionStatus.closed },
-            },
-            orderBy: { createdAt: "asc" },
-          })
-          .then((res) =>
-            res.filter((i) => i.snoozedUntil === null || dayjs().isAfter(dayjs(i.snoozedUntil)))
-          );
-
-        const item = await prisma.actionItem.update({
-          where: { id: data[0].id },
-          data: { assignee: { connect: { id: user?.id } } },
-          include: {
-            githubItem: { include: { author: true, repository: true } },
-            slackMessage: { include: { author: true, channel: true } },
-            participants: { include: { user: true } },
-            assignee: true,
-          },
-        });
-
-        const arr: any[] = [];
-        if (item.slackMessage !== null) arr.push(slackItem({ item: item }));
-        if (item.githubItem !== null) arr.push(githubItem({ item: item }));
-        arr.push(buttons({ item: item }));
-
-        await client.chat.postMessage({
-          channel: user_id,
-          unfurl_links: false,
-          text: `:white_check_mark: Here is the action item currently assigned to you:`,
-          blocks: [
-            {
-              type: "section",
-              text: {
-                type: "mrkdwn",
-                text: `:white_check_mark: Here is the action item currently assigned to you:`,
-              },
-            },
-            { type: "divider" },
-            ...arr.flat(),
-          ],
+        await client.chat.postEphemeral({
+          user: user_id,
+          channel: channel_id,
+          text: `:white_check_mark: You have no action items assigned to you. Use \`/slacker gimme\` to get an action item.`,
         });
       }
+    } else if (args[0] === "gimme") {
+      const { channels, repositories } = await getYamlDetails("all", user_id, user?.githubUsername);
+
+      const data = await prisma.actionItem
+        .findMany({
+          where: {
+            OR: [
+              { slackMessage: { channel: { slackId: { in: channels.map((c) => c.id) } } } },
+              { githubItem: { repository: { url: { in: repositories.map((r) => r.uri) } } } },
+            ],
+            status: { not: ActionStatus.closed },
+          },
+          orderBy: { createdAt: "asc" },
+        })
+        .then((res) =>
+          res.filter((i) => i.snoozedUntil === null || dayjs().isAfter(dayjs(i.snoozedUntil)))
+        );
+
+      const item = await prisma.actionItem.update({
+        where: { id: data[0].id },
+        data: { assignee: { connect: { id: user?.id } } },
+        include: {
+          githubItem: { include: { author: true, repository: true } },
+          slackMessage: { include: { author: true, channel: true } },
+          participants: { include: { user: true } },
+          assignee: true,
+        },
+      });
+
+      const arr: any[] = [];
+      if (item.slackMessage !== null) arr.push(slackItem({ item: item }));
+      if (item.githubItem !== null) arr.push(githubItem({ item: item }));
+      arr.push(buttons({ item: item }));
+
+      await client.chat.postMessage({
+        channel: user_id,
+        unfurl_links: false,
+        text: `:white_check_mark: Here is the action item assigned to you:`,
+        blocks: [
+          {
+            type: "section",
+            text: {
+              type: "mrkdwn",
+              text: `:white_check_mark: Here is the action item assigned to you:`,
+            },
+          },
+          { type: "divider" },
+          ...arr.flat(),
+        ],
+      });
+    } else {
+      const closest = closestMatch(args[0], [
+        "list",
+        "reopen",
+        "whatsup",
+        "whatsupfr",
+        "snoozed",
+        "get",
+        "report",
+        "assign",
+        "me",
+        "gimme",
+        "help",
+      ]);
+
+      await client.chat.postEphemeral({
+        user: user_id,
+        channel: channel_id,
+        text: `:nerd_face: :point_up: errrmm acktwually, i think you mean \`/slacker ${closest}\``,
+      });
     }
   } catch (err) {
     logger.error(err);
