@@ -131,12 +131,11 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
 
               if (item.slackMessage !== null) arr.push(slackItem({ item }));
               if (item.githubItem !== null) arr.push(githubItem({ item }));
-              arr.push(buttons({ item }));
+              arr.push(...buttons({ item }));
 
               return arr;
             })
             .flat(),
-          { type: "divider" },
           {
             type: "context",
             elements: [
@@ -449,7 +448,7 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
         items.forEach((item) => {
           if (item.slackMessage !== null) arr.push(slackItem({ item }));
           if (item.githubItem !== null) arr.push(githubItem({ item }));
-          arr.push(buttons({ item }));
+          arr.push(...buttons({ item }));
         });
 
         await client.chat.postMessage({
@@ -507,7 +506,7 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
       const arr: any[] = [];
       if (item.slackMessage !== null) arr.push(slackItem({ item: item }));
       if (item.githubItem !== null) arr.push(githubItem({ item: item }));
-      arr.push(buttons({ item: item }));
+      arr.push(...buttons({ item: item }));
 
       await client.chat.postMessage({
         channel: user_id,

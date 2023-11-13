@@ -91,23 +91,26 @@ export const githubItem = ({
   };
 };
 
-export const buttons = ({ item }) => ({
-  type: "actions",
-  elements: [
-    {
-      type: "button",
-      text: { type: "plain_text", emoji: true, text: "Snooze" },
-      value: item.id,
-      action_id: "snooze",
-    },
-    {
-      type: "button",
-      text: { type: "plain_text", emoji: true, text: "Close - Irrelevant" },
-      value: item.id,
-      action_id: "irrelevant",
-    },
-  ],
-});
+export const buttons = ({ item }) => [
+  {
+    type: "actions",
+    elements: [
+      {
+        type: "button",
+        text: { type: "plain_text", emoji: true, text: "Snooze" },
+        value: item.id,
+        action_id: "snooze",
+      },
+      {
+        type: "button",
+        text: { type: "plain_text", emoji: true, text: "Close - Irrelevant" },
+        value: item.id,
+        action_id: "irrelevant",
+      },
+    ],
+  },
+  { type: "divider" },
+];
 
 export const unauthorizedError = async ({ client, user_id, channel_id }) => {
   await client.chat.postEphemeral({
