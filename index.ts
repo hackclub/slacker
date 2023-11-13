@@ -248,17 +248,38 @@ slack.action("irrelevant", markIrrelevant);
 slack.action("assigned", assigned);
 slack.view("snooze_submit", snoozeSubmit);
 
-cron.schedule("0 0 * * *", async () => {
-  await prisma.actionItem.updateMany({
-    where: {
-      AND: [
-        { assigneeId: { not: null } },
-        { assignedOn: { not: null } },
-        { assignedOn: { lte: dayjs().subtract(2, "days").toDate() } },
-      ],
-    },
-    data: { assigneeId: null },
-  });
+cron.schedule("0 * * * *", async () => {
+  const items = await prisma.actionItem
+    .findMany({
+      where: {
+        assigneeId: { not: null },
+        assignedOn: { not: null },
+        status: ActionStatus.open,
+      },
+      include: { assignee: true },
+    })
+    .then((res) =>
+      res.filter((item) => item.snoozedUntil === null || dayjs(item.snoozedUntil).isBefore(dayjs()))
+    );
+
+  for await (const item of items) {
+    const assignedOn = dayjs(item.snoozedUntil || item.assignedOn);
+    let deadline = assignedOn;
+
+    let count = 0;
+    while (count < 48) {
+      deadline = deadline.add(1, "hour");
+      if (deadline.day() !== 0 && deadline.day() !== 6) count++;
+    }
+
+    if (dayjs().isBefore(deadline)) continue;
+    await prisma.actionItem.update({ where: { id: item.id }, data: { assigneeId: null } });
+
+    await slack.client.chat.postMessage({
+      channel: item.assignee?.slackId ?? "",
+      text: `:warning: Hey, we unassigned ${item.id} from you because you didn't resolve it in time. Feel free to pick it up again!`,
+    });
+  }
 });
 
 (async () => {
