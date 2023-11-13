@@ -146,7 +146,10 @@ export const snooze: Middleware<SlackActionMiddlewareArgs<SlackAction>, StringIn
     const nextBusinessDay = dayjs().add(1, "day");
     if (nextBusinessDay.day() === 0) nextBusinessDay.add(1, "day");
     else if (nextBusinessDay.day() === 6) nextBusinessDay.add(2, "day");
-    nextBusinessDay.hour(7).minute(0).second(0).millisecond(0);
+
+    const initial_date_time = Math.floor(
+      nextBusinessDay.hour(7).minute(0).second(0).millisecond(0).valueOf() / 1000
+    );
 
     await client.views.open({
       trigger_id: (body as any).trigger_id as string,
@@ -173,7 +176,7 @@ export const snooze: Middleware<SlackActionMiddlewareArgs<SlackAction>, StringIn
             element: {
               type: "datetimepicker",
               action_id: "datetimepicker-action",
-              initial_date_time: Math.floor(nextBusinessDay.valueOf() / 1000),
+              initial_date_time,
               focus_on_load: true,
             },
             label: {
