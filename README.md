@@ -25,7 +25,31 @@ Currently, the main interface to Slacker is via issuing slack bot commands.  A g
 
 # Can it support my project?
 In all likelihood, yes.  Just add yourself and your project members to the global [maintainers configuration file](https://github.com/hackclub/slacker/blob/main/maintainers.yaml), and add a new project config [here](https://github.com/hackclub/slacker/tree/main/config).  Here is an example from the Sprig project - it is fairly self-explanatory...
-
+```
+name: Sprig
+description: Teens make games and get a Sprig
+maintainers: [leo, lucas, kognise, max, graham, josias, shawn]
+channels:
+  - name: sprig
+    id: C02UN35M7LG
+    sla:
+      responseTime: 1h
+  - name: sprig-platform
+    id: C04S1A8NT44
+    sla:
+      responseTime: 24h
+  - name: sprig-device-requests
+    id: C063DFZ532M
+    sla:
+      responseTime: 24h
+repos:
+  - uri: https://github.com/hackclub/sprig
+    sla:
+      responseTime: 1h
+  - uri: https://github.com/hackclub/spade
+    sla:
+      responseTime: 24h
+```
 
 # Backend architecture
 <img width="768px" src="https://cloud-5qrh6ctqm-hack-club-bot.vercel.app/0screenshot_2023-11-13_at_9.37.43_am.png">
