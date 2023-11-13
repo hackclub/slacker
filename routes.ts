@@ -50,7 +50,7 @@ export default (router: ConnectRouter) =>
               else author = user;
 
               const actionItem = await prisma.actionItem.findFirst({
-                where: { githubItemId: item.id },
+                where: { githubItem: { nodeId: item.id } },
               });
 
               const githubItem = await prisma.githubItem.upsert({
@@ -158,7 +158,7 @@ export default (router: ConnectRouter) =>
           }
         }
 
-        console.log("===================== Syncing done =====================");
+        console.log("✅✅✅✅ Syncing done ✅✅✅✅");
 
         return { response: "ok" };
       } catch (err) {

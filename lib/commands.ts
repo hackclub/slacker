@@ -436,12 +436,14 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
         where: {
           assignee: { OR: [{ slackId: user_id }, { githubUsername: maintainer?.github }] },
           status: { not: ActionStatus.closed },
+          resolvedAt: null,
         },
         include: {
           githubItem: { include: { repository: true, author: true } },
           slackMessage: { include: { channel: true, author: true } },
           assignee: true,
         },
+        take: 15,
       });
 
       if (items.length > 0) {

@@ -84,7 +84,9 @@ export const syncParticipants = async (participants: string[], id: string) => {
 export const syncGithubParticipants = async (participants: string[], id: string) => {
   for (let i = 0; i < participants.length; i++) {
     const user = await prisma.user.findFirst({
-      where: { githubUsername: participants[i] as string },
+      where: {
+        OR: [{ githubUsername: participants[i] as string }, { email: participants[i] as string }],
+      },
     });
 
     await prisma.participant.create({
