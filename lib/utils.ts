@@ -177,8 +177,8 @@ export const logActivity = async (
 
   await client.chat.postMessage({
     channel: process.env.ACTIVITY_LOG_CHANNEL_ID,
-    text: `:white_check_mark: <@${user}> ${type} an action item. ID: ${actionId}\n\n${
-      url ? `<${url}|View action item>` : ""
-    }`,
+    text: `:white_check_mark: ${
+      MAINTAINERS.find((u) => u.slack === user)?.id || user
+    } ${type} an action item. ID: ${actionId}\n\n${url ? `<${url}|View action item>` : ""}`,
   });
 };
