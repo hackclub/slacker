@@ -82,7 +82,7 @@ export default (router: ConnectRouter) =>
                   },
                 },
                 update: {
-                  state: actionItem?.resolvedAt ? "closed" : "open",
+                  state: "open",
                   title: item.title,
                   updatedAt: item.updatedAt,
                   labelsOnItems: {
@@ -97,7 +97,6 @@ export default (router: ConnectRouter) =>
                       totalReplies: item.comments.totalCount,
                       firstReplyOn: item.comments.nodes[0]?.createdAt,
                       lastReplyOn: item.comments.nodes[item.comments.nodes.length - 1]?.createdAt,
-                      resolvedAt: null,
                       participants: { deleteMany: {} },
                     },
                   },
