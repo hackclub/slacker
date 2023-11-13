@@ -31,7 +31,7 @@ export const joinChannels = async () => {
   });
 };
 
-export const getMaintainers = async ({
+export const getMaintainers = ({
   channelId,
   repoUrl,
 }: {
@@ -41,7 +41,7 @@ export const getMaintainers = async ({
   const files = fs.readdirSync("./config");
   const arr: string[] = [];
 
-  files.forEach(async (file) => {
+  files.forEach((file) => {
     try {
       const config = getYamlFile(file);
       const maintainers = config["maintainers"];
@@ -153,7 +153,8 @@ export const logActivity = async (
   client: typeof slack.client,
   user: string,
   actionId: string,
-  type: "resolved" | "irrelevant" | "snoozed" | "reopened" | "unsnoozed"
+  type: "resolved" | "irrelevant" | "snoozed" | "reopened" | "unsnoozed" | "assigned",
+  notifyUser?: string
 ) => {
   if (process.env.ACTIVITY_LOG_CHANNEL_ID === undefined) return;
 
@@ -179,6 +180,8 @@ export const logActivity = async (
     channel: process.env.ACTIVITY_LOG_CHANNEL_ID,
     text: `:white_check_mark: ${
       MAINTAINERS.find((u) => u.slack === user)?.id || user
-    } ${type} an action item. ID: ${actionId}\n\n${url ? `<${url}|View action item>` : ""}`,
+    } ${type} an action item. ID: ${actionId} ${notifyUser ? `cc:<@${notifyUser}>` : ""}\n\n${
+      url ? `<${url}|View action item>` : ""
+    }`,
   });
 };

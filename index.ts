@@ -8,7 +8,7 @@ import relativeTime from "dayjs/plugin/relativeTime";
 import { config } from "dotenv";
 import express from "express";
 import { Octokit } from "octokit";
-import { markIrrelevant, resolve, snooze, unsnooze } from "./lib/actions";
+import { assigned, markIrrelevant, resolve, snooze, unsnooze } from "./lib/actions";
 import { handleSlackerCommand } from "./lib/commands";
 import prisma from "./lib/db";
 import { getMaintainers, joinChannels, syncParticipants } from "./lib/utils";
@@ -199,7 +199,7 @@ slack.event("message", async ({ event, client, logger, message }) => {
       await syncParticipants(parent.reply_users || [], slackMessage.actionItem!.id);
     } else {
       // create new action item:
-      const maintainers = await getMaintainers({ channelId: event.channel });
+      const maintainers = getMaintainers({ channelId: event.channel });
       if (maintainers.find((maintainer) => maintainer?.slack === parent.user)) return;
 
       // find user by slack id
@@ -244,6 +244,7 @@ slack.action("resolve", resolve);
 slack.action("snooze", snooze);
 slack.action("unsnooze", unsnooze);
 slack.action("irrelevant", markIrrelevant);
+slack.action("assigned", assigned);
 slack.view("snooze_submit", snoozeSubmit);
 
 (async () => {

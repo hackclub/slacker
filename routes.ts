@@ -33,7 +33,7 @@ export default (router: ConnectRouter) =>
             const items = await listGithubItems(owner, name);
 
             for await (const item of items) {
-              const maintainers = await getMaintainers({ repoUrl: repo.uri });
+              const maintainers = getMaintainers({ repoUrl: repo.uri });
               if (maintainers.find((maintainer) => maintainer?.github === item.author.login))
                 continue;
 

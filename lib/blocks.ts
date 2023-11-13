@@ -2,17 +2,20 @@ import { ActionItem, Channel, GithubItem, Repository, SlackMessage, User } from 
 import dayjs from "dayjs";
 import customParseFormat from "dayjs/plugin/customParseFormat";
 import relativeTime from "dayjs/plugin/relativeTime";
+import { getMaintainers } from "./utils";
 dayjs.extend(relativeTime);
 dayjs.extend(customParseFormat);
 
 export const slackItem = ({
   item,
+  showActions = true,
 }: {
   item: ActionItem & {
     assignee: User | null | undefined;
     githubItem: (GithubItem & { repository: Repository }) | null | undefined;
     slackMessage: (SlackMessage & { channel: Channel; author: User }) | null | undefined;
   };
+  showActions?: boolean;
 }) => {
   const diff = dayjs().diff(dayjs(item.lastReplyOn), "day");
 
@@ -21,6 +24,13 @@ export const slackItem = ({
         item.assignee.slackId ? `<@${item.assignee.slackId}>` : item.assignee.githubUsername
       }`
     : "Unassigned";
+
+  const maintainers = getMaintainers({ channelId: item.slackMessage?.channel?.slackId });
+  const currentAssignee = maintainers.find(
+    (maintainer) =>
+      maintainer?.slack === item.assignee?.slackId ||
+      maintainer?.github === item.assignee?.githubUsername
+  );
 
   return {
     type: "section",
@@ -38,24 +48,44 @@ export const slackItem = ({
         item.slackMessage?.channel?.slackId
       }/p${item.slackMessage?.ts.replace(".", "")}|View on Slack>`,
     },
-    accessory: {
-      type: "button",
-      text: { type: "plain_text", emoji: true, text: "Resolve" },
-      style: "primary",
-      value: item.id,
-      action_id: "resolve",
-    },
+    accessory: showActions
+      ? {
+          type: "button",
+          text: { type: "plain_text", emoji: true, text: "Resolve" },
+          style: "primary",
+          value: item.id,
+          action_id: "resolve",
+        }
+      : {
+          type: "static_select",
+          placeholder: { type: "plain_text", text: "Assign to", emoji: true },
+          options: maintainers
+            .filter((m) => !!m)
+            .map((maintainer) => ({
+              text: { type: "plain_text", text: maintainer!.id, emoji: true },
+              value: `${item.id}-${maintainer?.id}`,
+            })),
+          initial_option: currentAssignee
+            ? {
+                text: { type: "plain_text", text: currentAssignee.id, emoji: true },
+                value: `${item.id}-${currentAssignee.id}`,
+              }
+            : undefined,
+          action_id: "assigned",
+        },
   };
 };
 
 export const githubItem = ({
   item,
+  showActions = true,
 }: {
   item: ActionItem & {
     assignee: User | null | undefined;
     githubItem: (GithubItem & { repository: Repository; author: User }) | null | undefined;
     slackMessage: (SlackMessage & { channel: Channel; author: User }) | null | undefined;
   };
+  showActions?: boolean;
 }) => {
   const diff = dayjs().diff(dayjs(item.lastReplyOn), "day");
   const url = `<https://github.com/${item.githubItem?.repository?.owner}/${item.githubItem?.repository?.name}/issues/${item.githubItem?.number}|View on GitHub>`;
@@ -66,6 +96,13 @@ export const githubItem = ({
         item.assignee.slackId ? `<@${item.assignee.slackId}>` : item.assignee.githubUsername
       }`
     : "Unassigned";
+
+  const maintainers = getMaintainers({ repoUrl: item.githubItem?.repository?.url });
+  const currentAssignee = maintainers.find(
+    (maintainer) =>
+      maintainer?.slack === item.assignee?.slackId ||
+      maintainer?.github === item.assignee?.githubUsername
+  );
 
   return {
     type: "section",
@@ -81,13 +118,31 @@ export const githubItem = ({
           : "\n:panik: *No replies yet*"
       } | ${assigneeText}\n${item.githubItem?.title ? url : ""}`,
     },
-    accessory: {
-      type: "button",
-      text: { type: "plain_text", emoji: true, text: "Resolve" },
-      style: "primary",
-      value: item.id,
-      action_id: "resolve",
-    },
+    accessory: showActions
+      ? {
+          type: "button",
+          text: { type: "plain_text", emoji: true, text: "Resolve" },
+          style: "primary",
+          value: item.id,
+          action_id: "resolve",
+        }
+      : {
+          type: "static_select",
+          placeholder: { type: "plain_text", text: "Assign to", emoji: true },
+          options: maintainers
+            .filter((m) => !!m)
+            .map((maintainer) => ({
+              text: { type: "plain_text", text: maintainer!.id, emoji: true },
+              value: `${item.id}-${maintainer?.id}`,
+            })),
+          initial_option: currentAssignee
+            ? {
+                text: { type: "plain_text", text: currentAssignee.id, emoji: true },
+                value: `${item.id}-${currentAssignee.id}`,
+              }
+            : undefined,
+          action_id: "assigned",
+        },
   };
 };
 

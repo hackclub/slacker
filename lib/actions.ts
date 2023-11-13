@@ -1,14 +1,9 @@
 import dayjs from "dayjs";
-import { logActivity, syncGithubParticipants, syncParticipants } from "./utils";
+import { MAINTAINERS, logActivity, syncGithubParticipants, syncParticipants } from "./utils";
 import prisma from "./db";
 import { StringIndexed } from "@slack/bolt/dist/types/helpers";
 import { Block, KnownBlock, Middleware, SlackAction, SlackActionMiddlewareArgs } from "@slack/bolt";
 import { getGithubItem } from "./octokit";
-import utc from "dayjs/plugin/utc";
-import timezone from "dayjs/plugin/timezone";
-dayjs.extend(utc);
-dayjs.extend(timezone);
-dayjs.tz.setDefault("America/New_York");
 
 export const markIrrelevant: Middleware<
   SlackActionMiddlewareArgs<SlackAction>,
@@ -153,7 +148,7 @@ export const snooze: Middleware<SlackActionMiddlewareArgs<SlackAction>, StringIn
     else if (nextBusinessDay.day() === 6) nextBusinessDay.add(2, "day");
 
     const initial_date_time = Math.floor(
-      nextBusinessDay.hour(7).minute(0).second(0).millisecond(0).valueOf() / 1000
+      nextBusinessDay.hour(12).minute(0).second(0).millisecond(0).valueOf() / 1000
     );
 
     await client.views.open({
@@ -346,6 +341,48 @@ export const unsnooze: Middleware<SlackActionMiddlewareArgs<SlackAction>, String
     });
 
     await logActivity(client, user.id, actionId, "unsnoozed");
+  } catch (err) {
+    logger.error(err);
+  }
+};
+
+export const assigned: Middleware<SlackActionMiddlewareArgs<SlackAction>, StringIndexed> = async ({
+  ack,
+  body,
+  client,
+  logger,
+}) => {
+  await ack();
+
+  try {
+    const { user, channel, actions } = body as any;
+    const [actionId, assigneeId] = actions[0].selected_option.value.split("-");
+
+    const maintainer = MAINTAINERS.find((m) => m.id === assigneeId);
+    let userOnDb = await prisma.user.findFirst({
+      where: { OR: [{ slackId: maintainer?.slack }, { githubUsername: maintainer?.github }] },
+    });
+
+    if (!userOnDb) {
+      const userInfo = await client.users.info({ user: maintainer?.slack as string });
+      userOnDb = await prisma.user.create({
+        data: {
+          slackId: maintainer?.slack,
+          githubUsername: maintainer?.github,
+          email: userInfo.user?.profile?.email || "",
+        },
+      });
+    }
+
+    await prisma.actionItem.update({ where: { id: actionId }, data: { assigneeId: userOnDb.id } });
+
+    await client.chat.postEphemeral({
+      channel: channel?.id as string,
+      user: user.id,
+      text: `:white_check_mark: Action item (id=${actionId}) assigned to <@${maintainer?.slack}>`,
+    });
+
+    await logActivity(client, user.id, actionId, "assigned", maintainer?.slack);
   } catch (err) {
     logger.error(err);
   }
