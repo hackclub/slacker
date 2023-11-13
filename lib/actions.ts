@@ -360,19 +360,27 @@ export const assigned: Middleware<SlackActionMiddlewareArgs<SlackAction>, String
 
     const maintainer = MAINTAINERS.find((m) => m.id === assigneeId);
     let userOnDb = await prisma.user.findFirst({
-      where: { OR: [{ slackId: maintainer?.slack }, { githubUsername: maintainer?.github }] },
+      where: {
+        OR: [
+          { slackId: maintainer?.slack },
+          { githubUsername: maintainer?.github },
+          { id: assigneeId },
+        ],
+      },
     });
 
-    if (!userOnDb) {
-      const userInfo = await client.users.info({ user: maintainer?.slack as string });
+    if (!userOnDb && maintainer) {
+      const userInfo = await client.users.info({ user: maintainer.slack as string });
       userOnDb = await prisma.user.create({
         data: {
-          slackId: maintainer?.slack,
-          githubUsername: maintainer?.github,
+          slackId: maintainer.slack,
+          githubUsername: maintainer.github,
           email: userInfo.user?.profile?.email || "",
         },
       });
     }
+
+    if (!userOnDb) return;
 
     await prisma.actionItem.update({ where: { id: actionId }, data: { assigneeId: userOnDb.id } });
 

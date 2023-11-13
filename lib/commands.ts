@@ -39,7 +39,7 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
         channel: channel_id,
         text: `:wave: Hi there! I'm Slacker, your friendly neighborhood action item manager. Here's what I can do:
         \n• *List your action items:* \`/slacker me\`
-        \n• *Get an action item assigned to you:* \`/slacker gimme\`
+        \n• *Get an action item assigned to you:* \`/slacker gimme [project] [filter]\`
         \n• *List action items:* \`/slacker list [project] [filter]\`
         \n• *Reopen action item:* \`/slacker reopen [id]\`
         \n• *List projects:* \`/slacker whatsup\`
@@ -129,9 +129,9 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
             .map((item) => {
               const arr: any[] = [];
 
-              if (item.slackMessage !== null) arr.push(slackItem({ item }));
-              if (item.githubItem !== null) arr.push(githubItem({ item }));
-              arr.push(...buttons({ item }));
+              if (item.slackMessage !== null) arr.push(slackItem({ item, showActions: false }));
+              if (item.githubItem !== null) arr.push(githubItem({ item, showActions: false }));
+              arr.push(buttons({ item })[1]);
 
               return arr;
             })
@@ -210,7 +210,7 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
       await client.chat.postEphemeral({ user: user_id, channel: channel_id, text });
     } else if (args[0] === "whatsupfr") {
       const files = readdirSync("./config");
-      const text = `:white_check_mark: Here are your projects:\n\n
+      const text = `:white_check_mark: Here are all the projects on slacker:\n\n
         ${files
           .map((file) => {
             const config = getYamlFile(file);
@@ -385,7 +385,7 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
         return;
       }
 
-      const maintainers = await getMaintainers({
+      const maintainers = getMaintainers({
         channelId: item.slackMessage?.channel?.slackId,
         repoUrl: item.githubItem?.repository?.url,
       });
@@ -427,6 +427,8 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
         channel: channel_id,
         text: `:white_check_mark: Action item assigned to <@${maintainer?.slack}>.`,
       });
+
+      await logActivity(client, user_id, id, "assigned", maintainer?.slack);
     } else if (args[0] === "me") {
       const maintainer = MAINTAINERS.find((m) => m.slack === user_id);
 
@@ -475,22 +477,85 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
         });
       }
     } else if (args[0] === "gimme") {
-      const { channels, repositories } = await getYamlDetails("all", user_id, user?.githubUsername);
+      const project = args[1]?.trim() || "all";
+      const filter = args[2]?.trim() || "";
+      const files = readdirSync("./config");
+
+      if (project !== "all" && !files.includes(`${project}.yaml`)) {
+        await client.chat.postEphemeral({
+          user: user_id,
+          channel: channel_id,
+          text: `:warning: Project not found. Please check your command and try again.`,
+        });
+        return;
+      }
+
+      if (filter && !["", "all", "github", "slack"].includes(filter.trim())) {
+        await client.chat.postEphemeral({
+          user: user_id,
+          channel: channel_id,
+          text: `:warning: Invalid filter. Please check your command and try again.`,
+        });
+        return;
+      }
+
+      const { maintainers, channels, repositories } = await getYamlDetails(
+        project,
+        user_id,
+        user?.githubUsername
+      );
+
+      let isVolunteer = !maintainers.find((m) => m.slack === user_id) && project !== "all";
+
+      if (!user) {
+        return await unauthorizedError({ client, user_id, channel_id });
+      } else if (project === "all" && !maintainers.find((m) => m.github === user?.githubUsername)) {
+        await client.chat.postEphemeral({
+          user: user_id,
+          channel: channel_id,
+          text: `:warning: You're not a manager for any projects. If you're looking to volunteer, make sure to specify a project.`,
+        });
+        return;
+      } else if (!user.githubUsername) {
+        await client.chat.postEphemeral({
+          user: user_id,
+          channel: channel_id,
+          text: `:warning: Login with github to get assigned to a task. <${process.env.DEPLOY_URL}/auth?id=${user_id}|authenticate>`,
+        });
+        return;
+      }
 
       const data = await prisma.actionItem
         .findMany({
           where: {
             OR: [
-              { slackMessage: { channel: { slackId: { in: channels.map((c) => c.id) } } } },
-              { githubItem: { repository: { url: { in: repositories.map((r) => r.uri) } } } },
+              ...((!filter || filter === "all" || filter === "slack") && !isVolunteer
+                ? [{ slackMessage: { channel: { slackId: { in: channels.map((c) => c.id) } } } }]
+                : []),
+              ...(!filter || filter === "all" || filter === "github"
+                ? [{ githubItem: { repository: { url: { in: repositories.map((r) => r.uri) } } } }]
+                : []),
             ],
+            ...(isVolunteer
+              ? { githubItem: { labelsOnItems: { some: { label: { name: "good first issue" } } } } }
+              : {}),
             status: { not: ActionStatus.closed },
+            assignee: { is: null },
           },
           orderBy: { createdAt: "asc" },
         })
         .then((res) =>
           res.filter((i) => i.snoozedUntil === null || dayjs().isAfter(dayjs(i.snoozedUntil)))
         );
+
+      if (data.length < 1) {
+        await client.chat.postEphemeral({
+          user: user_id,
+          channel: channel_id,
+          text: `:white_check_mark: No action items available. Please check back later.`,
+        });
+        return;
+      }
 
       const item = await prisma.actionItem.update({
         where: { id: data[0].id },
