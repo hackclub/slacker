@@ -4,6 +4,11 @@ import prisma from "./db";
 import { StringIndexed } from "@slack/bolt/dist/types/helpers";
 import { Block, KnownBlock, Middleware, SlackAction, SlackActionMiddlewareArgs } from "@slack/bolt";
 import { getGithubItem } from "./octokit";
+import utc from "dayjs/plugin/utc";
+import timezone from "dayjs/plugin/timezone";
+dayjs.extend(utc);
+dayjs.extend(timezone);
+dayjs.tz.setDefault("America/New_York");
 
 export const markIrrelevant: Middleware<
   SlackActionMiddlewareArgs<SlackAction>,
