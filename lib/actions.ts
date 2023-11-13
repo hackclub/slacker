@@ -382,7 +382,7 @@ export const assigned: Middleware<SlackActionMiddlewareArgs<SlackAction>, String
 
     if (!userOnDb) return;
 
-    await prisma.actionItem.update({ where: { id: actionId }, data: { assigneeId: userOnDb.id } });
+    await prisma.actionItem.update({ where: { id: actionId }, data: { assigneeId: userOnDb.id, assignedOn: new Date() } });
 
     await client.chat.postEphemeral({
       channel: channel?.id as string,

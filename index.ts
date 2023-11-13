@@ -7,6 +7,7 @@ import customParseFormat from "dayjs/plugin/customParseFormat";
 import relativeTime from "dayjs/plugin/relativeTime";
 import { config } from "dotenv";
 import express from "express";
+import cron from "node-cron";
 import { Octokit } from "octokit";
 import { assigned, markIrrelevant, resolve, snooze, unsnooze } from "./lib/actions";
 import { handleSlackerCommand } from "./lib/commands";
@@ -246,6 +247,19 @@ slack.action("unsnooze", unsnooze);
 slack.action("irrelevant", markIrrelevant);
 slack.action("assigned", assigned);
 slack.view("snooze_submit", snoozeSubmit);
+
+cron.schedule("0 0 * * *", async () => {
+  await prisma.actionItem.updateMany({
+    where: {
+      AND: [
+        { assigneeId: { not: null } },
+        { assignedOn: { not: null } },
+        { assignedOn: { lte: dayjs().subtract(2, "days").toDate() } },
+      ],
+    },
+    data: { assigneeId: null },
+  });
+});
 
 (async () => {
   try {

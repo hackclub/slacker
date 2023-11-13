@@ -92,8 +92,9 @@ model ActionItem {
   snoozedBy    User?     @relation(fields: [snoozedById], references: [id])
   snoozedById  String?
 
-  assignee   User?   @relation(fields: [assigneeId], references: [id], "assignee")
+  assignee   User?     @relation(fields: [assigneeId], references: [id], "assignee")
   assigneeId String?
+  assignedOn DateTime?
 
   status     ActionStatus
   flag       ExtraFlags?

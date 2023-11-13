@@ -419,7 +419,7 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
 
       await prisma.actionItem.update({
         where: { id },
-        data: { assignee: { connect: { id: user?.id } } },
+        data: { assignee: { connect: { id: user?.id } }, assignedOn: new Date() },
       });
 
       await client.chat.postEphemeral({
@@ -561,7 +561,7 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
 
       const item = await prisma.actionItem.update({
         where: { id: data[0].id },
-        data: { assignee: { connect: { id: user?.id } } },
+        data: { assignee: { connect: { id: user?.id } }, assignedOn: new Date() },
         include: {
           githubItem: { include: { author: true, repository: true } },
           slackMessage: { include: { author: true, channel: true } },
