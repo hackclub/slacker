@@ -143,7 +143,7 @@ export const slack = new App({
   receiver,
 });
 
-const ALLOWED_BOTS = ["B03QGF0H9FU", "U036UQD2893"];
+const ALLOWED_BOTS = ["B03QGF0H9FU", "B03701P4QN8", "B05SHCXE1UY"];
 slack.event("message", async ({ event, client, logger, message }) => {
   try {
     if (message.subtype === "message_deleted") {
