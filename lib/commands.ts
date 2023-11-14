@@ -27,7 +27,7 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
     if (!user) {
       const userInfo = await client.users.info({ user: user_id });
       user = await prisma.user.create({
-        data: { slackId: user_id, email: userInfo.user?.profile?.email || "" },
+        data: { slackId: user_id, email: userInfo.user?.profile?.email },
       });
     }
 
@@ -412,7 +412,7 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
           data: {
             slackId: maintainer?.slack,
             githubUsername: maintainer?.github,
-            email: userInfo.user?.profile?.email || "",
+            email: userInfo.user?.profile?.email,
           },
         });
       }
@@ -511,7 +511,7 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
 
       if (!user) {
         return await unauthorizedError({ client, user_id, channel_id });
-      } else if (project === "all" && !maintainers.find((m) => m.github === user?.githubUsername)) {
+      } else if (project === "all" && !maintainers.find((m) => m.slack === user_id)) {
         await client.chat.postEphemeral({
           user: user_id,
           channel: channel_id,

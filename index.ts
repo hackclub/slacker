@@ -68,7 +68,7 @@ app.get("/auth/callback", async (req, res) => {
         { email },
         { email: user.data.login },
         { githubUsername: user.data.login },
-        { slackId: id as string },
+        { slackId: id.toString().toUpperCase() },
       ],
     },
   });
@@ -114,7 +114,7 @@ app.get("/auth/callback", async (req, res) => {
         email,
         githubUsername: user.data.login,
         githubToken: token,
-        slackId: id as string,
+        slackId: id.toString().toUpperCase(),
       },
     });
   } else {
@@ -124,7 +124,7 @@ app.get("/auth/callback", async (req, res) => {
         email,
         githubUsername: user.data.login,
         githubToken: token,
-        slackId: id as string,
+        slackId: id.toString().toUpperCase(),
       },
     });
   }
@@ -198,7 +198,10 @@ slack.event("message", async ({ event, client, logger, message }) => {
         include: { actionItem: true },
       });
 
-      await syncParticipants(parent.reply_users || [], slackMessage.actionItem!.id);
+      await syncParticipants(
+        Array.from(new Set(parent.reply_users)) || [],
+        slackMessage.actionItem!.id
+      );
     } else {
       // create new action item:
       const maintainers = getMaintainers({ channelId: event.channel });
@@ -234,7 +237,10 @@ slack.event("message", async ({ event, client, logger, message }) => {
         include: { actionItem: true },
       });
 
-      await syncParticipants(parent.reply_users || [], slackMessage.actionItem!.id);
+      await syncParticipants(
+        Array.from(new Set(parent.reply_users)) || [],
+        slackMessage.actionItem!.id
+      );
     }
   } catch (err) {
     logger.error(err);

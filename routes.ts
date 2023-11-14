@@ -14,15 +14,16 @@ export default (router: ConnectRouter) =>
 
         for await (const file of files) {
           const { repos } = getYamlFile(file);
-          console.log(
-            `===================== Syncing repositories for file: ${file} =====================`
-          );
+
+          const progress = `${files.indexOf(file) + 1} / ${files.length}`;
+
+          console.log(`🐱🐱 ${progress} Syncing file: ${file} 🐱🐱`);
 
           for await (const repo of repos) {
             const owner = repo.uri.split("/")[3];
             const name = repo.uri.split("/")[4];
 
-            console.log(`===================== Repository: ${repo.uri} =====================`);
+            console.log(`===================== ${owner}/${name} =====================`);
 
             const dbRepo = await prisma.repository.upsert({
               where: { url: repo.uri },
@@ -44,9 +45,7 @@ export default (router: ConnectRouter) =>
               let author: User;
 
               if (!user)
-                author = await prisma.user.create({
-                  data: { githubUsername: item.author.login, email: item.author.login },
-                });
+                author = await prisma.user.create({ data: { githubUsername: item.author.login } });
               else author = user;
 
               const actionItem = await prisma.actionItem.findFirst({
@@ -109,7 +108,7 @@ export default (router: ConnectRouter) =>
             }
 
             console.log(
-              `===================== Syncing closed items for repository: ${repo.uri} =====================`
+              `===================== Syncing closed items: ${owner}/${repo} =====================`
             );
 
             const dbItems = await prisma.githubItem.findMany({
@@ -152,16 +151,17 @@ export default (router: ConnectRouter) =>
               await syncGithubParticipants(logins, githubItem.actionItem!.id);
             }
 
-            console.log(
-              `===================== Repository syncing done: ${repo.uri} =====================`
-            );
+            console.log(`✅ DONE: ${owner}/${repo} ✅`);
           }
+          console.log(`✅ DONE: ${file} ✅`);
         }
 
         console.log("✅✅✅✅ Syncing done ✅✅✅✅");
 
         return { response: "ok" };
       } catch (err) {
+        console.log("❌❌❌❌ Syncing failed ❌❌❌❌");
+        console.error(err);
         return { response: err.message };
       }
     },

@@ -95,7 +95,7 @@ export const markIrrelevant: Middleware<
         include: { actionItem: { include: { participants: true } } },
       });
 
-      await syncParticipants(parent.reply_users || [], action.id);
+      await syncParticipants(Array.from(new Set(parent.reply_users)) || [], action.id);
     }
 
     await client.chat.postEphemeral({
@@ -291,7 +291,7 @@ export const resolve: Middleware<SlackActionMiddlewareArgs<SlackAction>, StringI
         include: { actionItem: { include: { participants: true } } },
       });
 
-      await syncParticipants(parent.reply_users || [], action.id);
+      await syncParticipants(Array.from(new Set(parent.reply_users)) || [], action.id);
     }
 
     await client.chat.postEphemeral({
@@ -375,14 +375,17 @@ export const assigned: Middleware<SlackActionMiddlewareArgs<SlackAction>, String
         data: {
           slackId: maintainer.slack,
           githubUsername: maintainer.github,
-          email: userInfo.user?.profile?.email || "",
+          email: userInfo.user?.profile?.email,
         },
       });
     }
 
     if (!userOnDb) return;
 
-    await prisma.actionItem.update({ where: { id: actionId }, data: { assigneeId: userOnDb.id, assignedOn: new Date() } });
+    await prisma.actionItem.update({
+      where: { id: actionId },
+      data: { assigneeId: userOnDb.id, assignedOn: new Date() },
+    });
 
     await client.chat.postEphemeral({
       channel: channel?.id as string,

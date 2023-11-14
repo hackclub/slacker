@@ -62,21 +62,26 @@ export const getMaintainers = ({
 export const syncParticipants = async (participants: string[], id: string) => {
   for (let i = 0; i < participants.length; i++) {
     const userInfo = await slack.client.users.info({ user: participants[i] as string });
-    const user = await prisma.user.findFirst({ where: { slackId: participants[i] as string } });
+    const userId = await prisma.user
+      .findFirst({ where: { slackId: participants[i] as string } })
+      .then((user) => user?.id || "-1");
 
-    await prisma.participant.create({
-      data: {
+    await prisma.participant.upsert({
+      where: { userId_actionItemId: { userId, actionItemId: id } },
+      create: {
         actionItem: { connect: { id } },
         user: {
           connectOrCreate: {
-            where: { id: user?.id || "-1" },
+            where: { id: userId },
             create: {
               slackId: participants[i] as string,
               email: userInfo.user?.profile?.email || "",
+              githubUsername: MAINTAINERS.find((user) => user.slack === participants[i])?.github,
             },
           },
         },
       },
+      update: {},
     });
   }
 };
@@ -182,8 +187,19 @@ export const logActivity = async (
     channel: process.env.ACTIVITY_LOG_CHANNEL_ID,
     text: `:white_check_mark: ${
       MAINTAINERS.find((u) => u.slack === user)?.id || user
-    } ${type} an action item. ID: ${actionId} ${notifyUser ? `cc:<@${notifyUser}>` : ""}\n\n${
-      url ? `<${url}|View action item>` : ""
-    }`,
+    } ${type} an action item. ID: ${actionId} ${
+      notifyUser && user !== notifyUser ? `cc:<@${notifyUser}>` : ""
+    }\n\n${url ? `<${url}|View action item>` : ""}`,
   });
+
+  if (notifyUser && user !== notifyUser && type === "assigned") {
+    await client.chat.postMessage({
+      channel: notifyUser,
+      text: `Hey <@${notifyUser}>, ${
+        MAINTAINERS.find((u) => u.slack === user)?.id || user
+      } ${type} an action item to you. ID: ${actionId}\n\n${
+        url ? `<${url}|View action item>` : ""
+      }`,
+    });
+  }
 };
