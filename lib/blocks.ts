@@ -94,7 +94,9 @@ export const slackItem = ({
             ? {
                 text: {
                   type: "plain_text",
-                  text: isMaintainer ? currentAssignee.id : `<@${currentAssignee.slack}> (volunteer)`,
+                  text: isMaintainer
+                    ? currentAssignee.id
+                    : `<@${currentAssignee.slack}> (volunteer)`,
                   emoji: true,
                 },
                 value: `${item.id}-${currentAssignee.id}`,
@@ -193,7 +195,9 @@ export const githubItem = ({
             ? {
                 text: {
                   type: "plain_text",
-                  text: isMaintainer ? currentAssignee.id : `<@${currentAssignee.slack}> (volunteer)`,
+                  text: isMaintainer
+                    ? currentAssignee.id
+                    : `<@${currentAssignee.slack}> (volunteer)`,
                   emoji: true,
                 },
                 value: `${item.id}-${currentAssignee.id}`,
@@ -204,26 +208,83 @@ export const githubItem = ({
   };
 };
 
-export const buttons = ({ item }) => [
-  {
-    type: "actions",
-    elements: [
-      {
-        type: "button",
-        text: { type: "plain_text", emoji: true, text: "Snooze" },
-        value: item.id,
-        action_id: "snooze",
-      },
-      {
-        type: "button",
-        text: { type: "plain_text", emoji: true, text: "Close - Irrelevant" },
-        value: item.id,
-        action_id: "irrelevant",
-      },
-    ],
-  },
-  { type: "divider" },
-];
+export const buttons = ({ item, showAssignee = false }) => {
+  const maintainers = getMaintainers({ repoUrl: item.githubItem?.repository?.url });
+  const isMaintainer = maintainers.find(
+    (maintainer) =>
+      maintainer?.slack === item.assignee?.slackId ||
+      maintainer?.github === item.assignee?.githubUsername
+  );
+
+  const currentAssignee =
+    item.assignee && isMaintainer
+      ? isMaintainer
+      : item.assignee
+      ? {
+          id: item.assignee?.id,
+          slack: item.assignee?.slackId,
+          github: item.assignee?.githubUsername,
+        }
+      : undefined;
+
+  return [
+    {
+      type: "actions",
+      elements: [
+        {
+          type: "button",
+          text: { type: "plain_text", emoji: true, text: "Snooze" },
+          value: item.id,
+          action_id: "snooze",
+        },
+        {
+          type: "button",
+          text: { type: "plain_text", emoji: true, text: "Close - Irrelevant" },
+          value: item.id,
+          action_id: "irrelevant",
+        },
+        showAssignee && {
+          type: "static_select",
+          placeholder: { type: "plain_text", text: "Assign to", emoji: true },
+          options: maintainers
+            .filter((m) => !!m)
+            .map((maintainer) => ({
+              text: { type: "plain_text", text: maintainer!.id, emoji: true },
+              value: `${item.id}-${maintainer?.id}`,
+            }))
+            .concat(
+              ...(item.assignee && !isMaintainer
+                ? [
+                    {
+                      text: {
+                        type: "plain_text",
+                        text: `<@${currentAssignee?.slack}> (volunteer)`,
+                        emoji: true,
+                      },
+                      value: `${item.id}-${currentAssignee?.id}`,
+                    },
+                  ]
+                : [])
+            ),
+          initial_option: currentAssignee
+            ? {
+                text: {
+                  type: "plain_text",
+                  text: isMaintainer
+                    ? currentAssignee.id
+                    : `<@${currentAssignee.slack}> (volunteer)`,
+                  emoji: true,
+                },
+                value: `${item.id}-${currentAssignee.id}`,
+              }
+            : undefined,
+          action_id: "assigned",
+        },
+      ],
+    },
+    { type: "divider" },
+  ];
+};
 
 export const unauthorizedError = async ({ client, user_id, channel_id }) => {
   await client.chat.postEphemeral({

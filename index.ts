@@ -274,8 +274,8 @@ cron.schedule("0 * * * *", async () => {
     let deadline = assignedOn;
 
     let count = 0;
-    while (count < 48) {
-      deadline = deadline.add(1, "hour");
+    while (count < 2) {
+      deadline = deadline.add(1, "day");
       if (deadline.day() !== 0 && deadline.day() !== 6) count++;
     }
 
