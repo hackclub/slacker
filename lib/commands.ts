@@ -432,19 +432,22 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
     } else if (args[0] === "me") {
       const maintainer = MAINTAINERS.find((m) => m.slack === user_id);
 
-      const items = await prisma.actionItem.findMany({
-        where: {
-          assignee: { OR: [{ slackId: user_id }, { githubUsername: maintainer?.github }] },
-          status: { not: ActionStatus.closed },
-          resolvedAt: null,
-        },
-        include: {
-          githubItem: { include: { repository: true, author: true } },
-          slackMessage: { include: { channel: true, author: true } },
-          assignee: true,
-        },
-        take: 15,
-      });
+      const items = await prisma.actionItem
+        .findMany({
+          where: {
+            assignee: { OR: [{ slackId: user_id }, { githubUsername: maintainer?.github }] },
+            status: { not: ActionStatus.closed },
+            resolvedAt: null,
+          },
+          include: {
+            githubItem: { include: { repository: true, author: true } },
+            slackMessage: { include: { channel: true, author: true } },
+            assignee: true,
+          },
+        })
+        .then((res) =>
+          res.filter((i) => i.snoozedUntil === null || dayjs().isAfter(dayjs(i.snoozedUntil)))
+        );
 
       if (items.length > 0) {
         const arr: any[] = [];
