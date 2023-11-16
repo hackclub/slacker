@@ -4,6 +4,7 @@ import prisma from "./db";
 import { StringIndexed } from "@slack/bolt/dist/types/helpers";
 import { Block, KnownBlock, Middleware, SlackAction, SlackActionMiddlewareArgs } from "@slack/bolt";
 import { getGithubItem } from "./octokit";
+import metrics from "./metrics";
 
 export const markIrrelevant: Middleware<
   SlackActionMiddlewareArgs<SlackAction>,
@@ -117,6 +118,7 @@ export const markIrrelevant: Middleware<
 
     await logActivity(client, user.id, action.id, "irrelevant");
   } catch (err) {
+    metrics.increment("errors.slack.mark_irrelevant", 1);
     logger.error(err);
   }
 };
@@ -197,6 +199,7 @@ export const snooze: Middleware<SlackActionMiddlewareArgs<SlackAction>, StringIn
       },
     });
   } catch (err) {
+    metrics.increment("errors.slack.snooze", 1);
     logger.error(err);
   }
 };
@@ -313,6 +316,7 @@ export const resolve: Middleware<SlackActionMiddlewareArgs<SlackAction>, StringI
 
     await logActivity(client, user.id, action.id, "resolved");
   } catch (err) {
+    metrics.increment("errors.slack.resolve", 1);
     logger.error(err);
   }
 };
@@ -342,6 +346,7 @@ export const unsnooze: Middleware<SlackActionMiddlewareArgs<SlackAction>, String
 
     await logActivity(client, user.id, actionId, "unsnoozed");
   } catch (err) {
+    metrics.increment("errors.slack.unsnooze", 1);
     logger.error(err);
   }
 };
@@ -395,6 +400,7 @@ export const assigned: Middleware<SlackActionMiddlewareArgs<SlackAction>, String
 
     await logActivity(client, user.id, actionId, "assigned", maintainer?.slack);
   } catch (err) {
+    metrics.increment("errors.slack.assigned", 1);
     logger.error(err);
   }
 };
