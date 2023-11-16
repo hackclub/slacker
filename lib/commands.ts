@@ -68,7 +68,7 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
         await client.chat.postEphemeral({
           user: user_id,
           channel: channel_id,
-          text: `:warning: Invalid filter. Please check your command and try again.`,
+          text: `:warning: Invalid filter. Please check your command and try again. Available options: "all", "github", "slack".`,
         });
         return;
       }
@@ -495,11 +495,11 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
         return;
       }
 
-      if (filter && !["", "all", "github", "slack"].includes(filter.trim())) {
+      if (filter && !["", "all", "github", "slack", "issues", "pulls"].includes(filter.trim())) {
         await client.chat.postEphemeral({
           user: user_id,
           channel: channel_id,
-          text: `:warning: Invalid filter. Please check your command and try again.`,
+          text: `:warning: Invalid filter. Please check your command and try again. Available options: "all", "github", "slack", "issues", "pulls".`,
         });
         return;
       }
@@ -537,17 +537,31 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
               ...((!filter || filter === "all" || filter === "slack") && !isVolunteer
                 ? [{ slackMessage: { channel: { slackId: { in: channels.map((c) => c.id) } } } }]
                 : []),
-              ...(!filter || filter === "all" || filter === "github"
+              ...(!filter || ["all", "github", "issues", "pulls"].includes(filter.trim())
                 ? [{ githubItem: { repository: { url: { in: repositories.map((r) => r.uri) } } } }]
                 : []),
             ],
-            ...(isVolunteer
-              ? { githubItem: { labelsOnItems: { some: { label: { name: "good first issue" } } } } }
+            ...(isVolunteer || filter === "pulls" || filter === "issues"
+              ? {
+                  githubItem: {
+                    ...(filter === "issues" ? { type: "issue" } : {}),
+                    ...(filter === "pulls" ? { type: "pull_request" } : {}),
+                    ...(isVolunteer
+                      ? { labelsOnItems: { some: { label: { name: "good first issue" } } } }
+                      : {}),
+                  },
+                }
               : {}),
             status: { not: ActionStatus.closed },
             assignee: { is: null },
           },
           orderBy: { createdAt: "asc" },
+          include: {
+            githubItem: { select: { author: true, repository: true } },
+            slackMessage: { select: { author: true, channel: true } },
+            participants: { select: { user: true } },
+            assignee: true,
+          },
         })
         .then((res) =>
           res.filter((i) => i.snoozedUntil === null || dayjs().isAfter(dayjs(i.snoozedUntil)))
