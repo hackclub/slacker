@@ -15,12 +15,28 @@ import prisma from "./lib/db";
 import { getMaintainers, joinChannels, syncParticipants } from "./lib/utils";
 import { snoozeSubmit } from "./lib/views";
 import routes from "./routes";
+import metrics from "./lib/metrics"
+import responseTime from 'response-time';
+
 dayjs.extend(relativeTime);
 dayjs.extend(customParseFormat);
 config();
 
 const app = express();
 app.use(expressConnectMiddleware({ routes }));
+app.use(
+  responseTime((req: Request, res: Response, time) => {
+    const stat = (req.method + '/' + req.url.split('/')[1])
+      .toLowerCase()
+      .replace(/[:.]/g, '')
+      .replace(/\//g, '_');
+    const httpCode = res.status;
+    const timingStatKey = `http.response.${stat}`;
+    const codeStatKey = `http.response.${stat}.${httpCode}`;
+    metrics.timing(timingStatKey, time);
+    metrics.increment(codeStatKey, 1);
+  })
+);
 
 app.get("/", async (_, res) => {
   res.send("Hello World!");
@@ -243,6 +259,7 @@ slack.event("message", async ({ event, client, logger, message }) => {
       );
     }
   } catch (err) {
+    metrics.increment('errors.slack.message', 1);
     logger.error(err);
   }
 });
@@ -291,10 +308,12 @@ cron.schedule("0 * * * *", async () => {
 
 (async () => {
   try {
+    metrics.increment('server.start.increment', 1);
     await slack.start(process.env.PORT || 5000);
     await joinChannels();
     console.log(`Server running on http://localhost:5000`);
   } catch (err) {
+    metrics.increment('server.start.error', 1);
     console.error(err);
   }
 })();

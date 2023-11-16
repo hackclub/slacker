@@ -9,6 +9,7 @@ import { buttons, githubItem, slackItem, unauthorizedError } from "./blocks";
 import prisma from "./db";
 import { MAINTAINERS, getMaintainers, getYamlDetails, getYamlFile, logActivity } from "./utils";
 import { closestMatch } from "closest-match";
+import metrics from "./metrics"
 dayjs.extend(relativeTime);
 dayjs.extend(customParseFormat);
 
@@ -32,6 +33,13 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
     }
 
     const args = text.split(" ");
+
+    if (args[0]) {
+      metrics.increment(`command.${args[0]}.executed`, 1);
+    }
+    metrics.increment("command.all.executed")
+
+    const startMetrics = performance.now();
 
     if (!args[0] || args[0] === "help") {
       await client.chat.postEphemeral({
@@ -97,7 +105,7 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
                 ? [{ slackMessage: { channel: { slackId: { in: channels.map((c) => c.id) } } } }]
                 : []),
               ...((!filter || filter === "all" || filter === "github") &&
-              !!maintainers.find((m) => m.github === user?.githubUsername)
+                !!maintainers.find((m) => m.github === user?.githubUsername)
                 ? [{ githubItem: { repository: { url: { in: repositories.map((r) => r.uri) } } } }]
                 : []),
             ],
@@ -141,11 +149,10 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
             elements: [
               {
                 type: "mrkdwn",
-                text: `*Total action items:* ${data.length} | ${
-                  user?.githubUsername
-                    ? `Logged in with github. You're all good.`
-                    : `In order to get github items, please <${process.env.DEPLOY_URL}/auth?id=${user_id}|authenticate> slacker to access your github account.`
-                }`,
+                text: `*Total action items:* ${data.length} | ${user?.githubUsername
+                  ? `Logged in with github. You're all good.`
+                  : `In order to get github items, please <${process.env.DEPLOY_URL}/auth?id=${user_id}|authenticate> slacker to access your github account.`
+                  }`,
               },
             ],
           },
@@ -288,9 +295,8 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
                   type: "section",
                   text: {
                     type: "mrkdwn",
-                    text: `${item.id}: https://hackclub.slack.com/archives/${
-                      item.slackMessage?.channel?.slackId
-                    }/p${item.slackMessage?.ts.replace(".", "")}`,
+                    text: `${item.id}: https://hackclub.slack.com/archives/${item.slackMessage?.channel?.slackId
+                      }/p${item.slackMessage?.ts.replace(".", "")}`,
                   },
                   accessory: {
                     type: "button",
@@ -629,7 +635,11 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
         text: `:nerd_face: :point_up: errrmm acktwually, i think you mean \`/slacker ${closest}\``,
       });
     }
+
+    if (args[0]) { metrics.timing(`command.${args[0]}`, performance.now() - startMetrics); }
+
   } catch (err) {
+    metrics.increment(`command.all.error`, 1)
     logger.error(err);
   }
 };

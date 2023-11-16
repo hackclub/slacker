@@ -1,12 +1,14 @@
 import { createAppAuth } from "@octokit/auth-app";
 import { Octokit } from "octokit";
 import { GithubData, SingleIssueOrPullData } from "./types";
+import metrics from "./metrics";
 
 const appId = process.env.GITHUB_APP_ID || "";
 const base64 = process.env.GITHUB_PRIVATE_KEY || "";
 const privateKey = Buffer.from(base64, "base64").toString("utf-8");
 
 export const getOctokitToken = async (owner: string, repo: string) => {
+  metrics.increment("octokit.get.token");
   const auth = createAppAuth({
     appId,
     privateKey,
@@ -32,6 +34,7 @@ export const getOctokitToken = async (owner: string, repo: string) => {
 };
 
 export const listGithubItems = async (owner: string, name: string) => {
+  metrics.increment("octokit.get.list_items");
   const query = `
     query ($owner: String!, $name: String!) {
       repository(owner: $owner, name: $name) {
@@ -111,6 +114,8 @@ export const listGithubItems = async (owner: string, name: string) => {
 };
 
 export const getGithubItem = async (owner: string, name: string, id: string) => {
+  metrics.increment("octokit.get.item");
+
   const query = `
     query ($id: ID!) {
       node(id: $id) {
