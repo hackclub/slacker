@@ -1,0 +1,12 @@
+name: testslacker
+description: a testing thing for slacker
+maintainers: [V205]
+channels:
+  - name: 
+    id: 
+    sla:
+      responseTime: 1h
+repos:
+  - uri: https://github.com/hackclub/blot
+    sla:
+      responseTime: 1h
