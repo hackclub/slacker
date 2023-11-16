@@ -7,6 +7,6 @@ channels:
     sla:
       responseTime: 1h
 repos:
-  - uri: https://github.com/hackclub/blot
+  - uri: https://github.com/V205Arduino/SlackerTest
     sla:
       responseTime: 1h
