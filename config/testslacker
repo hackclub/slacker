@@ -2,8 +2,8 @@ name: testslacker
 description: a testing thing for slacker
 maintainers: [V205]
 channels:
-  - name: 
-    id: 
+  - name: slacker-testing
+    id: C0666BQ0A8L
     sla:
       responseTime: 1h
 repos:
