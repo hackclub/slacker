@@ -153,7 +153,7 @@ export const githubItem = ({
     type: "section",
     text: {
       type: "mrkdwn",
-      text: `*Project:* ${project}*Action Id:* ${item.id}\n${text}\n\nOpened by ${
+      text: `*Project:* ${project}\n*Action Id:* ${item.id}\n${text}\n\nOpened by ${
         item.githubItem?.author?.githubUsername
       } on ${dayjs(item.githubItem?.createdAt).format("MMM DD, YYYY")} at ${dayjs(
         item.githubItem?.createdAt

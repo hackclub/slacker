@@ -108,7 +108,7 @@ export default (router: ConnectRouter) =>
             }
 
             console.log(
-              `===================== Syncing closed items: ${owner}/${repo} =====================`
+              `===================== Syncing closed items: ${owner}/${name} =====================`
             );
 
             const dbItems = await prisma.githubItem.findMany({
@@ -151,7 +151,7 @@ export default (router: ConnectRouter) =>
               await syncGithubParticipants(logins, githubItem.actionItem!.id);
             }
 
-            console.log(`✅ DONE: ${owner}/${repo} ✅`);
+            console.log(`✅ DONE: ${owner}/${name} ✅`);
           }
           console.log(`✅ DONE: ${file} ✅`);
         }
