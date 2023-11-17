@@ -9,14 +9,14 @@ import { config } from "dotenv";
 import express from "express";
 import cron from "node-cron";
 import { Octokit } from "octokit";
-import { assigned, markIrrelevant, resolve, snooze, unsnooze } from "./lib/actions";
+import responseTime from "response-time";
+import { assigned, markIrrelevant, notes, resolve, snooze, unsnooze } from "./lib/actions";
 import { handleSlackerCommand } from "./lib/commands";
 import prisma from "./lib/db";
+import metrics from "./lib/metrics";
 import { getMaintainers, joinChannels, syncParticipants } from "./lib/utils";
-import { snoozeSubmit } from "./lib/views";
+import { notesSubmit, snoozeSubmit } from "./lib/views";
 import routes from "./routes";
-import metrics from "./lib/metrics"
-import responseTime from 'response-time';
 
 dayjs.extend(relativeTime);
 dayjs.extend(customParseFormat);
@@ -26,10 +26,10 @@ const app = express();
 app.use(expressConnectMiddleware({ routes }));
 app.use(
   responseTime((req: Request, res: Response, time) => {
-    const stat = (req.method + '/' + req.url.split('/')[1])
+    const stat = (req.method + "/" + req.url.split("/")[1])
       .toLowerCase()
-      .replace(/[:.]/g, '')
-      .replace(/\//g, '_');
+      .replace(/[:.]/g, "")
+      .replace(/\//g, "_");
     const httpCode = res.status;
     const timingStatKey = `http.response.${stat}`;
     const codeStatKey = `http.response.${stat}.${httpCode}`;
@@ -259,7 +259,7 @@ slack.event("message", async ({ event, client, logger, message }) => {
       );
     }
   } catch (err) {
-    metrics.increment('errors.slack.message', 1);
+    metrics.increment("errors.slack.message", 1);
     logger.error(err);
   }
 });
@@ -270,7 +270,9 @@ slack.action("snooze", snooze);
 slack.action("unsnooze", unsnooze);
 slack.action("irrelevant", markIrrelevant);
 slack.action("assigned", assigned);
+slack.action("notes", notes);
 slack.view("snooze_submit", snoozeSubmit);
+slack.view("notes_submit", notesSubmit);
 
 cron.schedule("0 * * * *", async () => {
   const items = await prisma.actionItem
@@ -308,12 +310,12 @@ cron.schedule("0 * * * *", async () => {
 
 (async () => {
   try {
-    metrics.increment('server.start.increment', 1);
+    metrics.increment("server.start.increment", 1);
     await slack.start(process.env.PORT || 5000);
     await joinChannels();
     console.log(`Server running on http://localhost:5000`);
   } catch (err) {
-    metrics.increment('server.start.error', 1);
+    metrics.increment("server.start.error", 1);
     console.error(err);
   }
 })();

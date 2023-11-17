@@ -211,7 +211,7 @@ export const githubItem = ({
   };
 };
 
-export const buttons = ({ item, showAssignee = false }) => {
+export const buttons = ({ item, showAssignee = false, showActions = true }) => {
   const maintainers = getMaintainers({ repoUrl: item.githubItem?.repository?.url });
   const isMaintainer = maintainers.find(
     (maintainer) =>
@@ -234,17 +234,27 @@ export const buttons = ({ item, showAssignee = false }) => {
     {
       type: "actions",
       elements: [
+        ...(showActions
+          ? [
+              {
+                type: "button",
+                text: { type: "plain_text", emoji: true, text: "Snooze" },
+                value: item.id,
+                action_id: "snooze",
+              },
+              {
+                type: "button",
+                text: { type: "plain_text", emoji: true, text: "Close - Irrelevant" },
+                value: item.id,
+                action_id: "irrelevant",
+              },
+            ]
+          : []),
         {
           type: "button",
-          text: { type: "plain_text", emoji: true, text: "Snooze" },
+          text: { type: "plain_text", emoji: true, text: "Notes" },
           value: item.id,
-          action_id: "snooze",
-        },
-        {
-          type: "button",
-          text: { type: "plain_text", emoji: true, text: "Close - Irrelevant" },
-          value: item.id,
-          action_id: "irrelevant",
+          action_id: "notes",
         },
         showAssignee && {
           type: "static_select",

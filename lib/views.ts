@@ -74,3 +74,31 @@ export const snoozeSubmit: Middleware<
     logger.error(err);
   }
 };
+
+export const notesSubmit: Middleware<
+  SlackViewMiddlewareArgs<SlackViewAction>,
+  StringIndexed
+> = async ({ ack, body, logger }) => {
+  await ack();
+
+  try {
+    const { view } = body;
+    const { actionId } = JSON.parse(view.private_metadata);
+
+    const action = await prisma.actionItem.findFirst({
+      where: { id: actionId },
+      include: {
+        slackMessage: { include: { channel: true } },
+        githubItem: { include: { repository: true } },
+      },
+    });
+
+    if (!action) return;
+
+    const { notes } = view.state.values.notes["notes-action"] as any;
+
+    await prisma.actionItem.update({ where: { id: actionId }, data: { notes } });
+  } catch (err) {
+    logger.error(err);
+  }
+};

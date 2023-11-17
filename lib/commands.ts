@@ -139,7 +139,7 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
 
               if (item.slackMessage !== null) arr.push(slackItem({ item, showActions: false }));
               if (item.githubItem !== null) arr.push(githubItem({ item, showActions: false }));
-              arr.push(buttons({ item })[1]);
+              arr.push(...buttons({ item, showActions: false, showAssignee: false }));
 
               return arr;
             })
@@ -499,7 +499,7 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
         items.forEach((item) => {
           if (item.slackMessage !== null) arr.push(slackItem({ item }));
           if (item.githubItem !== null) arr.push(githubItem({ item }));
-          arr.push(...buttons({ item, showAssignee: true }));
+          arr.push(...buttons({ item, showAssignee: true, showActions: true }));
         });
 
         await client.chat.postMessage({
@@ -634,7 +634,7 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
       const arr: any[] = [];
       if (item.slackMessage !== null) arr.push(slackItem({ item }));
       if (item.githubItem !== null) arr.push(githubItem({ item }));
-      arr.push(...buttons({ item, showAssignee: true }));
+      arr.push(...buttons({ item, showAssignee: true, showActions: true }));
 
       await client.chat.postMessage({
         channel: user_id,

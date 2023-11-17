@@ -204,6 +204,66 @@ export const snooze: Middleware<SlackActionMiddlewareArgs<SlackAction>, StringIn
   }
 };
 
+export const notes: Middleware<SlackActionMiddlewareArgs<SlackAction>, StringIndexed> = async ({
+  ack,
+  body,
+  client,
+  logger,
+}) => {
+  await ack();
+
+  try {
+    const { actions } = body as any;
+    const actionId = actions[0].value;
+
+    const action = await prisma.actionItem.findFirst({
+      where: { id: actionId },
+      include: {
+        slackMessage: { include: { channel: true } },
+        githubItem: { include: { repository: true } },
+      },
+    });
+
+    if (!action) return;
+
+    await client.views.open({
+      trigger_id: (body as any).trigger_id as string,
+      view: {
+        type: "modal",
+        callback_id: "notes_submit",
+        private_metadata: JSON.stringify({ actionId }),
+        title: {
+          type: "plain_text",
+          text: "Notes",
+        },
+        submit: {
+          type: "plain_text",
+          text: "Submit",
+        },
+        blocks: [
+          {
+            type: "input",
+            block_id: "notes",
+            element: {
+              type: "plain_text_input",
+              action_id: "notes-action",
+              multiline: true,
+              initial_value: action.notes,
+            },
+            label: {
+              type: "plain_text",
+              text: "Add notes for this action item",
+            },
+          },
+        ],
+      },
+    });
+  } catch (err) {
+    metrics.increment("errors.slack.notes", 1);
+    logger.error(err);
+  }
+};
+
 export const resolve: Middleware<SlackActionMiddlewareArgs<SlackAction>, StringIndexed> = async ({
   ack,
   body,
