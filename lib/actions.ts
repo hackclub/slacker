@@ -145,9 +145,9 @@ export const snooze: Middleware<SlackActionMiddlewareArgs<SlackAction>, StringIn
 
     if (!action) return;
 
-    const nextBusinessDay = dayjs().add(1, "day");
-    if (nextBusinessDay.day() === 0) nextBusinessDay.add(1, "day");
-    else if (nextBusinessDay.day() === 6) nextBusinessDay.add(2, "day");
+    let nextBusinessDay = dayjs().add(1, "day");
+    if (nextBusinessDay.day() === 0) nextBusinessDay = nextBusinessDay.add(1, "day");
+    else if (nextBusinessDay.day() === 6) nextBusinessDay = nextBusinessDay.add(2, "day");
 
     const initial_date_time = Math.floor(
       nextBusinessDay.hour(12).minute(0).second(0).millisecond(0).valueOf() / 1000
