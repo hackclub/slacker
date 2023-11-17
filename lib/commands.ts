@@ -9,7 +9,7 @@ import { buttons, githubItem, slackItem, unauthorizedError } from "./blocks";
 import prisma from "./db";
 import { MAINTAINERS, getMaintainers, getYamlDetails, getYamlFile, logActivity } from "./utils";
 import { closestMatch } from "closest-match";
-import metrics from "./metrics"
+import metrics from "./metrics";
 dayjs.extend(relativeTime);
 dayjs.extend(customParseFormat);
 
@@ -37,7 +37,7 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
     if (args[0]) {
       metrics.increment(`command.${args[0]}.executed`, 1);
     }
-    metrics.increment("command.all.executed")
+    metrics.increment("command.all.executed");
 
     const startMetrics = performance.now();
 
@@ -46,7 +46,7 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
         user: user_id,
         channel: channel_id,
         text: `:wave: Hi there! I'm Slacker, your friendly neighborhood action item manager. Here's what I can do:
-        \n• *List your action items:* \`/slacker me\`
+        \n• *List your action items:* \`/slacker me [project] [filter]\`
         \n• *Get an action item assigned to you:* \`/slacker gimme [project] [filter]\`
         \n• *List action items:* \`/slacker list [project] [filter]\`
         \n• *Reopen action item:* \`/slacker reopen [id]\`
@@ -105,7 +105,7 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
                 ? [{ slackMessage: { channel: { slackId: { in: channels.map((c) => c.id) } } } }]
                 : []),
               ...((!filter || filter === "all" || filter === "github") &&
-                !!maintainers.find((m) => m.github === user?.githubUsername)
+              !!maintainers.find((m) => m.github === user?.githubUsername)
                 ? [{ githubItem: { repository: { url: { in: repositories.map((r) => r.uri) } } } }]
                 : []),
             ],
@@ -149,10 +149,11 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
             elements: [
               {
                 type: "mrkdwn",
-                text: `*Total action items:* ${data.length} | ${user?.githubUsername
-                  ? `Logged in with github. You're all good.`
-                  : `In order to get github items, please <${process.env.DEPLOY_URL}/auth?id=${user_id}|authenticate> slacker to access your github account.`
-                  }`,
+                text: `*Total action items:* ${data.length} | ${
+                  user?.githubUsername
+                    ? `Logged in with github. You're all good.`
+                    : `In order to get github items, please <${process.env.DEPLOY_URL}/auth?id=${user_id}|authenticate> slacker to access your github account.`
+                }`,
               },
             ],
           },
@@ -295,8 +296,9 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
                   type: "section",
                   text: {
                     type: "mrkdwn",
-                    text: `${item.id}: https://hackclub.slack.com/archives/${item.slackMessage?.channel?.slackId
-                      }/p${item.slackMessage?.ts.replace(".", "")}`,
+                    text: `${item.id}: https://hackclub.slack.com/archives/${
+                      item.slackMessage?.channel?.slackId
+                    }/p${item.slackMessage?.ts.replace(".", "")}`,
                   },
                   accessory: {
                     type: "button",
@@ -436,11 +438,47 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
 
       await logActivity(client, user_id, id, "assigned", maintainer?.slack);
     } else if (args[0] === "me") {
-      const maintainer = MAINTAINERS.find((m) => m.slack === user_id);
+      const project = args[1]?.trim() || "all";
+      const filter = args[2]?.trim() || "";
+      const files = readdirSync("./config");
+
+      if (project !== "all" && !files.includes(`${project}.yaml`)) {
+        await client.chat.postEphemeral({
+          user: user_id,
+          channel: channel_id,
+          text: `:warning: Project not found. Please check your command and try again.`,
+        });
+        return;
+      }
+
+      if (filter && !["", "all", "github", "slack", "issues", "pulls"].includes(filter.trim())) {
+        await client.chat.postEphemeral({
+          user: user_id,
+          channel: channel_id,
+          text: `:warning: Invalid filter. Please check your command and try again. Available options: "all", "github", "slack", "issues", "pulls".`,
+        });
+        return;
+      }
+
+      let maintainer = MAINTAINERS.find((m) => m.slack === user_id) || {
+        github: user?.githubUsername || "",
+        slack: user_id,
+        id: user?.id,
+      };
+
+      const { channels, repositories } = await getYamlDetails(project, undefined, undefined, false);
 
       const items = await prisma.actionItem
         .findMany({
           where: {
+            OR: [
+              ...(!filter || filter === "all" || filter === "slack"
+                ? [{ slackMessage: { channel: { slackId: { in: channels.map((c) => c.id) } } } }]
+                : []),
+              ...(!filter || ["all", "github", "issues", "pulls"].includes(filter.trim())
+                ? [{ githubItem: { repository: { url: { in: repositories.map((r) => r.uri) } } } }]
+                : []),
+            ],
             assignee: { OR: [{ slackId: user_id }, { githubUsername: maintainer?.github }] },
             status: { not: ActionStatus.closed },
             resolvedAt: null,
@@ -636,10 +674,11 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
       });
     }
 
-    if (args[0]) { metrics.timing(`command.${args[0]}`, performance.now() - startMetrics); }
-
+    if (args[0]) {
+      metrics.timing(`command.${args[0]}`, performance.now() - startMetrics);
+    }
   } catch (err) {
-    metrics.increment(`command.all.error`, 1)
+    metrics.increment(`command.all.error`, 1);
     logger.error(err);
   }
 };

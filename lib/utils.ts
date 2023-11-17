@@ -135,8 +135,9 @@ export const getYamlFile = (filename: string) => {
 
 export const getYamlDetails = async (
   project: string,
-  user_id: string,
-  login: string | null | undefined
+  user_id?: string,
+  login?: string | null,
+  checkMembership: boolean = true
 ) => {
   const files = readdirSync("./config");
   let channels: Config["channels"] = [];
@@ -152,9 +153,11 @@ export const getYamlDetails = async (
       );
 
       if (
-        topLevelMaintainers.some(
-          (maintainer) => maintainer?.github === login || maintainer?.slack === user_id
-        )
+        (checkMembership &&
+          topLevelMaintainers.some(
+            (maintainer) => maintainer?.github === login || maintainer?.slack === user_id
+          )) ||
+        !checkMembership
       ) {
         channels = [...(channels || []), ...(config.channels || [])];
         repositories = [...repositories, ...config["repos"]];
