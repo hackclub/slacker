@@ -234,65 +234,73 @@ export const buttons = ({ item, showAssignee = false, showActions = true }) => {
     {
       type: "actions",
       elements: [
-        showActions && {
-          type: "button",
-          text: { type: "plain_text", emoji: true, text: "Snooze" },
-          value: item.id,
-          action_id: "snooze",
-        },
-        showActions && {
-          type: "button",
-          text: { type: "plain_text", emoji: true, text: "Close - Irrelevant" },
-          value: item.id,
-          action_id: "irrelevant",
-        },
+        ...(showActions
+          ? [
+              {
+                type: "button",
+                text: { type: "plain_text", emoji: true, text: "Snooze" },
+                value: item.id,
+                action_id: "snooze",
+              },
+              {
+                type: "button",
+                text: { type: "plain_text", emoji: true, text: "Close - Irrelevant" },
+                value: item.id,
+                action_id: "irrelevant",
+              },
+            ]
+          : []),
         {
           type: "button",
           text: {
             type: "plain_text",
             emoji: true,
-            text: `Notes (${item.notes.length > 0 ? "👀" : ""})`,
+            text: `Notes ${item.notes.length > 0 ? "(👀)" : ""}`,
           },
           value: item.id,
           action_id: "notes",
         },
-        showAssignee && {
-          type: "static_select",
-          placeholder: { type: "plain_text", text: "Assign to", emoji: true },
-          options: maintainers
-            .filter((m) => !!m)
-            .map((maintainer) => ({
-              text: { type: "plain_text", text: maintainer!.id, emoji: true },
-              value: `${item.id}-${maintainer?.id}`,
-            }))
-            .concat(
-              ...(item.assignee && !isMaintainer
-                ? [
-                    {
+        ...(showAssignee
+          ? [
+              {
+                type: "static_select",
+                placeholder: { type: "plain_text", text: "Assign to", emoji: true },
+                options: maintainers
+                  .filter((m) => !!m)
+                  .map((maintainer) => ({
+                    text: { type: "plain_text", text: maintainer!.id, emoji: true },
+                    value: `${item.id}-${maintainer?.id}`,
+                  }))
+                  .concat(
+                    ...(item.assignee && !isMaintainer
+                      ? [
+                          {
+                            text: {
+                              type: "plain_text",
+                              text: `<@${currentAssignee?.slack}> (volunteer)`,
+                              emoji: true,
+                            },
+                            value: `${item.id}-${currentAssignee?.id}`,
+                          },
+                        ]
+                      : [])
+                  ),
+                initial_option: currentAssignee
+                  ? {
                       text: {
                         type: "plain_text",
-                        text: `<@${currentAssignee?.slack}> (volunteer)`,
+                        text: isMaintainer
+                          ? currentAssignee.id
+                          : `<@${currentAssignee.slack}> (volunteer)`,
                         emoji: true,
                       },
-                      value: `${item.id}-${currentAssignee?.id}`,
-                    },
-                  ]
-                : [])
-            ),
-          initial_option: currentAssignee
-            ? {
-                text: {
-                  type: "plain_text",
-                  text: isMaintainer
-                    ? currentAssignee.id
-                    : `<@${currentAssignee.slack}> (volunteer)`,
-                  emoji: true,
-                },
-                value: `${item.id}-${currentAssignee.id}`,
-              }
-            : undefined,
-          action_id: "assigned",
-        },
+                      value: `${item.id}-${currentAssignee.id}`,
+                    }
+                  : undefined,
+                action_id: "assigned",
+              },
+            ]
+          : []),
       ],
     },
     { type: "divider" },
