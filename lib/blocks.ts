@@ -2,7 +2,7 @@ import { ActionItem, Channel, GithubItem, Repository, SlackMessage, User } from 
 import dayjs from "dayjs";
 import customParseFormat from "dayjs/plugin/customParseFormat";
 import relativeTime from "dayjs/plugin/relativeTime";
-import { getMaintainers } from "./utils";
+import { getMaintainers, getProject } from "./utils";
 import metrics from "./metrics";
 dayjs.extend(relativeTime);
 dayjs.extend(customParseFormat);
@@ -19,6 +19,7 @@ export const slackItem = ({
   showActions?: boolean;
 }) => {
   const diff = dayjs().diff(dayjs(item.lastReplyOn), "day");
+  const project = getProject({ channelId: item.slackMessage?.channel?.slackId });
 
   const assigneeText = item.assignee
     ? `Assigned to: ${
@@ -48,11 +49,11 @@ export const slackItem = ({
     type: "section",
     text: {
       type: "mrkdwn",
-      text: `*Action Id:* ${item.id}\n*Query:* ${item.slackMessage?.text}\n\nOpened by <@${
-        item.slackMessage?.author?.slackId
-      }> on ${dayjs(item.slackMessage?.createdAt).format("MMM DD, YYYY")} at ${dayjs(
+      text: `*Project:* ${project}\n*Action Id:* ${item.id}\n*Query:* ${
+        item.slackMessage?.text
+      }\n\nOpened by <@${item.slackMessage?.author?.slackId}> on ${dayjs(
         item.slackMessage?.createdAt
-      ).format("hh:mm A")}${
+      ).format("MMM DD, YYYY")} at ${dayjs(item.slackMessage?.createdAt).format("hh:mm A")}${
         item.lastReplyOn
           ? `\n*Last reply:* ${dayjs(item.lastReplyOn).fromNow()} ${diff > 10 ? ":panik:" : ""}`
           : "\n:panik: *No replies yet*"
@@ -121,7 +122,8 @@ export const githubItem = ({
 }) => {
   const diff = dayjs().diff(dayjs(item.lastReplyOn), "day");
   const url = `<https://github.com/${item.githubItem?.repository?.owner}/${item.githubItem?.repository?.name}/issues/${item.githubItem?.number}|View on GitHub>`;
-  const text = item.githubItem?.title ? `Issue: ${item.githubItem?.title}` : url;
+  const text = item.githubItem?.title ? `*Issue:* ${item.githubItem?.title}` : url;
+  const project = getProject({ repoUrl: item.githubItem?.repository?.url });
 
   const assigneeText = item.assignee
     ? `Assigned to ${
@@ -151,7 +153,7 @@ export const githubItem = ({
     type: "section",
     text: {
       type: "mrkdwn",
-      text: `*Action Id:* ${item.id}\n${text}\n\nOpened by ${
+      text: `*Project:* ${project}*Action Id:* ${item.id}\n${text}\n\nOpened by ${
         item.githubItem?.author?.githubUsername
       } on ${dayjs(item.githubItem?.createdAt).format("MMM DD, YYYY")} at ${dayjs(
         item.githubItem?.createdAt

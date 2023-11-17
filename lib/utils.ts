@@ -59,6 +59,27 @@ export const getMaintainers = ({
   return arr.map((id) => MAINTAINERS.find((user) => user.id === id));
 };
 
+export const getProject = ({ channelId, repoUrl }: { channelId?: string; repoUrl?: string }) => {
+  const files = fs.readdirSync("./config");
+  let project: string | undefined;
+
+  files.forEach((file) => {
+    try {
+      const config = getYamlFile(file);
+      const channels = config.channels || [];
+      const repos = config["repos"];
+
+      if (
+        channels.some((channel) => channel.id === channelId) ||
+        repos.some((repo) => repo.uri === repoUrl)
+      )
+        project = file.replace(".yaml", "");
+    } catch (err) {}
+  });
+
+  return project;
+};
+
 export const syncParticipants = async (participants: string[], id: string) => {
   for (let i = 0; i < participants.length; i++) {
     const userInfo = await slack.client.users.info({ user: participants[i] as string });
