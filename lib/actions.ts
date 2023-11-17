@@ -244,6 +244,7 @@ export const notes: Middleware<SlackActionMiddlewareArgs<SlackAction>, StringInd
           {
             type: "input",
             block_id: "notes",
+            optional: true,
             element: {
               type: "plain_text_input",
               action_id: "notes-action",
