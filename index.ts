@@ -159,6 +159,7 @@ export const slack = new App({
   receiver,
 });
 
+// Airtable, Toriel, Pizza Bot
 const ALLOWED_BOTS = ["B03QGF0H9FU", "B03701P4QN8", "B05SHCXE1UY"];
 slack.event("message", async ({ event, client, logger, message }) => {
   try {
@@ -168,8 +169,8 @@ slack.event("message", async ({ event, client, logger, message }) => {
       });
     }
 
-    // B03QGF0H9FU = Airtable bot
     if (message.subtype || (message.bot_id && !ALLOWED_BOTS.includes(message.bot_id))) return;
+    if ((message.text?.length || 0) <= 4) return;
 
     const channel = await prisma.channel.findFirst({ where: { slackId: event.channel } });
     if (!channel) return;
