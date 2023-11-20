@@ -276,36 +276,71 @@ slack.view("snooze_submit", snoozeSubmit);
 slack.view("notes_submit", notesSubmit);
 
 cron.schedule("0 * * * *", async () => {
-  const items = await prisma.actionItem
-    .findMany({
-      where: {
-        assigneeId: { not: null },
-        assignedOn: { not: null },
-        status: ActionStatus.open,
-      },
-      include: { assignee: true },
-    })
-    .then((res) =>
-      res.filter((item) => item.snoozedUntil === null || dayjs(item.snoozedUntil).isBefore(dayjs()))
-    );
+  console.log("⏳⏳ Running unassign cron job ⏳⏳");
 
-  for await (const item of items) {
-    const assignedOn = dayjs(item.snoozedUntil || item.assignedOn);
-    let deadline = assignedOn;
+  try {
+    const items = await prisma.actionItem
+      .findMany({
+        where: {
+          assigneeId: { not: null },
+          assignedOn: { not: null },
+          status: ActionStatus.open,
+        },
+        include: { assignee: true },
+      })
+      .then((res) =>
+        res.filter(
+          (item) => item.snoozedUntil === null || dayjs(item.snoozedUntil).isBefore(dayjs())
+        )
+      );
 
-    let count = 0;
-    while (count < 2) {
-      deadline = deadline.add(1, "day");
-      if (deadline.day() !== 0 && deadline.day() !== 6) count++;
+    for await (const item of items) {
+      const assignedOn = dayjs(item.snoozedUntil || item.assignedOn);
+      let deadline = assignedOn;
+
+      let count = 0;
+      while (count < 2) {
+        deadline = deadline.add(1, "day");
+        if (deadline.day() !== 0 && deadline.day() !== 6) count++;
+      }
+
+      if (dayjs().isBefore(deadline)) continue;
+      await prisma.actionItem.update({ where: { id: item.id }, data: { assigneeId: null } });
+
+      await slack.client.chat.postMessage({
+        channel: item.assignee?.slackId ?? "",
+        text: `:warning: Hey, we unassigned ${item.id} from you because you didn't resolve it in time. Feel free to pick it up again!`,
+      });
     }
+  } catch (err) {
+    console.log("🚨🚨 Error in unassign cron job 🚨🚨");
+    console.log(err);
+  }
+});
 
-    if (dayjs().isBefore(deadline)) continue;
-    await prisma.actionItem.update({ where: { id: item.id }, data: { assigneeId: null } });
-
-    await slack.client.chat.postMessage({
-      channel: item.assignee?.slackId ?? "",
-      text: `:warning: Hey, we unassigned ${item.id} from you because you didn't resolve it in time. Feel free to pick it up again!`,
+cron.schedule("0 * * * *", async () => {
+  console.log("⏳⏳ Running unsnooze cron job ⏳⏳");
+  try {
+    const items = await prisma.actionItem.findMany({
+      where: { snoozedUntil: { not: null }, status: ActionStatus.open },
+      include: { snoozedBy: true, assignee: true },
     });
+
+    for await (const item of items) {
+      const snoozedUntil = dayjs(item.snoozedUntil);
+      const now = dayjs();
+      const diff = now.diff(snoozedUntil, "hour", true).toFixed(2);
+
+      if (snoozedUntil.isAfter(now) || parseFloat(diff) > 1) continue;
+
+      await slack.client.chat.postMessage({
+        channel: item.snoozedBy?.slackId ?? "",
+        text: `:wave: Hey, we unsnoozed ${item.id} for you. Feel free to pick it up again!`,
+      });
+    }
+  } catch (err) {
+    console.log("🚨🚨 Error in unsnooze cron job 🚨🚨");
+    console.log(err);
   }
 });
 
