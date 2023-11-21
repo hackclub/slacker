@@ -650,6 +650,19 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
           },
           { type: "divider" },
           ...arr.flat(),
+          {
+            type: "context",
+            elements: [
+              {
+                type: "mrkdwn",
+                text: `*Remaining items in queue:* ${data.length} | ${
+                  user?.githubUsername
+                    ? ""
+                    : `In order to get github items, please <${process.env.DEPLOY_URL}/auth?id=${user_id}|authenticate> slacker to access your github account.`
+                }`,
+              },
+            ],
+          },
         ],
       });
     } else {
