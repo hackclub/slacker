@@ -7,6 +7,7 @@ import customParseFormat from "dayjs/plugin/customParseFormat";
 import relativeTime from "dayjs/plugin/relativeTime";
 import { config } from "dotenv";
 import express from "express";
+import { readdirSync } from "fs";
 import cron from "node-cron";
 import { Octokit } from "octokit";
 import responseTime from "response-time";
@@ -14,7 +15,13 @@ import { assigned, markIrrelevant, notes, resolve, snooze, unsnooze } from "./li
 import { handleSlackerCommand } from "./lib/commands";
 import prisma from "./lib/db";
 import metrics from "./lib/metrics";
-import { getMaintainers, joinChannels, syncParticipants } from "./lib/utils";
+import {
+  MAINTAINERS,
+  getMaintainers,
+  getYamlFile,
+  joinChannels,
+  syncParticipants,
+} from "./lib/utils";
 import { notesSubmit, snoozeSubmit } from "./lib/views";
 import routes from "./routes";
 
@@ -314,7 +321,7 @@ cron.schedule("0 * * * *", async () => {
     }
   } catch (err) {
     console.log("🚨🚨 Error in unassign cron job 🚨🚨");
-    console.log(err);
+    console.error(err);
   }
 });
 
@@ -340,9 +347,66 @@ cron.schedule("0 * * * *", async () => {
     }
   } catch (err) {
     console.log("🚨🚨 Error in unsnooze cron job 🚨🚨");
-    console.log(err);
+    console.error(err);
   }
 });
+
+cron.schedule(
+  "0 9,16 * * *",
+  async () => {
+    console.log("⏳⏳ Running daily newsletter cron job ⏳⏳");
+    try {
+      for await (const maintainer of MAINTAINERS) {
+        const files = readdirSync("./config");
+        let text = `:wave: Hey ${maintainer.id}, here's your daily newsletter!`;
+        const user = await prisma.user.findFirst({
+          where: { OR: [{ slackId: maintainer.slack }, { githubUsername: maintainer.github }] },
+        });
+
+        for await (const file of files) {
+          if (file.endsWith(".yml")) {
+            const { maintainers, channels, repos } = getYamlFile(file);
+            if (!maintainers.includes(maintainer.id)) continue;
+
+            const items = await prisma.actionItem.findMany({
+              where: {
+                OR: [
+                  { slackMessage: { channel: { slackId: { in: channels?.map((c) => c.id) } } } },
+                  { githubItem: { repository: { url: { in: repos.map((r) => r.uri) } } } },
+                ],
+              },
+            });
+
+            const open = items.filter((item) => item.status === ActionStatus.open);
+            const closed = items.filter(
+              (item) =>
+                item.status === ActionStatus.closed &&
+                dayjs(item.resolvedAt).isAfter(dayjs().subtract(1, "day"))
+            );
+            const assignedToMe = open.filter((item) => item.assigneeId === user?.id);
+            const assignedToOthers = open.filter(
+              (item) => item.assigneeId !== null && item.assigneeId !== user?.id
+            );
+            const snoozed = open.filter(
+              (item) => item.snoozedUntil !== null && dayjs(item.snoozedUntil).isAfter(dayjs())
+            );
+
+            text += `\n\n*${file.replace(".yml", "")}*`;
+            text += `\nTotal open action items: ${open.length}`;
+            text += `\nTotal closed action items (last 24 hours): ${closed.length}`;
+            text += `\nTotal action items assigned to me: ${assignedToMe.length}`;
+            text += `\nTotal action items assigned to others: ${assignedToOthers.length}`;
+            text += `\nTotal action items snoozed: ${snoozed.length}`;
+          }
+        }
+      }
+    } catch (err) {
+      console.log("🚨🚨 Error in daily newsletter cron job 🚨🚨");
+      console.error(err);
+    }
+  },
+  { timezone: "America/New_York" }
+);
 
 (async () => {
   try {
