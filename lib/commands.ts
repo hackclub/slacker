@@ -642,7 +642,7 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
 
       const ownSubSection = [...ownSubChannelSection, ...ownSubRepoSection];
 
-      let id;
+      let id: string | undefined;
 
       if (ownSubSection.length > 0) {
         const dataWithSubsection = data.filter((item) => {
@@ -673,7 +673,7 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
       }
 
       const item = await prisma.actionItem.update({
-        where: { id: data[0].id },
+        where: { id },
         data: { assignee: { connect: { id: user?.id } }, assignedOn: new Date() },
         include: {
           githubItem: { include: { author: true, repository: true } },
