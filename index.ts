@@ -364,40 +364,38 @@ cron.schedule(
         });
 
         for await (const file of files) {
-          if (file.endsWith(".yml")) {
-            const { maintainers, channels, repos } = getYamlFile(file);
-            if (!maintainers.includes(maintainer.id)) continue;
+          const { maintainers, channels, repos } = getYamlFile(file);
+          if (!maintainers.includes(maintainer.id)) continue;
 
-            const items = await prisma.actionItem.findMany({
-              where: {
-                OR: [
-                  { slackMessage: { channel: { slackId: { in: channels?.map((c) => c.id) } } } },
-                  { githubItem: { repository: { url: { in: repos.map((r) => r.uri) } } } },
-                ],
-              },
-            });
+          const items = await prisma.actionItem.findMany({
+            where: {
+              OR: [
+                { slackMessage: { channel: { slackId: { in: channels?.map((c) => c.id) } } } },
+                { githubItem: { repository: { url: { in: repos.map((r) => r.uri) } } } },
+              ],
+            },
+          });
 
-            const open = items.filter((item) => item.status === ActionStatus.open);
-            const closed = items.filter(
-              (item) =>
-                item.status === ActionStatus.closed &&
-                dayjs(item.resolvedAt).isAfter(dayjs().subtract(1, "day"))
-            );
-            const assignedToMe = open.filter((item) => item.assigneeId === user?.id);
-            const assignedToOthers = open.filter(
-              (item) => item.assigneeId !== null && item.assigneeId !== user?.id
-            );
-            const snoozed = open.filter(
-              (item) => item.snoozedUntil !== null && dayjs(item.snoozedUntil).isAfter(dayjs())
-            );
+          const open = items.filter((item) => item.status === ActionStatus.open);
+          const closed = items.filter(
+            (item) =>
+              item.status === ActionStatus.closed &&
+              dayjs(item.resolvedAt).isAfter(dayjs().subtract(1, "day"))
+          );
+          const assignedToMe = open.filter((item) => item.assigneeId === user?.id);
+          const assignedToOthers = open.filter(
+            (item) => item.assigneeId !== null && item.assigneeId !== user?.id
+          );
+          const snoozed = open.filter(
+            (item) => item.snoozedUntil !== null && dayjs(item.snoozedUntil).isAfter(dayjs())
+          );
 
-            text += `\n\n*${file.replace(".yml", "")}*`;
-            text += `\nTotal open action items: ${open.length}`;
-            text += `\nTotal closed action items (last 24 hours): ${closed.length}`;
-            text += `\nTotal action items assigned to me: ${assignedToMe.length}`;
-            text += `\nTotal action items assigned to others: ${assignedToOthers.length}`;
-            text += `\nTotal action items snoozed: ${snoozed.length}`;
-          }
+          text += `\n\n*${file.replace(".yml", "")}*`;
+          text += `\nTotal open action items: ${open.length}`;
+          text += `\nTotal closed action items (last 24 hours): ${closed.length}`;
+          text += `\nTotal action items assigned to me: ${assignedToMe.length}`;
+          text += `\nTotal action items assigned to others: ${assignedToOthers.length}`;
+          text += `\nTotal action items snoozed: ${snoozed.length}`;
         }
       }
     } catch (err) {
