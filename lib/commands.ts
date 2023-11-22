@@ -56,6 +56,7 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
         \n• *Get action item details:* \`/slacker get [id]\`
         \n• *Get a project report:* \`/slacker report [project]\`
         \n• *Assign an action item:* \`/slacker assign [id] [assignee]\`
+        \n• *Opt out of status report notifications:* \`/slacker optout\`
         \n• *Help:* \`/slacker help\``,
       });
     } else if (args[0] === "list") {
@@ -664,6 +665,14 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
             ],
           },
         ],
+      });
+    } else if (args[0] === "optout") {
+      await prisma.user.update({ where: { id: user.id }, data: { optOut: true } });
+
+      await client.chat.postEphemeral({
+        user: user_id,
+        channel: channel_id,
+        text: `:white_check_mark: You have opted out of the status report notifications.`,
       });
     } else {
       const closest = closestMatch(args[0], [

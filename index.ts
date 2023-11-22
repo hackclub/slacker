@@ -354,14 +354,16 @@ cron.schedule("0 * * * *", async () => {
 cron.schedule(
   "0 9,16 * * *",
   async () => {
-    console.log("⏳⏳ Running daily newsletter cron job ⏳⏳");
+    console.log("⏳⏳ Running status report cron job ⏳⏳");
     try {
       for await (const maintainer of MAINTAINERS) {
         const files = readdirSync("./config");
-        let text = `:wave: Hey ${maintainer.id}, here's your daily newsletter!`;
+        let text = `:wave: Hey ${maintainer.id}, here's your daily status report!`;
         const user = await prisma.user.findFirst({
           where: { OR: [{ slackId: maintainer.slack }, { githubUsername: maintainer.github }] },
         });
+
+        if (!user || user.optOut) continue;
 
         for await (const file of files) {
           const { maintainers, channels, repos } = getYamlFile(file);
@@ -382,9 +384,9 @@ cron.schedule(
               item.status === ActionStatus.closed &&
               dayjs(item.resolvedAt).isAfter(dayjs().subtract(1, "day"))
           );
-          const assignedToMe = open.filter((item) => item.assigneeId === user?.id);
+          const assignedToMe = open.filter((item) => item.assigneeId === user.id);
           const assignedToOthers = open.filter(
-            (item) => item.assigneeId !== null && item.assigneeId !== user?.id
+            (item) => item.assigneeId !== null && item.assigneeId !== user.id
           );
           const snoozed = open.filter(
             (item) => item.snoozedUntil !== null && dayjs(item.snoozedUntil).isAfter(dayjs())
@@ -397,9 +399,12 @@ cron.schedule(
           text += `\nTotal action items assigned to others: ${assignedToOthers.length}`;
           text += `\nTotal action items snoozed: ${snoozed.length}`;
         }
+
+        text += `\n\nYou can opt out of these daily status reports by running \`/slacker opt-out\`.`;
+        await slack.client.chat.postMessage({ channel: maintainer.slack, text });
       }
     } catch (err) {
-      console.log("🚨🚨 Error in daily newsletter cron job 🚨🚨");
+      console.log("🚨🚨 Error in status report cron job 🚨🚨");
       console.error(err);
     }
   },
