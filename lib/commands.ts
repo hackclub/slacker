@@ -58,6 +58,7 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
         \n• *Get action item details:* \`/slacker get [id]\`
         \n• *Get a project report:* \`/slacker report [project]\`
         \n• *Opt out of status report notifications:* \`/slacker optout\`
+        \n• *Opt in to status report notifications:* \`/slacker optin\`
         \n• *Help:* \`/slacker help\``,
       });
     } else if (args[0] === "list") {
@@ -621,8 +622,8 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
           },
           orderBy: { createdAt: "asc" },
           include: {
-            githubItem: { select: { author: true, repository: true } },
-            slackMessage: { select: { author: true, channel: true } },
+            githubItem: { include: { author: true, repository: true } },
+            slackMessage: { include: { author: true, channel: true } },
             participants: { select: { user: true } },
             assignee: true,
           },
@@ -640,8 +641,60 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
         return;
       }
 
+      const maintainer = maintainers.find(
+        (m) => m.slack === user_id || m.github === user?.githubUsername
+      );
+
+      const ownerOfSpecificChannels = channels.filter((c) =>
+        c.owners?.default?.includes(maintainer?.id || "")
+      );
+
+      const ownerOfSpecificRepos = repositories.filter((r) =>
+        r.owners?.default?.includes(maintainer?.id || "")
+      );
+
+      const ownSubChannelSection = ownerOfSpecificChannels.map((c) =>
+        c.owners?.subsections?.find((s) => s.owners.includes(maintainer?.id || ""))
+      );
+
+      const ownSubRepoSection = ownerOfSpecificRepos.map((r) =>
+        r.owners?.subsections?.find((s) => s.owners.includes(maintainer?.id || ""))
+      );
+
+      const ownSubSection = [...ownSubChannelSection, ...ownSubRepoSection];
+
+      let id: string | undefined;
+
+      if (ownSubSection.length > 0) {
+        const dataWithSubsection = data.filter((item) => {
+          ownSubSection.find((s) => {
+            if (s?.pattern) {
+              const regex = new RegExp(s.pattern);
+              return regex.test(item.githubItem?.title || item.slackMessage?.text || "");
+            }
+
+            return false;
+          });
+        });
+
+        if (dataWithSubsection.length > 0) {
+          id = dataWithSubsection[0].id;
+        }
+      } else if (ownerOfSpecificChannels.length > 0 || ownerOfSpecificRepos.length > 0) {
+        const dataWithSpecific = data.filter((item) => {
+          ownerOfSpecificChannels.find((c) => c.id === item.slackMessage?.channel?.slackId);
+          ownerOfSpecificRepos.find((r) => r.uri === item.githubItem?.repository?.url);
+        });
+
+        if (dataWithSpecific.length > 0) {
+          id = dataWithSpecific[0].id;
+        }
+      } else {
+        id = data[0].id;
+      }
+
       const item = await prisma.actionItem.update({
-        where: { id: data[0].id },
+        where: { id },
         data: { assignee: { connect: { id: user?.id } }, assignedOn: new Date() },
         include: {
           githubItem: { include: { author: true, repository: true } },
@@ -692,6 +745,14 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
         user: user_id,
         channel: channel_id,
         text: `:white_check_mark: You have opted out of the status report notifications.`,
+      });
+    } else if (args[0] === "optin") {
+      await prisma.user.update({ where: { id: user.id }, data: { optOut: false } });
+
+      await client.chat.postEphemeral({
+        user: user_id,
+        channel: channel_id,
+        text: `:white_check_mark: You have opted in to the status report notifications.`,
       });
     } else {
       const closest = closestMatch(args[0], [

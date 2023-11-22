@@ -14,7 +14,7 @@ model User {
   email          String?
   githubToken    String?
   slackId        String?
-  optOut         Boolean @default(false)
+  optOut         Boolean @default(true)
 
   messagesAsked      SlackMessage[]
   issuesOpened       GithubItem[]
