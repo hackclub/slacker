@@ -46,16 +46,17 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
         user: user_id,
         channel: channel_id,
         text: `:wave: Hi there! I'm Slacker, your friendly neighborhood action item manager. Here's what I can do:
-        \n• *List your action items:* \`/slacker me [project] [filter]\`
-        \n• *Get an action item assigned to you:* \`/slacker gimme [project] [filter]\`
-        \n• *List action items:* \`/slacker list [project] [filter]\`
-        \n• *Reopen action item:* \`/slacker reopen [id]\`
-        \n• *List projects:* \`/slacker whatsup\`
         \n• *List all projects:* \`/slacker whatsupfr\`
+        \n• *List projects:* \`/slacker whatsup\`
+        \n• *Get project resources:* \`/slacker resources [project]\`
+        \n• *List action items:* \`/slacker list [project] [filter]\`
+        \n• *Assign an action item:* \`/slacker assign [id] [assignee]\`
+        \n• *Get an action item assigned to you:* \`/slacker gimme [project] [filter]\`
+        \n• *List your action items:* \`/slacker me [project] [filter]\`
+        \n• *Reopen action item:* \`/slacker reopen [id]\`
         \n• *List snoozed items:* \`/slacker snoozed [project]\`
         \n• *Get action item details:* \`/slacker get [id]\`
         \n• *Get a project report:* \`/slacker report [project]\`
-        \n• *Assign an action item:* \`/slacker assign [id] [assignee]\`
         \n• *Opt out of status report notifications:* \`/slacker optout\`
         \n• *Help:* \`/slacker help\``,
       });
@@ -225,6 +226,24 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
             const config = getYamlFile(file);
             return `\n• *${file.split(".")[0]}* - ${config.description}`;
           })
+          .join("")}`;
+
+      await client.chat.postEphemeral({ user: user_id, channel: channel_id, text });
+    } else if (args[0] === "resources") {
+      const project = args[1]?.trim();
+
+      if (!project) {
+        await client.chat.postEphemeral({
+          user: user_id,
+          channel: channel_id,
+          text: `:warning: Project not found. Please check your command and try again.`,
+        });
+        return;
+      }
+
+      const text = `:white_check_mark: Here are the resources for *${project}*: \n\n
+        ${getYamlFile(`${project}.yaml`)
+          .resources?.map((r) => `\n• *${r.name}* - ${r.uri}`)
           .join("")}`;
 
       await client.chat.postEphemeral({ user: user_id, channel: channel_id, text });

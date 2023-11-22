@@ -13,6 +13,10 @@ export type Config = {
     sla: { responseTime: number };
     owners?: SubsectionOwner;
   }[];
+  resources?: {
+    name: string;
+    uri: string;
+  }[];
 };
 
 type SubsectionOwner = {
