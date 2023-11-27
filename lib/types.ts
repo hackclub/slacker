@@ -104,29 +104,30 @@ export type SingleIssueOrPullData = {
 };
 
 export type ElasticDocument = {
-  id: string;
+  id?: string;
   author?: {
     displayName: string;
     github: string | null;
     slack: string | null;
   };
-  state: "open" | "triaged" | "resolved" | "snoozed";
-  project: string;
-  actionItemType: "issue" | "pull" | "message";
-  createdTime: Date;
-  firstResponseTime: Date | null;
-  lastModifiedTime: Date;
-  snoozedUntil: Date | null;
-  timesSnoozed: number;
-  timesReopened: number;
-  timesResolved: number;
-  timesCommented: number;
+  state?: "open" | "triaged" | "resolved" | "snoozed";
+  project?: string;
+  actionItemType?: "issue" | "pull" | "message";
+  createdTime?: Date;
+  firstResponseTime?: Date | null;
+  lastModifiedTime?: Date;
+  snoozedUntil?: Date | null;
+  timesSnoozed?: number;
+  timesReopened?: number;
+  timesResolved?: number;
+  timesCommented?: number;
+  timesAssigned?: number;
   assignee?: {
     displayName: string;
     github: string | null;
     slack: string | null;
   };
-  actors: {
+  actors?: {
     displayName: string;
     github: string | null;
     slack: string | null;

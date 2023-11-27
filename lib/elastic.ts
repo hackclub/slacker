@@ -7,6 +7,7 @@ import prisma from "./db";
 import { getOctokitToken } from "./octokit";
 import { ElasticDocument } from "./types";
 import { MAINTAINERS, getProject } from "./utils";
+import dayjs from "dayjs";
 config();
 
 export const elastic = new Client({
@@ -84,7 +85,14 @@ export const indexDocument = async (id: string, data?: ElasticDocument) => {
         : "pull",
       createdTime: item.slackMessage?.createdAt ?? item.githubItem?.createdAt ?? item.createdAt,
       firstResponseTime: item.firstReplyOn,
-      state: item.status === ActionStatus.closed ? "resolved" : "open",
+      state:
+        item.snoozedUntil && dayjs(item.snoozedUntil).isAfter(dayjs())
+          ? "snoozed"
+          : item.status === ActionStatus.closed
+          ? item.slackMessage
+            ? "resolved"
+            : "triaged"
+          : "open",
       lastModifiedTime:
         item.lastReplyOn ??
         item.slackMessage?.updatedAt ??
@@ -97,9 +105,10 @@ export const indexDocument = async (id: string, data?: ElasticDocument) => {
         }) ?? "",
       snoozedUntil: item.snoozedUntil,
       timesCommented: item.totalReplies,
-      timesReopened: doc._source?.timesReopened ?? 0,
-      timesResolved: doc._source?.timesResolved ?? 0,
-      timesSnoozed: doc._source?.timesSnoozed ?? 0,
+      timesReopened: (doc._source?.timesReopened ?? 0) + (data?.timesReopened ?? 0),
+      timesResolved: (doc._source?.timesResolved ?? 0) + (data?.timesResolved ?? 0),
+      timesSnoozed: (doc._source?.timesSnoozed ?? 0) + (data?.timesSnoozed ?? 0),
+      timesAssigned: (doc._source?.timesAssigned ?? 0) + (data?.timesAssigned ?? 0),
       actors: participants,
       assignee: participants.find(
         (actor) =>
