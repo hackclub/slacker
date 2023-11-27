@@ -352,13 +352,13 @@ cron.schedule("0 * * * *", async () => {
 });
 
 cron.schedule(
-  "0 9,16 * * *",
+  "0 12 * * FRI",
   async () => {
     console.log("⏳⏳ Running status report cron job ⏳⏳");
     try {
       for await (const maintainer of MAINTAINERS) {
         const files = readdirSync("./config");
-        let text = `:wave: Hey ${maintainer.id}, here's your daily status report!`;
+        let text = `:wave: Hey ${maintainer.id}, here's your weekly status report!`;
         const user = await prisma.user.findFirst({
           where: { OR: [{ slackId: maintainer.slack }, { githubUsername: maintainer.github }] },
         });
@@ -372,32 +372,63 @@ cron.schedule(
           const items = await prisma.actionItem.findMany({
             where: {
               OR: [
-                { slackMessage: { channel: { slackId: { in: channels?.map((c) => c.id) } } } },
-                { githubItem: { repository: { url: { in: repos.map((r) => r.uri) } } } },
+                channels
+                  ? {
+                      slackMessage: {
+                        channel: { slackId: { in: channels?.map((c) => c.id) } },
+                      },
+                    }
+                  : {},
+                repos
+                  ? { githubItem: { repository: { url: { in: repos.map((r) => r.uri) } } } }
+                  : {},
               ],
             },
+            include: { slackMessage: true, githubItem: true, assignee: true },
           });
 
-          const open = items.filter((item) => item.status === ActionStatus.open);
+          const open = items.filter(
+            (item) =>
+              item.status === ActionStatus.open &&
+              (item.snoozedUntil === null || dayjs(item.snoozedUntil).isBefore(dayjs()))
+          );
+          const openMessages = open.filter((item) => item.slackMessageId);
+          const openPRs = open.filter((item) => item.githubItem?.type === "pull_request");
+          const openIssues = open.filter((item) => item.githubItem?.type === "issue");
+
           const closed = items.filter(
             (item) =>
               item.status === ActionStatus.closed &&
-              dayjs(item.resolvedAt).isAfter(dayjs().subtract(1, "day"))
+              dayjs(item.resolvedAt).isAfter(dayjs().subtract(6, "days"))
           );
-          const assignedToMe = open.filter((item) => item.assigneeId === user.id);
-          const assignedToOthers = open.filter(
-            (item) => item.assigneeId !== null && item.assigneeId !== user.id
-          );
-          const snoozed = open.filter(
-            (item) => item.snoozedUntil !== null && dayjs(item.snoozedUntil).isAfter(dayjs())
+          const closedMessages = closed.filter((item) => item.slackMessageId);
+          const closedPRs = closed.filter((item) => item.githubItem?.type === "pull_request");
+          const closedIssues = closed.filter((item) => item.githubItem?.type === "issue");
+
+          const assigned = open.filter((item) => item.assigneeId !== null);
+          const contributors = Array.from(
+            new Set(
+              assigned.map(
+                (item) =>
+                  MAINTAINERS.find(
+                    (m) =>
+                      m.slack === item.assignee?.slackId ||
+                      m.github === item.assignee?.githubUsername
+                  )?.id ||
+                  item.assignee?.githubUsername ||
+                  item.assignee?.slackId ||
+                  item.assignee?.email ||
+                  ""
+              )
+            )
           );
 
-          text += `\n\n*${file.replace(".yml", "")}*`;
-          text += `\nTotal open action items: ${open.length}`;
-          text += `\nTotal closed action items (last 24 hours): ${closed.length}`;
-          text += `\nTotal action items assigned to me: ${assignedToMe.length}`;
-          text += `\nTotal action items assigned to others: ${assignedToOthers.length}`;
-          text += `\nTotal action items snoozed: ${snoozed.length}`;
+          text += `\n\nProject: *${file.replace(".yml", "")}*`;
+          text += `\nOpen action items: ${open.length} (${openMessages.length} slack messages, ${openPRs.length} pull requests, ${openIssues.length} issues)`;
+          text += `\nTriaged this week: ${closed.length} (${closedMessages.length} slack messages, ${closedPRs.length} pull requests, ${closedIssues.length} issues)`;
+          text += `\nTotal contributors: ${contributors.length} ${
+            contributors.length > 0 ? `(${contributors.join(", ")})` : ""
+          }`;
         }
 
         text += `\n\nYou can opt out of these daily status reports by running \`/slacker opt-out\`.`;
