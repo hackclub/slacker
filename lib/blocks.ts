@@ -212,7 +212,10 @@ export const githubItem = ({
 };
 
 export const buttons = ({ item, showAssignee = false, showActions = true }) => {
-  const maintainers = getMaintainers({ repoUrl: item.githubItem?.repository?.url });
+  const maintainers = getMaintainers({
+    repoUrl: item.githubItem?.repository?.url,
+    channelId: item.slackMessage?.channel?.slackId,
+  });
   const isMaintainer = maintainers.find(
     (maintainer) =>
       maintainer?.slack === item.assignee?.slackId ||
