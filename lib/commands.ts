@@ -670,7 +670,9 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
           ownSubSection.find((s) => {
             if (s?.pattern) {
               const regex = new RegExp(s.pattern);
-              return regex.test(item.githubItem?.title || item.slackMessage?.text || "");
+              return regex.test(
+                item.githubItem?.title || item.githubItem?.body || item.slackMessage?.text || ""
+              );
             }
 
             return false;

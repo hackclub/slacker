@@ -41,6 +41,7 @@ export type IssueOrPull = {
     id: string;
     number: number;
     title: string;
+    bodyText: string;
     createdAt: string;
     updatedAt: string;
     author: {
@@ -73,6 +74,7 @@ export type SingleIssueOrPullData = {
     id: string;
     number: number;
     title: string;
+    bodyText: string;
     closedAt: string;
     assignees: {
       nodes: {

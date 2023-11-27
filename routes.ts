@@ -59,6 +59,7 @@ export default (router: ConnectRouter) =>
                   repository: { connect: { id: dbRepo.id } },
                   nodeId: item.id,
                   title: item.title,
+                  body: item.bodyText,
                   number: item.number,
                   state: "open",
                   type: item.id.startsWith("I_")
@@ -83,6 +84,7 @@ export default (router: ConnectRouter) =>
                 update: {
                   state: "open",
                   title: item.title,
+                  body: item.bodyText,
                   updatedAt: item.updatedAt,
                   labelsOnItems: {
                     deleteMany: {},

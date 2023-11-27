@@ -43,6 +43,7 @@ export const listGithubItems = async (owner: string, name: string) => {
             id
             number
             title
+            bodyText
             createdAt
             updatedAt
             author {
@@ -75,6 +76,7 @@ export const listGithubItems = async (owner: string, name: string) => {
             id
             number
             title
+            bodyText
             createdAt
             updatedAt
             author {
@@ -123,6 +125,7 @@ export const getGithubItem = async (owner: string, name: string, id: string) => 
           id
           number
           title
+          bodyText
           closedAt
           assignees(first: 100) {
             nodes {
@@ -153,6 +156,7 @@ export const getGithubItem = async (owner: string, name: string, id: string) => 
           id
           number
           title
+          bodyText
           closedAt
           assignees(first: 100) {
             nodes {

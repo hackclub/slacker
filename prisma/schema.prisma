@@ -51,6 +51,7 @@ model SlackMessage {
 model GithubItem {
   id         String         @id @default(cuid())
   title      String         @default("")
+  body       String         @default("")
   number     Int
   nodeId     String         @unique
   state      GithubState
