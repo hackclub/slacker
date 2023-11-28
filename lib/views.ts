@@ -44,7 +44,7 @@ export const snoozeSubmit: Middleware<
       data: { snoozedUntil, snoozeCount: { increment: 1 }, snoozedById: dbUser?.id },
     });
 
-    await indexDocument(actionId);
+    // await indexDocument(actionId);
 
     await client.chat.postEphemeral({
       channel: channelId,

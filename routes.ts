@@ -108,7 +108,7 @@ export default (router: ConnectRouter) =>
 
               const logins = item.participants.nodes.map((node) => node.login);
               await syncGithubParticipants(logins, githubItem.actionItem!.id);
-              await indexDocument(githubItem.actionItem!.id);
+              // await indexDocument(githubItem.actionItem!.id);
             }
 
             console.log(
@@ -153,7 +153,7 @@ export default (router: ConnectRouter) =>
 
               const logins = res.node.participants.nodes.map((node) => node.login);
               await syncGithubParticipants(logins, githubItem.actionItem!.id);
-              await indexDocument(githubItem.actionItem!.id, { timesResolved: 1 });
+              // await indexDocument(githubItem.actionItem!.id, { timesResolved: 1 });
             }
 
             console.log(`✅ DONE: ${owner}/${name} ✅`);
