@@ -22,7 +22,7 @@ repos:
       default: [lucas]
       subsections:
         - owners: [lucas]
-          pattern: What is your game about?
+          pattern: What is your game about\?
   - uri: https://github.com/hackclub/spade
     sla:
       responseTime: 24h
