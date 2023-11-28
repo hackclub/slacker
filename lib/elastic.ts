@@ -1,17 +1,15 @@
 import { Client } from "@elastic/elasticsearch";
 import { ActionStatus } from "@prisma/client";
+import dayjs from "dayjs";
 import { config } from "dotenv";
-import { Octokit } from "octokit";
-import { slack } from "..";
 import prisma from "./db";
-import { getOctokitToken } from "./octokit";
+import { getDisplayName } from "./octokit";
 import { ElasticDocument } from "./types";
 import { MAINTAINERS, getProject } from "./utils";
-import dayjs from "dayjs";
 config();
 
 export const elastic = new Client({
-  node: "https://localhost:9200",
+  node: process.env.ELASTIC_NODE || "https://localhost:9200",
   auth: { apiKey: process.env.ELASTIC_API_TOKEN || "" },
 });
 
@@ -22,6 +20,7 @@ export const indexDocument = async (id: string, data?: ElasticDocument) => {
       slackMessage: { include: { channel: true, author: true } },
       githubItem: { include: { repository: true, author: true } },
       assignee: true,
+      snoozedBy: true,
       participants: { select: { user: true } },
     },
   });
@@ -33,7 +32,12 @@ export const indexDocument = async (id: string, data?: ElasticDocument) => {
     index: "search-slacker-analytics",
   });
 
-  const participants: ElasticDocument["actors"] = [];
+  const participants: ElasticDocument["actors"] = (doc._source?.actors ?? []).filter(
+    (p) =>
+      item.participants.findIndex(
+        ({ user }) => p.github === user.githubUsername || p.slack === user.slackId
+      ) !== -1
+  );
 
   for (let i = 0; i < item.participants.length; i++) {
     const { user } = item.participants[i];
@@ -49,26 +53,57 @@ export const indexDocument = async (id: string, data?: ElasticDocument) => {
         slack: maintainer.slack,
       });
     } else {
-      const token = await getOctokitToken(
-        item.githubItem?.repository.url.split("/")[3] || "",
-        item.githubItem?.repository.url.split("/")[4] || ""
-      );
-      const octokit = new Octokit({ auth: "Bearer " + token });
-      const displayName = user.slackId
-        ? await slack.client.users
-            .info({ user: user.slackId })
-            .then(
-              (res) =>
-                res.user?.name || res.user?.real_name || res.user?.profile?.display_name || ""
-            )
-        : await octokit.rest.users
-            .getByUsername({ username: user.githubUsername ?? "" })
-            .then((res) => res.data.name || "");
+      const displayName = await getDisplayName({
+        owner: item.githubItem?.repository.owner ?? "",
+        name: item.githubItem?.repository.name ?? "",
+        github: user.githubUsername ?? undefined,
+        slackId: user.slackId ?? undefined,
+      });
+
+      participants.push({ displayName, github: user.githubUsername, slack: user.slackId });
+    }
+  }
+
+  if (item.snoozedBy) {
+    const snoozedBy = participants.find(
+      (actor) =>
+        actor.slack === item.snoozedBy?.slackId || actor.github === item.snoozedBy?.githubUsername
+    );
+
+    if (!snoozedBy) {
+      const displayName = await getDisplayName({
+        owner: item.githubItem?.repository.owner ?? "",
+        name: item.githubItem?.repository.name ?? "",
+        github: item.snoozedBy.githubUsername ?? undefined,
+        slackId: item.snoozedBy.slackId ?? undefined,
+      });
 
       participants.push({
-        displayName: displayName,
-        github: user.githubUsername,
-        slack: user.slackId,
+        displayName,
+        github: item.snoozedBy.githubUsername,
+        slack: item.snoozedBy.slackId,
+      });
+    }
+  }
+
+  if (item.assignee) {
+    const assignee = participants.find(
+      (actor) =>
+        actor.slack === item.assignee?.slackId || actor.github === item.assignee?.githubUsername
+    );
+
+    if (!assignee) {
+      const displayName = await getDisplayName({
+        owner: item.githubItem?.repository.owner ?? "",
+        name: item.githubItem?.repository.name ?? "",
+        github: item.assignee.githubUsername ?? undefined,
+        slackId: item.assignee.slackId ?? undefined,
+      });
+
+      participants.push({
+        displayName,
+        github: item.assignee.githubUsername,
+        slack: item.assignee.slackId,
       });
     }
   }
@@ -107,8 +142,8 @@ export const indexDocument = async (id: string, data?: ElasticDocument) => {
       timesCommented: item.totalReplies,
       timesReopened: (doc._source?.timesReopened ?? 0) + (data?.timesReopened ?? 0),
       timesResolved: (doc._source?.timesResolved ?? 0) + (data?.timesResolved ?? 0),
-      timesSnoozed: (doc._source?.timesSnoozed ?? 0) + (data?.timesSnoozed ?? 0),
       timesAssigned: (doc._source?.timesAssigned ?? 0) + (data?.timesAssigned ?? 0),
+      timesSnoozed: item.snoozeCount,
       actors: participants,
       assignee: participants.find(
         (actor) =>

@@ -1,6 +1,3 @@
-import dayjs from "dayjs";
-import prisma from "./db";
-import { StringIndexed } from "@slack/bolt/dist/types/helpers";
 import {
   Block,
   KnownBlock,
@@ -8,8 +5,12 @@ import {
   SlackViewAction,
   SlackViewMiddlewareArgs,
 } from "@slack/bolt";
+import { StringIndexed } from "@slack/bolt/dist/types/helpers";
+import dayjs from "dayjs";
 import customParseFormat from "dayjs/plugin/customParseFormat";
 import relativeTime from "dayjs/plugin/relativeTime";
+import prisma from "./db";
+import { indexDocument } from "./elastic";
 import { logActivity } from "./utils";
 dayjs.extend(relativeTime);
 dayjs.extend(customParseFormat);
@@ -42,6 +43,8 @@ export const snoozeSubmit: Middleware<
       where: { id: actionId },
       data: { snoozedUntil, snoozeCount: { increment: 1 }, snoozedById: dbUser?.id },
     });
+
+    await indexDocument(actionId);
 
     await client.chat.postEphemeral({
       channel: channelId,

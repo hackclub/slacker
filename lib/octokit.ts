@@ -1,7 +1,8 @@
 import { createAppAuth } from "@octokit/auth-app";
 import { Octokit } from "octokit";
-import { GithubData, SingleIssueOrPullData } from "./types";
+import { slack } from "..";
 import metrics from "./metrics";
+import { GithubData, SingleIssueOrPullData } from "./types";
 
 const appId = process.env.GITHUB_APP_ID || "";
 const base64 = process.env.GITHUB_PRIVATE_KEY || "";
@@ -9,6 +10,9 @@ const privateKey = Buffer.from(base64, "base64").toString("utf-8");
 
 export const getOctokitToken = async (owner: string, repo: string) => {
   metrics.increment("octokit.get.token");
+
+  if (!owner || !repo) return "";
+
   const auth = createAppAuth({
     appId,
     privateKey,
@@ -31,6 +35,32 @@ export const getOctokitToken = async (owner: string, repo: string) => {
   });
 
   return res.data.token;
+};
+
+export const getDisplayName = async ({
+  owner,
+  name,
+  slackId,
+  github,
+}: {
+  owner: string;
+  name: string;
+  slackId?: string;
+  github?: string;
+}) => {
+  const token = await getOctokitToken(owner, name);
+  const octokit = new Octokit({ auth: "Bearer " + token });
+  const displayName = slackId
+    ? await slack.client.users
+        .info({ user: slackId })
+        .then(
+          (res) => res.user?.name || res.user?.real_name || res.user?.profile?.display_name || ""
+        )
+    : await octokit.rest.users
+        .getByUsername({ username: github ?? "" })
+        .then((res) => res.data.name || "");
+
+  return displayName;
 };
 
 export const listGithubItems = async (owner: string, name: string) => {

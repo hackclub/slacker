@@ -24,6 +24,7 @@ import {
 } from "./lib/utils";
 import { notesSubmit, snoozeSubmit } from "./lib/views";
 import routes from "./routes";
+import { indexDocument } from "./lib/elastic";
 
 dayjs.extend(relativeTime);
 dayjs.extend(customParseFormat);
@@ -226,6 +227,8 @@ slack.event("message", async ({ event, client, logger, message }) => {
         Array.from(new Set(parent.reply_users)) || [],
         slackMessage.actionItem!.id
       );
+
+      await indexDocument(slackMessage.actionItem!.id);
     } else {
       // create new action item:
       const maintainers = getMaintainers({ channelId: event.channel });
@@ -265,6 +268,8 @@ slack.event("message", async ({ event, client, logger, message }) => {
         Array.from(new Set(parent.reply_users)) || [],
         slackMessage.actionItem!.id
       );
+
+      await indexDocument(slackMessage.actionItem!.id);
     }
   } catch (err) {
     metrics.increment("errors.slack.message", 1);
@@ -313,6 +318,7 @@ cron.schedule("0 * * * *", async () => {
 
       if (dayjs().isBefore(deadline)) continue;
       await prisma.actionItem.update({ where: { id: item.id }, data: { assigneeId: null } });
+      await indexDocument(item.id);
 
       await slack.client.chat.postMessage({
         channel: item.assignee?.slackId ?? "",

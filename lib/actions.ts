@@ -5,6 +5,7 @@ import { StringIndexed } from "@slack/bolt/dist/types/helpers";
 import { Block, KnownBlock, Middleware, SlackAction, SlackActionMiddlewareArgs } from "@slack/bolt";
 import { getGithubItem } from "./octokit";
 import metrics from "./metrics";
+import { indexDocument } from "./elastic";
 
 export const markIrrelevant: Middleware<
   SlackActionMiddlewareArgs<SlackAction>,
@@ -98,6 +99,8 @@ export const markIrrelevant: Middleware<
 
       await syncParticipants(Array.from(new Set(parent.reply_users)) || [], action.id);
     }
+
+    await indexDocument(action.id, { timesResolved: 1 });
 
     await client.chat.postEphemeral({
       channel: channel.id,
@@ -358,6 +361,8 @@ export const resolve: Middleware<SlackActionMiddlewareArgs<SlackAction>, StringI
       await syncParticipants(Array.from(new Set(parent.reply_users)) || [], action.id);
     }
 
+    await indexDocument(action.id, { timesResolved: 1 });
+
     await client.chat.postEphemeral({
       channel: channel?.id as string,
       user: user.id,
@@ -398,6 +403,8 @@ export const unsnooze: Middleware<SlackActionMiddlewareArgs<SlackAction>, String
       where: { id: actionId },
       data: { snoozedUntil: null, snoozeCount: { decrement: 1 }, snoozedById: null },
     });
+
+    await indexDocument(actionId);
 
     await client.chat.postEphemeral({
       channel: channel?.id as string,
@@ -452,6 +459,8 @@ export const assigned: Middleware<SlackActionMiddlewareArgs<SlackAction>, String
       where: { id: actionId },
       data: { assigneeId: userOnDb.id, assignedOn: new Date() },
     });
+
+    await indexDocument(actionId, { timesAssigned: 1 });
 
     await client.chat.postEphemeral({
       channel: channel?.id as string,
