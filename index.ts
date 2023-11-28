@@ -33,12 +33,12 @@ config();
 const app = express();
 app.use(expressConnectMiddleware({ routes }));
 app.use(
-  responseTime((req: Request, res: Response, time) => {
-    const stat = (req.method + "/" + req.url.split("/")[1])
+  responseTime((req, res, time) => {
+    const stat = (req.method + "/" + req.url?.split("/")[1])
       .toLowerCase()
       .replace(/[:.]/g, "")
       .replace(/\//g, "_");
-    const httpCode = res.status;
+    const httpCode = res.statusCode;
     const timingStatKey = `http.response.${stat}`;
     const codeStatKey = `http.response.${stat}.${httpCode}`;
     metrics.timing(timingStatKey, time);
