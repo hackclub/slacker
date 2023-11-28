@@ -44,8 +44,6 @@ export const snoozeSubmit: Middleware<
       data: { snoozedUntil, snoozeCount: { increment: 1 }, snoozedById: dbUser?.id },
     });
 
-    // await indexDocument(actionId);
-
     await client.chat.postEphemeral({
       channel: channelId,
       user: user.id,
@@ -72,6 +70,7 @@ export const snoozeSubmit: Middleware<
       blocks: newBlocks,
     });
 
+    await indexDocument(actionId);
     await logActivity(client, user.id, action.id, "snoozed");
   } catch (err) {
     logger.error(err);

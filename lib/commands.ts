@@ -184,14 +184,13 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
           data: { status: ActionStatus.open, flag: null, resolvedAt: null },
         });
 
-        // await indexDocument(item.id, { timesReopened: 1 });
-
         await client.chat.postEphemeral({
           user: user_id,
           channel: channel_id,
           text: `:white_check_mark: Action item reopened.`,
         });
 
+        await indexDocument(item.id, { timesReopened: 1 });
         await logActivity(client, user_id, item.id, "reopened");
       } else {
         await client.chat.postEphemeral({
@@ -454,14 +453,13 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
         data: { assignee: { connect: { id: user?.id } }, assignedOn: new Date() },
       });
 
-      // await indexDocument(id, { timesAssigned: 1 });
-
       await client.chat.postEphemeral({
         user: user_id,
         channel: channel_id,
         text: `:white_check_mark: Action item assigned to <@${maintainer?.slack}>.`,
       });
 
+      await indexDocument(id, { timesAssigned: 1 });
       await logActivity(client, user_id, id, "assigned", maintainer?.slack);
     } else if (args[0] === "me") {
       const project = args[1]?.trim() || "all";
@@ -746,7 +744,7 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
         ],
       });
 
-      // await indexDocument(item.id, { timesAssigned: 1 });
+      await indexDocument(item.id, { timesAssigned: 1 });
     } else if (args[0] === "optout") {
       await prisma.user.update({ where: { id: user.id }, data: { optOut: true } });
 

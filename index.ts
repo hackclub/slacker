@@ -228,7 +228,7 @@ slack.event("message", async ({ event, client, logger, message }) => {
         slackMessage.actionItem!.id
       );
 
-      // await indexDocument(slackMessage.actionItem!.id);
+      await indexDocument(slackMessage.actionItem!.id);
     } else {
       // create new action item:
       const maintainers = getMaintainers({ channelId: event.channel });
@@ -269,7 +269,7 @@ slack.event("message", async ({ event, client, logger, message }) => {
         slackMessage.actionItem!.id
       );
 
-      // await indexDocument(slackMessage.actionItem!.id);
+      await indexDocument(slackMessage.actionItem!.id);
     }
   } catch (err) {
     metrics.increment("errors.slack.message", 1);
@@ -318,12 +318,13 @@ cron.schedule("0 * * * *", async () => {
 
       if (dayjs().isBefore(deadline)) continue;
       await prisma.actionItem.update({ where: { id: item.id }, data: { assigneeId: null } });
-      // await indexDocument(item.id);
 
       await slack.client.chat.postMessage({
         channel: item.assignee?.slackId ?? "",
         text: `:warning: Hey, we unassigned ${item.id} from you because you didn't resolve it in time. Feel free to pick it up again!`,
       });
+
+      await indexDocument(item.id);
     }
   } catch (err) {
     console.log("🚨🚨 Error in unassign cron job 🚨🚨");

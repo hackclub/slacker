@@ -100,8 +100,6 @@ export const markIrrelevant: Middleware<
       await syncParticipants(Array.from(new Set(parent.reply_users)) || [], action.id);
     }
 
-    // await indexDocument(action.id, { timesResolved: 1 });
-
     await client.chat.postEphemeral({
       channel: channel.id,
       user: user.id,
@@ -119,6 +117,7 @@ export const markIrrelevant: Middleware<
       blocks: newBlocks,
     });
 
+    await indexDocument(action.id, { timesResolved: 1 });
     await logActivity(client, user.id, action.id, "irrelevant");
   } catch (err) {
     metrics.increment("errors.slack.mark_irrelevant", 1);
@@ -361,8 +360,6 @@ export const resolve: Middleware<SlackActionMiddlewareArgs<SlackAction>, StringI
       await syncParticipants(Array.from(new Set(parent.reply_users)) || [], action.id);
     }
 
-    // await indexDocument(action.id, { timesResolved: 1 });
-
     await client.chat.postEphemeral({
       channel: channel?.id as string,
       user: user.id,
@@ -380,6 +377,7 @@ export const resolve: Middleware<SlackActionMiddlewareArgs<SlackAction>, StringI
       blocks: newBlocks,
     });
 
+    await indexDocument(action.id, { timesResolved: 1 });
     await logActivity(client, user.id, action.id, "resolved");
   } catch (err) {
     metrics.increment("errors.slack.resolve", 1);
@@ -404,14 +402,13 @@ export const unsnooze: Middleware<SlackActionMiddlewareArgs<SlackAction>, String
       data: { snoozedUntil: null, snoozeCount: { decrement: 1 }, snoozedById: null },
     });
 
-    // await indexDocument(actionId);
-
     await client.chat.postEphemeral({
       channel: channel?.id as string,
       user: user.id,
       text: `:white_check_mark: Action item (id=${actionId}) unsnoozed by <@${user.id}>`,
     });
 
+    await indexDocument(actionId);
     await logActivity(client, user.id, actionId, "unsnoozed");
   } catch (err) {
     metrics.increment("errors.slack.unsnooze", 1);
@@ -460,14 +457,13 @@ export const assigned: Middleware<SlackActionMiddlewareArgs<SlackAction>, String
       data: { assigneeId: userOnDb.id, assignedOn: new Date() },
     });
 
-    // await indexDocument(actionId, { timesAssigned: 1 });
-
     await client.chat.postEphemeral({
       channel: channel?.id as string,
       user: user.id,
       text: `:white_check_mark: Action item (id=${actionId}) assigned to <@${maintainer?.slack}>`,
     });
 
+    await indexDocument(actionId, { timesAssigned: 1 });
     await logActivity(client, user.id, actionId, "assigned", maintainer?.slack);
   } catch (err) {
     metrics.increment("errors.slack.assigned", 1);

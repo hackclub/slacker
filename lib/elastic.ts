@@ -11,6 +11,7 @@ config();
 export const elastic = new Client({
   node: process.env.ELASTIC_NODE || "https://localhost:9200",
   auth: { apiKey: process.env.ELASTIC_API_TOKEN || "" },
+  tls: { rejectUnauthorized: false },
 });
 
 export const indexDocument = async (id: string, data?: ElasticDocument) => {
