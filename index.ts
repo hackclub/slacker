@@ -449,11 +449,21 @@ cron.schedule(
   { timezone: "America/New_York" }
 );
 
+const backFill = async () => {
+  const actionItems = await prisma.actionItem.findMany({});
+
+  for await (const item of actionItems) {
+    console.log(`Backfilling ${actionItems.indexOf(item) + 1}/${actionItems.length}`);
+    await indexDocument(item.id);
+  }
+};
+
 (async () => {
   try {
     metrics.increment("server.start.increment", 1);
     await slack.start(process.env.PORT || 5000);
     await joinChannels();
+    // await backFill();
     console.log(`Server running on http://localhost:5000`);
   } catch (err) {
     metrics.increment("server.start.error", 1);
