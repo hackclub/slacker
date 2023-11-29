@@ -20,3 +20,12 @@ repos:
   - uri: https://github.com/hackclub/global
     sla:
       responseTime: 1h
+resources:
+  - name: slack-channel
+    uri: https://hackclub.slack.com/archives/C05SVRTCDGV
+  - name: grafana
+    uri: https://telemetry.hackclub.com
+  - name: heroku
+    uri: https://dashboard.heroku.com
+  - name: digitalocean
+    uri: https://www.digitalocean.com

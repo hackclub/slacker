@@ -10,3 +10,10 @@ repos:
   - uri: https://github.com/hackclub/slash-z
     sla:
       responseTime: 1h
+resources:
+  - name: github
+    uri: https://github.com/hackclub/slash-z
+  - name: dashboard
+    uri: https://telemetry.hackclub.com/d/f3869cb3-1e23-4ff2-84b1-74f9d10cf535/slash-z?orgId=1
+  - name: heroku
+    uri: https://dashboard.heroku.com/pipelines/618d59d1-52db-4498-a207-7a400dcd3b40
