@@ -10,3 +10,6 @@ repos:
   - uri: https://github.com/hackclub/dns
     sla:
       responseTime: 1h
+resources:
+  - name: github
+    uri: https://github.com/hackclub/dns

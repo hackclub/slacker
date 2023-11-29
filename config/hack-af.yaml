@@ -5,3 +5,10 @@ repos:
   - uri: https://github.com/hackclub/hack.af
     sla:
       responseTime: 1h
+resources:
+  - name: github
+    uri: https://github.com/hackclub/hack.af
+  - name: dashboard
+    uri: https://telemetry.hackclub.com/d/a12b6f93-28fd-4a37-aa86-d5b6edfc20c8/hack-af?orgId=1
+  - name: heroku
+    uri: https://dashboard.heroku.com/apps/hack-af

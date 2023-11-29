@@ -8,3 +8,12 @@ repos:
   - uri: https://github.com/hackclub/scrapbook
     sla:
       responseTime: 1h
+resources:
+  - name: github-scrapbook
+    uri: https://github.com/hackclub/scrapbook
+  - name: github-scrappy
+    uri: https://github.com/hackclub/scrappy
+  - name: dashboard-scrapbook
+    uri: https://telemetry.hackclub.com/d/cf0fd2bf-efec-49a0-a879-a1a8c7e5a1b6/scrapbook?orgId=1&refresh=5s
+  - name: dashboard-scrappy
+    uri: https://telemetry.hackclub.com/d/d2a0f592-2c77-4725-8e81-841963964907/scrappy?orgId=1&refresh=5s
