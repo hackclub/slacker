@@ -346,7 +346,7 @@ cron.schedule("0 * * * *", async () => {
       const now = dayjs();
       const diff = now.diff(snoozedUntil, "hour", true).toFixed(2);
 
-      if (snoozedUntil.isAfter(now) || parseFloat(diff) > 1) continue;
+      if (snoozedUntil.isAfter(now) || parseFloat(diff) >= 1) continue;
 
       await slack.client.chat.postMessage({
         channel: item.snoozedBy?.slackId ?? "",
