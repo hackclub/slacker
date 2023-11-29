@@ -1,6 +1,6 @@
 name: Sinerider
 description: A game about math and graphing!
-maintainers: [chris, elliot]
+maintainers: [chris, elliot, graham]
 channels:
   - name: gamedev
     id: C6LHL48G2
