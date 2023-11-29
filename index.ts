@@ -18,6 +18,7 @@ import metrics from "./lib/metrics";
 import {
   MAINTAINERS,
   getMaintainers,
+  getYamlDetails,
   getYamlFile,
   joinChannels,
   syncParticipants,
@@ -458,9 +459,39 @@ const backFill = async () => {
   }
 };
 
+const checkDuplicateResources = async () => {
+  console.log("⏳⏳ Checking for duplicates ⏳⏳");
+  const { channels, repositories } = await getYamlDetails("all", undefined, null, false);
+
+  const hasChannelDuplicates = channels.some(
+    (channel) => channels.filter((c) => c.id === channel.id).length > 1
+  );
+
+  const hasRepoDuplicates = repositories.some(
+    (repo) => repositories.filter((r) => r.uri === repo.uri).length > 1
+  );
+
+  if (hasChannelDuplicates || hasRepoDuplicates) {
+    console.log("🚨🚨 Found duplicates. Aborting 🚨🚨");
+    console.log("Channels:");
+    console.log(
+      channels.filter((channel) => channels.filter((c) => c.id === channel.id).length > 1)
+    );
+    console.log("Repositories:");
+    console.log(
+      repositories.filter((repo) => repositories.filter((r) => r.uri === repo.uri).length > 1)
+    );
+
+    process.exit(1);
+  }
+
+  console.log("✅✅ No duplicates found ✅✅");
+};
+
 (async () => {
   try {
     metrics.increment("server.start.increment", 1);
+    await checkDuplicateResources();
     await slack.start(process.env.PORT || 5000);
     await joinChannels();
     // await backFill();
