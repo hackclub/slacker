@@ -111,6 +111,9 @@ export const indexDocument = async (id: string, data?: ElasticDocument) => {
       }
     }
 
+    let timesAssigned = (doc?._source?.timesAssigned ?? 0) + (data?.timesAssigned ?? 0);
+    timesAssigned = timesAssigned === 0 && item.assignee ? 1 : timesAssigned;
+
     await elastic.index<ElasticDocument>({
       id: item.id,
       index: "search-slacker-analytics",
@@ -145,8 +148,14 @@ export const indexDocument = async (id: string, data?: ElasticDocument) => {
         timesCommented: item.totalReplies,
         timesReopened: (doc?._source?.timesReopened ?? 0) + (data?.timesReopened ?? 0),
         timesResolved: (doc?._source?.timesResolved ?? 0) + (data?.timesResolved ?? 0),
-        timesAssigned: (doc?._source?.timesAssigned ?? 0) + (data?.timesAssigned ?? 0),
+        timesAssigned,
         timesSnoozed: item.snoozeCount,
+        firstResponseTimeInS: item.firstReplyOn
+          ? dayjs(item.firstReplyOn).diff(item.createdAt, "seconds")
+          : null,
+        resolutionTimeInS: item.resolvedAt
+          ? dayjs(item.resolvedAt).diff(item.createdAt, "seconds")
+          : null,
         actors: participants,
         assignee: participants.find(
           (actor) =>

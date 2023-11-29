@@ -494,7 +494,6 @@ const checkDuplicateResources = async () => {
     await checkDuplicateResources();
     await slack.start(process.env.PORT || 5000);
     await joinChannels();
-    // await backFill();
     console.log(`Server running on http://localhost:5000`);
   } catch (err) {
     metrics.increment("server.start.error", 1);

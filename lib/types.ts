@@ -122,6 +122,8 @@ export type ElasticDocument = {
   timesResolved?: number;
   timesCommented?: number;
   timesAssigned?: number;
+  firstResponseTimeInS?: number | null;
+  resolutionTimeInS?: number | null;
   assignee?: {
     displayName: string;
     github: string | null;
