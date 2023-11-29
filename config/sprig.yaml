@@ -28,6 +28,6 @@ repos:
       responseTime: 24h
 resources:
   - name: website
-    url: https://sprig.hackclub.com
+    uri: https://sprig.hackclub.com
   - name: editor
-    url: https://sprig.hackclub.com/editor
+    uri: https://sprig.hackclub.com/editor
