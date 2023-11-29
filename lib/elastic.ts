@@ -116,6 +116,7 @@ export const indexDocument = async (id: string, data?: ElasticDocument) => {
 
     await elastic.index<ElasticDocument>({
       id: item.id,
+      timeout: "1m",
       index: "search-slacker-analytics",
       document: {
         id: item.id,
@@ -151,10 +152,10 @@ export const indexDocument = async (id: string, data?: ElasticDocument) => {
         timesAssigned,
         timesSnoozed: item.snoozeCount,
         firstResponseTimeInS: item.firstReplyOn
-          ? dayjs(item.firstReplyOn).diff(item.createdAt, "seconds")
+          ? dayjs(item.createdAt).diff(item.firstReplyOn, "seconds")
           : null,
         resolutionTimeInS: item.resolvedAt
-          ? dayjs(item.resolvedAt).diff(item.createdAt, "seconds")
+          ? dayjs(item.createdAt).diff(item.resolvedAt, "seconds")
           : null,
         actors: participants,
         assignee: participants.find(
