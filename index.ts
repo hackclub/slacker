@@ -247,6 +247,7 @@ slack.event("message", async ({ event, client, logger, message }) => {
         data: {
           text: parent.text || "",
           ts: parent.ts || "",
+          createdAt: dayjs(parent.ts?.split(".")[0], "X").toDate(),
           actionItem: {
             create: {
               lastReplyOn: parent.latest_reply
@@ -494,6 +495,7 @@ const checkDuplicateResources = async () => {
     await checkDuplicateResources();
     await slack.start(process.env.PORT || 5000);
     await joinChannels();
+    // await backFill();
     console.log(`Server running on http://localhost:5000`);
   } catch (err) {
     metrics.increment("server.start.error", 1);

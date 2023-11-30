@@ -114,6 +114,9 @@ export const indexDocument = async (id: string, data?: ElasticDocument) => {
     let timesAssigned = (doc?._source?.timesAssigned ?? 0) + (data?.timesAssigned ?? 0);
     timesAssigned = timesAssigned === 0 && item.assignee ? 1 : timesAssigned;
 
+    const createdAt =
+      item.githubItem?.createdAt || dayjs(item.slackMessage?.ts?.split(".")[0], "X").toDate();
+
     await elastic.index<ElasticDocument>({
       id: item.id,
       timeout: "1m",
@@ -125,7 +128,8 @@ export const indexDocument = async (id: string, data?: ElasticDocument) => {
           : item.githubItem?.type === "issue"
           ? "issue"
           : "pull",
-        createdTime: item.slackMessage?.createdAt ?? item.githubItem?.createdAt ?? item.createdAt,
+        createdTime: createdAt ?? item.createdAt,
+        resolvedTime: item.resolvedAt,
         firstResponseTime: item.firstReplyOn,
         state:
           item.snoozedUntil && dayjs(item.snoozedUntil).isAfter(dayjs())
@@ -152,10 +156,10 @@ export const indexDocument = async (id: string, data?: ElasticDocument) => {
         timesAssigned,
         timesSnoozed: item.snoozeCount,
         firstResponseTimeInS: item.firstReplyOn
-          ? dayjs(item.createdAt).diff(item.firstReplyOn, "seconds")
+          ? dayjs(item.firstReplyOn).diff(createdAt, "seconds")
           : null,
         resolutionTimeInS: item.resolvedAt
-          ? dayjs(item.createdAt).diff(item.resolvedAt, "seconds")
+          ? dayjs(item.resolvedAt).diff(createdAt, "seconds")
           : null,
         actors: participants,
         assignee: participants.find(
@@ -167,6 +171,11 @@ export const indexDocument = async (id: string, data?: ElasticDocument) => {
             actor.slack === (item.slackMessage || item.githubItem)?.author.slackId ||
             actor.github === (item.slackMessage || item.githubItem)?.author.githubUsername
         ),
+        url: item.githubItem
+          ? `https://github.com/${item.githubItem?.repository?.owner}/${item.githubItem?.repository?.name}/issues/${item.githubItem?.number}`
+          : `https://hackclub.slack.com/archives/${
+              item.slackMessage?.channel.slackId
+            }/p${item.slackMessage?.ts.replace(".", "")}`,
       },
     });
   } catch (err) {

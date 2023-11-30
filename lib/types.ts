@@ -114,6 +114,7 @@ export type ElasticDocument = {
   project?: string;
   actionItemType?: "issue" | "pull" | "message";
   createdTime?: Date;
+  resolvedTime?: Date | null;
   firstResponseTime?: Date | null;
   lastModifiedTime?: Date;
   snoozedUntil?: Date | null;
@@ -134,4 +135,5 @@ export type ElasticDocument = {
     github: string | null;
     slack: string | null;
   }[];
+  url?: string;
 };
