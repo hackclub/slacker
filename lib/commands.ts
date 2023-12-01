@@ -623,7 +623,7 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
             status: { not: ActionStatus.closed },
             assignee: { is: null },
           },
-          orderBy: { createdAt: "asc" },
+          orderBy: { createdAt: "asc", totalReplies: "asc" },
           include: {
             githubItem: { include: { author: true, repository: true } },
             slackMessage: { include: { author: true, channel: true } },
@@ -761,6 +761,8 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
         channel: channel_id,
         text: `:white_check_mark: You have opted in to the status report notifications.`,
       });
+    } else if (args[0] === "gh") {
+      // xyz
     } else {
       const closest = closestMatch(args[0], [
         "list",
