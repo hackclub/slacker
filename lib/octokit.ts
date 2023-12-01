@@ -19,6 +19,7 @@ webhooks.on("issues.opened", async ({ payload }) => createGithubItem(payload));
 webhooks.on("pull_request.opened", async ({ payload }) => createGithubItem(payload));
 
 export const createGithubItem = async (payload) => {
+  console.log("🧶🧶 Running github webhook 🧶🧶");
   const { issue, pull_request, repository } = payload;
   const item = issue || pull_request;
 
@@ -89,6 +90,7 @@ export const createGithubItem = async (payload) => {
   });
 
   indexDocument(githubItem.actionItem!.id);
+  console.log("🧶🧶 GitHub webhook syncing done 🧶🧶");
 };
 
 export const getOctokitToken = async (owner: string, repo: string) => {
