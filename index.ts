@@ -1,5 +1,6 @@
 import { expressConnectMiddleware } from "@connectrpc/connect-express";
 import { createOAuthUserAuth } from "@octokit/auth-app";
+import { createNodeMiddleware } from "@octokit/webhooks";
 import { ActionStatus, User } from "@prisma/client";
 import { App, ExpressReceiver, LogLevel } from "@slack/bolt";
 import dayjs from "dayjs";
@@ -14,7 +15,9 @@ import responseTime from "response-time";
 import { assigned, markIrrelevant, notes, resolve, snooze, unsnooze } from "./lib/actions";
 import { handleSlackerCommand } from "./lib/commands";
 import prisma from "./lib/db";
+import { indexDocument } from "./lib/elastic";
 import metrics from "./lib/metrics";
+import { webhooks } from "./lib/octokit";
 import {
   MAINTAINERS,
   getMaintainers,
@@ -25,7 +28,6 @@ import {
 } from "./lib/utils";
 import { notesSubmit, snoozeSubmit } from "./lib/views";
 import routes from "./routes";
-import { indexDocument } from "./lib/elastic";
 
 dayjs.extend(relativeTime);
 dayjs.extend(customParseFormat);
@@ -33,6 +35,7 @@ config();
 
 const app = express();
 app.use(expressConnectMiddleware({ routes }));
+app.use(createNodeMiddleware(webhooks));
 app.use(
   responseTime((req, res, time) => {
     const stat = (req.method + "/" + req.url?.split("/")[1])
