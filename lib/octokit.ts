@@ -13,7 +13,7 @@ const appId = process.env.GITHUB_APP_ID || "";
 const base64 = process.env.GITHUB_PRIVATE_KEY || "";
 const privateKey = Buffer.from(base64, "base64").toString("utf-8");
 
-export const webhooks = new Webhooks({ secret: process.env.GITHUB_WEBHOOKS_SECRET || "" });
+export const webhooks = new Webhooks({ secret: process.env.GITHUB_WEBHOOK_SECRET || "" });
 
 webhooks.on("issues.opened", async ({ payload }) => createGithubItem(payload));
 webhooks.on("pull_request.opened", async ({ payload }) => createGithubItem(payload));
