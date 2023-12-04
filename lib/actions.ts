@@ -1,16 +1,88 @@
-import dayjs from "dayjs";
-import { MAINTAINERS, logActivity, syncGithubParticipants, syncParticipants } from "./utils";
-import prisma from "./db";
-import { StringIndexed } from "@slack/bolt/dist/types/helpers";
 import { Block, KnownBlock, Middleware, SlackAction, SlackActionMiddlewareArgs } from "@slack/bolt";
-import { getGithubItem } from "./octokit";
-import metrics from "./metrics";
+import { StringIndexed } from "@slack/bolt/dist/types/helpers";
+import dayjs from "dayjs";
+import prisma from "./db";
 import { indexDocument } from "./elastic";
+import metrics from "./metrics";
+import { getGithubItem } from "./octokit";
+import { MAINTAINERS, logActivity, syncGithubParticipants, syncParticipants } from "./utils";
 
 export const markIrrelevant: Middleware<
   SlackActionMiddlewareArgs<SlackAction>,
   StringIndexed
 > = async ({ ack, body, client, logger }) => {
+  await ack();
+
+  try {
+    const { actions, channel, message } = body as any;
+    const actionId = actions[0].value;
+
+    const action = await prisma.actionItem.findFirst({
+      where: { id: actionId },
+      include: {
+        slackMessage: { include: { channel: true } },
+        githubItem: { include: { repository: true } },
+      },
+    });
+
+    if (!action) return;
+
+    await client.views.open({
+      trigger_id: (body as any).trigger_id as string,
+      view: {
+        type: "modal",
+        callback_id: "irrelevant_submit",
+        private_metadata: JSON.stringify({
+          actionId,
+          channelId: channel?.id as string,
+          messageId: message.ts,
+        }),
+        title: {
+          type: "plain_text",
+          text: "Mark as Irrelevant",
+        },
+        submit: {
+          type: "plain_text",
+          text: "Submit",
+        },
+        blocks: [
+          {
+            type: "input",
+            block_id: "reason",
+            element: {
+              type: "plain_text_input",
+              action_id: "reason-action",
+              multiline: true,
+            },
+            label: {
+              type: "plain_text",
+              text: "Why is this irrelevant?",
+            },
+          },
+          {
+            type: "context",
+            elements: [
+              {
+                type: "mrkdwn",
+                text: `:bangbang: Marking an item as irrelevant will close it and remove it from the list.`,
+              },
+            ],
+          },
+        ],
+      },
+    });
+  } catch (err) {
+    metrics.increment("errors.slack.mark_irrelevant", 1);
+    logger.error(err);
+  }
+};
+
+export const resolve: Middleware<SlackActionMiddlewareArgs<SlackAction>, StringIndexed> = async ({
+  ack,
+  body,
+  client,
+  logger,
+}) => {
   await ack();
 
   try {
@@ -46,7 +118,6 @@ export const markIrrelevant: Middleware<
               lastReplyOn: res.node.comments.nodes[res.node.comments.nodes.length - 1]?.createdAt,
               resolvedAt: new Date(),
               participants: { deleteMany: {} },
-              flag: "irrelevant",
             },
           },
         },
@@ -90,7 +161,6 @@ export const markIrrelevant: Middleware<
               totalReplies: parent.reply_count || 0,
               resolvedAt: new Date(),
               participants: { deleteMany: {} },
-              flag: "irrelevant",
             },
           },
         },
@@ -101,9 +171,9 @@ export const markIrrelevant: Middleware<
     }
 
     await client.chat.postEphemeral({
-      channel: channel.id,
+      channel: channel?.id as string,
       user: user.id,
-      text: `:white_check_mark: Action item (id=${actionId}) closed as irrelevant by <@${user.id}>`,
+      text: `:white_check_mark: Action item (id=${actionId}) resolved by <@${user.id}>`,
     });
 
     const blocks = message.blocks as (Block | KnownBlock)[];
@@ -118,9 +188,9 @@ export const markIrrelevant: Middleware<
     });
 
     await indexDocument(action.id, { timesResolved: 1 });
-    await logActivity(client, user.id, action.id, "irrelevant");
+    await logActivity(client, user.id, action.id, "resolved");
   } catch (err) {
-    metrics.increment("errors.slack.mark_irrelevant", 1);
+    metrics.increment("errors.slack.resolve", 1);
     logger.error(err);
   }
 };
@@ -263,124 +333,6 @@ export const notes: Middleware<SlackActionMiddlewareArgs<SlackAction>, StringInd
     });
   } catch (err) {
     metrics.increment("errors.slack.notes", 1);
-    logger.error(err);
-  }
-};
-
-export const resolve: Middleware<SlackActionMiddlewareArgs<SlackAction>, StringIndexed> = async ({
-  ack,
-  body,
-  client,
-  logger,
-}) => {
-  await ack();
-
-  try {
-    const { user, channel, actions, message } = body as any;
-    const actionId = actions[0].value;
-
-    const action = await prisma.actionItem.findFirst({
-      where: { id: actionId },
-      include: {
-        slackMessage: { include: { channel: true } },
-        githubItem: { include: { repository: true } },
-      },
-    });
-
-    if (!action) return;
-
-    if (action.githubItem !== null) {
-      const res = await getGithubItem(
-        action.githubItem.repository.owner,
-        action.githubItem.repository.name,
-        action.githubItem.nodeId
-      );
-
-      await prisma.githubItem.update({
-        where: { nodeId: action.githubItem.nodeId },
-        data: {
-          state: "closed",
-          actionItem: {
-            update: {
-              status: "closed",
-              totalReplies: res.node.comments.totalCount,
-              firstReplyOn: res.node.comments.nodes[0]?.createdAt,
-              lastReplyOn: res.node.comments.nodes[res.node.comments.nodes.length - 1]?.createdAt,
-              resolvedAt: new Date(),
-              participants: { deleteMany: {} },
-            },
-          },
-        },
-        include: { actionItem: { include: { participants: true } } },
-      });
-
-      const logins = res.node.participants.nodes.map((node) => node.login);
-      await syncGithubParticipants(logins, action.id);
-    } else if (action.slackMessage !== null) {
-      const parent = await client.conversations
-        .history({
-          channel: action.slackMessage.channel.slackId,
-          latest: action.slackMessage.ts,
-          limit: 1,
-          inclusive: true,
-        })
-        .then((res) => res.messages?.[0]);
-
-      if (!parent) return;
-
-      const threadReplies = await client.conversations
-        .replies({
-          channel: action.slackMessage.channel.slackId,
-          ts: parent.ts as string,
-          limit: 100,
-        })
-        .then((res) => res.messages?.slice(1));
-
-      await prisma.slackMessage.update({
-        where: { id: action.slackMessage.id },
-        data: {
-          actionItem: {
-            update: {
-              status: "closed",
-              lastReplyOn: parent.latest_reply
-                ? dayjs(parent.latest_reply.split(".")[0], "X").toDate()
-                : undefined,
-              firstReplyOn: threadReplies?.[0]?.ts
-                ? dayjs(threadReplies[0].ts.split(".")[0], "X").toDate()
-                : undefined,
-              totalReplies: parent.reply_count || 0,
-              resolvedAt: new Date(),
-              participants: { deleteMany: {} },
-            },
-          },
-        },
-        include: { actionItem: { include: { participants: true } } },
-      });
-
-      await syncParticipants(Array.from(new Set(parent.reply_users)) || [], action.id);
-    }
-
-    await client.chat.postEphemeral({
-      channel: channel?.id as string,
-      user: user.id,
-      text: `:white_check_mark: Action item (id=${actionId}) resolved by <@${user.id}>`,
-    });
-
-    const blocks = message.blocks as (Block | KnownBlock)[];
-    const idx = blocks.findIndex((block: any) => block.text && block.text.text.includes(actionId));
-    const newBlocks = blocks.filter((_, i) => i !== idx && i !== idx + 1);
-
-    await client.chat.update({
-      ts: message.ts,
-      channel: channel.id,
-      text: `Message updated: ${message.ts}`,
-      blocks: newBlocks,
-    });
-
-    await indexDocument(action.id, { timesResolved: 1 });
-    await logActivity(client, user.id, action.id, "resolved");
-  } catch (err) {
-    metrics.increment("errors.slack.resolve", 1);
     logger.error(err);
   }
 };

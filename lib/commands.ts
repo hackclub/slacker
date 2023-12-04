@@ -629,7 +629,7 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
             status: { not: ActionStatus.closed },
             assignee: { is: null },
           },
-          orderBy: { createdAt: "asc", totalReplies: "asc" },
+          orderBy: { totalReplies: "asc" },
           include: {
             githubItem: { include: { author: true, repository: true } },
             slackMessage: { include: { author: true, channel: true } },
