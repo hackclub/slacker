@@ -1,16 +1,17 @@
 import { ActionStatus } from "@prisma/client";
 import { Middleware, SlackCommandMiddlewareArgs } from "@slack/bolt";
 import { StringIndexed } from "@slack/bolt/dist/types/helpers";
+import { closestMatch } from "closest-match";
 import dayjs from "dayjs";
 import customParseFormat from "dayjs/plugin/customParseFormat";
 import relativeTime from "dayjs/plugin/relativeTime";
 import { readdirSync } from "fs";
+import { Octokit } from "octokit";
 import { buttons, githubItem, slackItem, unauthorizedError } from "./blocks";
 import prisma from "./db";
-import { MAINTAINERS, getMaintainers, getYamlDetails, getYamlFile, logActivity } from "./utils";
-import { closestMatch } from "closest-match";
-import metrics from "./metrics";
 import { indexDocument } from "./elastic";
+import metrics from "./metrics";
+import { MAINTAINERS, getMaintainers, getYamlDetails, getYamlFile, logActivity } from "./utils";
 dayjs.extend(relativeTime);
 dayjs.extend(customParseFormat);
 
@@ -54,6 +55,7 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
         \n• *Assign an action item:* \`/slacker assign [id] [assignee]\`
         \n• *Get an action item assigned to you:* \`/slacker gimme [project] [filter]\`
         \n• *List your action items:* \`/slacker me [project] [filter]\`
+        \n• *Get GitHub items assigned to you:* \`/slacker gh [project] [filter]\`
         \n• *Reopen action item:* \`/slacker reopen [id]\`
         \n• *List snoozed items:* \`/slacker snoozed [project]\`
         \n• *Get action item details:* \`/slacker get [id]\`
@@ -123,7 +125,9 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
           },
         })
         .then((res) =>
-          res.filter((i) => i.snoozedUntil === null || dayjs().isAfter(dayjs(i.snoozedUntil)))
+          (res || []).filter(
+            (i) => i.snoozedUntil === null || dayjs().isAfter(dayjs(i.snoozedUntil))
+          )
         );
 
       await client.chat.postMessage({
@@ -484,7 +488,7 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
         return;
       }
 
-      let maintainer = MAINTAINERS.find((m) => m.slack === user_id) || {
+      const maintainer = MAINTAINERS.find((m) => m.slack === user_id) || {
         github: user?.githubUsername || "",
         slack: user_id,
         id: user?.id,
@@ -514,7 +518,9 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
           },
         })
         .then((res) =>
-          res.filter((i) => i.snoozedUntil === null || dayjs().isAfter(dayjs(i.snoozedUntil)))
+          (res || []).filter(
+            (i) => i.snoozedUntil === null || dayjs().isAfter(dayjs(i.snoozedUntil))
+          )
         );
 
       if (items.length > 0) {
@@ -632,7 +638,9 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
           },
         })
         .then((res) =>
-          res.filter((i) => i.snoozedUntil === null || dayjs().isAfter(dayjs(i.snoozedUntil)))
+          (res || []).filter(
+            (i) => i.snoozedUntil === null || dayjs().isAfter(dayjs(i.snoozedUntil))
+          )
         );
 
       if (data.length < 1) {
@@ -762,7 +770,80 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
         text: `:white_check_mark: You have opted in to the status report notifications.`,
       });
     } else if (args[0] === "gh") {
-      // xyz
+      const project = args[1]?.trim() || "all";
+      const filter = args[2]?.trim() || "";
+      const files = readdirSync("./config");
+
+      if (project !== "all" && !files.includes(`${project}.yaml`)) {
+        await client.chat.postEphemeral({
+          user: user_id,
+          channel: channel_id,
+          text: `:warning: Project not found. Please check your command and try again.`,
+        });
+        return;
+      }
+
+      if (filter && !["", "all", "issues", "pulls"].includes(filter.trim())) {
+        await client.chat.postEphemeral({
+          user: user_id,
+          channel: channel_id,
+          text: `:warning: Invalid filter. Please check your command and try again. Available options: "all", "issues", "pulls".`,
+        });
+        return;
+      }
+
+      const maintainer = MAINTAINERS.find((m) => m.slack === user_id) || {
+        github: user?.githubUsername || "",
+        slack: user_id,
+        id: user?.id,
+      };
+
+      if (!maintainer || !maintainer.github) {
+        await client.chat.postEphemeral({
+          user: user_id,
+          channel: channel_id,
+          text: `:warning: Not logged in with GitHub. Please <${process.env.DEPLOY_URL}/auth?id=${user_id}|authenticate> slacker to access your GitHub account.`,
+        });
+        return;
+      }
+
+      const { repositories } = await getYamlDetails(project, user_id, user?.githubUsername);
+      const octokit = new Octokit();
+      const q = `${repositories
+        .map((r) => "repo:" + r.uri.split("/")[3] + "/" + r.uri.split("/")[4])
+        .join(" ")} state:open assignee:${maintainer.github}`;
+
+      const { data } = await octokit.rest.search.issuesAndPullRequests({ q });
+      await client.chat.postMessage({
+        channel: user_id,
+        unfurl_links: false,
+        text: `:white_check_mark: Here are your GitHub items:`,
+        blocks: [
+          {
+            type: "section",
+            text: { type: "mrkdwn", text: `:white_check_mark: Here are your GitHub items:` },
+          },
+          { type: "divider" },
+          ...data.items
+            .slice(0, 15)
+            .map((item) => {
+              const arr: any[] = [];
+
+              arr.push({
+                type: "section",
+                text: {
+                  type: "mrkdwn",
+                  text: `*#${item.number}* ${item.title} - ${item.html_url}\nOpened by ${
+                    item.user?.login
+                  } ${dayjs(item.created_at).fromNow()}`,
+                },
+              });
+
+              return arr;
+            })
+            .flat(),
+        ],
+      });
     } else {
       const closest = closestMatch(args[0], [
         "list",
