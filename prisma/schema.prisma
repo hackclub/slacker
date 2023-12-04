@@ -99,6 +99,7 @@ model ActionItem {
   assignedOn DateTime?
 
   notes      String       @default("")
+  reason     String       @default("")
   status     ActionStatus
   flag       ExtraFlags?
   resolvedAt DateTime?

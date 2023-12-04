@@ -6,6 +6,7 @@ import prisma from "./db";
 import { getDisplayName } from "./octokit";
 import { ElasticDocument } from "./types";
 import { MAINTAINERS, getProject } from "./utils";
+import metrics from "./metrics";
 config();
 
 export const elastic = new Client({
@@ -179,6 +180,7 @@ export const indexDocument = async (id: string, data?: ElasticDocument) => {
       },
     });
   } catch (err) {
+    metrics.increment("errors.elastic.index", 1);
     console.error(err);
   }
 };

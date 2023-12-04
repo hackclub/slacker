@@ -26,7 +26,7 @@ import {
   joinChannels,
   syncParticipants,
 } from "./lib/utils";
-import { irrelevantSubmit, notesSubmit, snoozeSubmit } from "./lib/views";
+import { irrelevantSubmit, notesSubmit, resolveSubmit, snoozeSubmit } from "./lib/views";
 import routes from "./routes";
 
 dayjs.extend(relativeTime);
@@ -292,6 +292,7 @@ slack.action("notes", notes);
 slack.view("snooze_submit", snoozeSubmit);
 slack.view("notes_submit", notesSubmit);
 slack.view("irrelevant_submit", irrelevantSubmit);
+slack.view("resolve_submit", resolveSubmit);
 
 cron.schedule("0 * * * *", async () => {
   console.log("⏳⏳ Running unassign cron job ⏳⏳");

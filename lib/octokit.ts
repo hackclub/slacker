@@ -19,6 +19,7 @@ webhooks.on("issues.opened", async ({ payload }) => createGithubItem(payload));
 webhooks.on("pull_request.opened", async ({ payload }) => createGithubItem(payload));
 
 export const createGithubItem = async (payload) => {
+  metrics.increment("octokit.create.item");
   console.log("🧶🧶 Running github webhook 🧶🧶");
   const { issue, pull_request, repository } = payload;
   const item = issue || pull_request;
@@ -133,6 +134,7 @@ export const getDisplayName = async ({
   slackId?: string;
   github?: string;
 }) => {
+  metrics.increment("octokit.get.display_name");
   const token = await getOctokitToken(owner, name);
   const octokit = new Octokit({ auth: "Bearer " + token });
   const displayName = slackId
