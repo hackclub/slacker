@@ -81,3 +81,7 @@
 - id: elliot
   slack: U041DAECHHA
   github: Captainexpo-1
+
+- id: hugo
+  slack: U017EPB6LE9
+  github: Hugoyhu
