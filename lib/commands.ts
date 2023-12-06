@@ -811,7 +811,9 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
       const octokit = new Octokit();
       const q = `${repositories
         .map((r) => "repo:" + r.uri.split("/")[3] + "/" + r.uri.split("/")[4])
-        .join(" ")} state:open assignee:${maintainer.github}`;
+        .join(" ")} state:open assignee:${maintainer.github} ${
+        filter === "issues" ? "is:issue" : ""
+      } ${filter === "pulls" ? "is:pr" : ""}`;
 
       const { data } = await octokit.rest.search.issuesAndPullRequests({ q });
       await client.chat.postMessage({
