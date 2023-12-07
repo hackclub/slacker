@@ -7,7 +7,7 @@ import prisma from "./db";
 import { indexDocument } from "./elastic";
 import metrics from "./metrics";
 import { GithubData, SingleIssueOrPullData } from "./types";
-import { getMaintainers } from "./utils";
+import { MAINTAINERS, getMaintainers, getProject } from "./utils";
 
 const appId = process.env.GITHUB_APP_ID || "";
 const base64 = process.env.GITHUB_PRIVATE_KEY || "";
@@ -24,13 +24,16 @@ export const createGithubItem = async (payload) => {
   const { issue, pull_request, repository } = payload;
   const item = issue || pull_request;
 
+  const project = getProject({ repoUrl: repository.html_url });
+  if (!project) return;
+
   const dbRepo = await prisma.repository.upsert({
-    where: { url: repository.url },
-    create: { name: repository.name, owner: repository.owner.login, url: repository.url },
+    where: { url: repository.html_url },
+    create: { name: repository.name, owner: repository.owner.login, url: repository.html_url },
     update: { name: repository.name, owner: repository.owner.login },
   });
 
-  const maintainers = getMaintainers({ repoUrl: repository.url });
+  const maintainers = getMaintainers({ repoUrl: repository.html_url });
   if (maintainers.find((maintainer) => maintainer?.github === item.user.login)) return;
 
   // find user by login
@@ -135,9 +138,16 @@ export const getDisplayName = async ({
   github?: string;
 }) => {
   metrics.increment("octokit.get.display_name");
+
   const token = await getOctokitToken(owner, name);
   const octokit = new Octokit({ auth: "Bearer " + token });
-  const displayName = slackId
+  const maintainer = MAINTAINERS.find(
+    (maintainer) => maintainer.github === github || maintainer.slack === slackId
+  );
+
+  const displayName = maintainer
+    ? maintainer.id
+    : slackId
     ? await slack.client.users
         .info({ user: slackId })
         .then(

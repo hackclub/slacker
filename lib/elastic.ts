@@ -35,6 +35,16 @@ export const indexDocument = async (id: string, data?: ElasticDocument) => {
       .then((res) => res)
       .catch(() => undefined);
 
+    const project = getProject({
+      channelId: item.slackMessage?.channel.slackId,
+      repoUrl: item.githubItem?.repository.url,
+    });
+
+    if (!project) {
+      await elastic.delete({ id: item.id, index: "search-slacker-analytics" });
+      return;
+    }
+
     const participants: ElasticDocument["actors"] = (doc?._source?.actors ?? []).filter(
       (p) =>
         item.participants.findIndex(
