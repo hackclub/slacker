@@ -15,6 +15,46 @@ export const elastic = new Client({
   tls: { rejectUnauthorized: false },
 });
 
+const INDEX_NAME = "search-slacker-analytics";
+
+const getParticipant = async (user, item) => {
+  const maintainer = MAINTAINERS.find(
+    (maintainer) => maintainer.github === user.githubUsername || maintainer.slack === user.slackId
+  );
+
+  if (maintainer) {
+    return {
+      displayName: maintainer.id,
+      github: maintainer.github,
+      slack: maintainer.slack,
+    };
+  } else {
+    const displayName = await getDisplayName({
+      owner: item.githubItem?.repository.owner ?? "",
+      name: item.githubItem?.repository.name ?? "",
+      github: user.githubUsername ?? undefined,
+      slackId: user.slackId ?? undefined,
+    });
+
+    return { displayName, github: user.githubUsername, slack: user.slackId };
+  }
+};
+
+const getActor = async (actor, item) => {
+  const displayName = await getDisplayName({
+    owner: item.githubItem?.repository.owner ?? "",
+    name: item.githubItem?.repository.name ?? "",
+    github: actor.githubUsername ?? undefined,
+    slackId: actor.slackId ?? undefined,
+  });
+
+  return {
+    displayName,
+    github: actor.githubUsername,
+    slack: actor.slackId,
+  };
+};
+
 export const indexDocument = async (id: string, data?: ElasticDocument) => {
   try {
     const item = await prisma.actionItem.findUnique({
@@ -31,7 +71,7 @@ export const indexDocument = async (id: string, data?: ElasticDocument) => {
     if (!item) return;
 
     const doc = await elastic
-      .get<ElasticDocument>({ id: item.id, index: "search-slacker-analytics" })
+      .get<ElasticDocument>({ id: item.id, index: INDEX_NAME })
       .then((res) => res)
       .catch(() => undefined);
 
@@ -40,43 +80,18 @@ export const indexDocument = async (id: string, data?: ElasticDocument) => {
       repoUrl: item.githubItem?.repository.url,
     });
 
-    if (!project) {
-      await elastic.delete({ id: item.id, index: "search-slacker-analytics" });
-      return;
-    }
+    if (!project) return;
 
-    const participants: ElasticDocument["actors"] = (doc?._source?.actors ?? []).filter(
+    let participants: ElasticDocument["actors"] = (doc?._source?.actors ?? []).filter(
       (p) =>
         item.participants.findIndex(
           ({ user }) => p.github === user.githubUsername || p.slack === user.slackId
         ) !== -1
     );
 
-    for (let i = 0; i < item.participants.length; i++) {
-      const { user } = item.participants[i];
-
-      const maintainer = MAINTAINERS.find(
-        (maintainer) =>
-          maintainer.github === user.githubUsername || maintainer.slack === user.slackId
-      );
-
-      if (maintainer) {
-        participants.push({
-          displayName: maintainer.id,
-          github: maintainer.github,
-          slack: maintainer.slack,
-        });
-      } else {
-        const displayName = await getDisplayName({
-          owner: item.githubItem?.repository.owner ?? "",
-          name: item.githubItem?.repository.name ?? "",
-          github: user.githubUsername ?? undefined,
-          slackId: user.slackId ?? undefined,
-        });
-
-        participants.push({ displayName, github: user.githubUsername, slack: user.slackId });
-      }
-    }
+    participants = await Promise.all(
+      item.participants.map(({ user }) => getParticipant(user, item))
+    );
 
     if (item.snoozedBy) {
       const snoozedBy = participants.find(
@@ -85,18 +100,7 @@ export const indexDocument = async (id: string, data?: ElasticDocument) => {
       );
 
       if (!snoozedBy) {
-        const displayName = await getDisplayName({
-          owner: item.githubItem?.repository.owner ?? "",
-          name: item.githubItem?.repository.name ?? "",
-          github: item.snoozedBy.githubUsername ?? undefined,
-          slackId: item.snoozedBy.slackId ?? undefined,
-        });
-
-        participants.push({
-          displayName,
-          github: item.snoozedBy.githubUsername,
-          slack: item.snoozedBy.slackId,
-        });
+        participants.push(await getActor(item.snoozedBy, item));
       }
     }
 
@@ -107,18 +111,7 @@ export const indexDocument = async (id: string, data?: ElasticDocument) => {
       );
 
       if (!assignee) {
-        const displayName = await getDisplayName({
-          owner: item.githubItem?.repository.owner ?? "",
-          name: item.githubItem?.repository.name ?? "",
-          github: item.assignee.githubUsername ?? undefined,
-          slackId: item.assignee.slackId ?? undefined,
-        });
-
-        participants.push({
-          displayName,
-          github: item.assignee.githubUsername,
-          slack: item.assignee.slackId,
-        });
+        participants.push(await getActor(item.assignee, item));
       }
     }
 
