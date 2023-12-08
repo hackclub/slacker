@@ -456,6 +456,50 @@ cron.schedule(
   { timezone: "America/New_York" }
 );
 
+cron.schedule(
+  "0 12 * * FRI",
+  async () => {
+    console.log("⏳⏳ Running review requests report cron job ⏳⏳");
+    try {
+      for await (const maintainer of MAINTAINERS) {
+        let text = `:wave: Hey ${maintainer.id}!`;
+        const user = await prisma.user.findFirst({
+          where: { OR: [{ slackId: maintainer.slack }, { githubUsername: maintainer.github }] },
+        });
+
+        if (!user) continue;
+
+        const { repositories } = await getYamlDetails(
+          "all",
+          user.slackId || maintainer.slack,
+          user?.githubUsername
+        );
+
+        const octokit = new Octokit();
+        const q = `${repositories
+          .map((r) => "repo:" + r.uri.split("/")[3] + "/" + r.uri.split("/")[4])
+          .join(" ")} state:open type:pr review-requested:${
+          maintainer.github
+        } user-review-requested:${maintainer.github}`;
+
+        const { data } = await octokit.rest.search.issuesAndPullRequests({ q });
+        if (data.total_count === 0) continue;
+
+        text += `\nYou have ${data.total_count} pull requests that need your review:\n`;
+        data.items.forEach((item) => {
+          text += `\n• ${item.title} (${item.html_url})`;
+        });
+
+        await slack.client.chat.postMessage({ channel: maintainer.slack, text });
+      }
+    } catch (err) {
+      console.log("🚨🚨 Error in review requests report cron job 🚨🚨");
+      console.error(err);
+    }
+  },
+  { timezone: "America/New_York" }
+);
+
 const backFill = async () => {
   const actionItems = await prisma.actionItem.findMany({});
 
