@@ -56,6 +56,7 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
         \n• *Get an action item assigned to you:* \`/slacker gimme [project] [filter]\`
         \n• *List your action items:* \`/slacker me [project] [filter]\`
         \n• *Get GitHub items assigned to you:* \`/slacker gh [project] [filter]\`
+        \n• *Review pulls on GitHub:* \`/slacker review [project]\`
         \n• *Reopen action item:* \`/slacker reopen [id]\`
         \n• *List snoozed items:* \`/slacker snoozed [project]\`
         \n• *Get action item details:* \`/slacker get [id]\`
@@ -824,6 +825,76 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
           {
             type: "section",
             text: { type: "mrkdwn", text: `:white_check_mark: Here are your GitHub items:` },
+          },
+          { type: "divider" },
+          ...data.items
+            .slice(0, 15)
+            .map((item) => {
+              const arr: any[] = [];
+
+              arr.push({
+                type: "section",
+                text: {
+                  type: "mrkdwn",
+                  text: `*#${item.number}* ${item.title} - ${item.html_url}\nOpened by ${
+                    item.user?.login
+                  } ${dayjs(item.created_at).fromNow()}`,
+                },
+              });
+
+              return arr;
+            })
+            .flat(),
+        ],
+      });
+    } else if (args[0] === "review") {
+      const project = args[1]?.trim() || "all";
+      const files = readdirSync("./config");
+
+      if (project !== "all" && !files.includes(`${project}.yaml`)) {
+        await client.chat.postEphemeral({
+          user: user_id,
+          channel: channel_id,
+          text: `:warning: Project not found. Please check your command and try again.`,
+        });
+        return;
+      }
+
+      const maintainer = MAINTAINERS.find((m) => m.slack === user_id) || {
+        github: user?.githubUsername || "",
+        slack: user_id,
+        id: user?.id,
+      };
+
+      if (!maintainer || !maintainer.github) {
+        await client.chat.postEphemeral({
+          user: user_id,
+          channel: channel_id,
+          text: `:warning: Not logged in with GitHub. Please <${process.env.DEPLOY_URL}/auth?id=${user_id}|authenticate> slacker to access your GitHub account.`,
+        });
+        return;
+      }
+
+      const { repositories } = await getYamlDetails(project, user_id, user?.githubUsername);
+      const octokit = new Octokit();
+      const q = `${repositories
+        .map((r) => "repo:" + r.uri.split("/")[3] + "/" + r.uri.split("/")[4])
+        .join(" ")} state:open type:pr review-requested:${
+        maintainer.github
+      } user-review-requested:${maintainer.github}`;
+
+      const { data } = await octokit.rest.search.issuesAndPullRequests({ q });
+      await client.chat.postMessage({
+        channel: user_id,
+        unfurl_links: false,
+        text: `:white_check_mark: Here are the pull requests needing your review:`,
+        blocks: [
+          {
+            type: "section",
+            text: {
+              type: "mrkdwn",
+              text: `:white_check_mark: Here are the pull requests needing your review:`,
+            },
           },
           { type: "divider" },
           ...data.items
