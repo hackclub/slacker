@@ -17,6 +17,34 @@ export const webhooks = new Webhooks({ secret: process.env.GITHUB_WEBHOOK_SECRET
 
 webhooks.on("issues.opened", async ({ payload }) => createGithubItem(payload));
 webhooks.on("pull_request.opened", async ({ payload }) => createGithubItem(payload));
+webhooks.on("pull_request.review_requested", async ({ payload }) => {
+  metrics.increment("octokit.pull_request.review_requested");
+
+  const { pull_request, repository } = payload;
+  const project = getProject({ repoUrl: repository.html_url });
+  if (!project) return;
+
+  for (let i = 0; i < pull_request.requested_reviewers.length; i++) {
+    const user =
+      MAINTAINERS.find(
+        (maintainer) => maintainer.github === (pull_request.requested_reviewers[i] as any)?.login
+      )?.slack ||
+      (
+        await prisma.user.findFirst({
+          where: { githubUsername: (pull_request.requested_reviewers[i] as any)?.login },
+        })
+      )?.slackId;
+
+    if (user) {
+      await slack.client.chat.postMessage({
+        channel: user,
+        text: `You have been requested to review a pull request on ${project} by ${pull_request.user.login}.\n${pull_request.html_url}`,
+      });
+    } else {
+      console.log("No user found for", pull_request.requested_reviewers[i]);
+    }
+  }
+});
 
 export const createGithubItem = async (payload) => {
   metrics.increment("octokit.create.item");
