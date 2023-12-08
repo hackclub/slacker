@@ -1,5 +1,5 @@
 # How do I contribute to slacker?
-
+ 
 1. Create a slack app at https://api.slack.com/apps
 2. Upload the manifest file `manifest.yml` to your app
 3. Replace <YOUR_NGROK_URL> with a proxy tunnel url pointing to your local machine
