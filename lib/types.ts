@@ -112,6 +112,7 @@ export type ElasticDocument = {
   };
   state?: "open" | "triaged" | "resolved" | "snoozed";
   project?: string;
+  source?: string;
   actionItemType?: "issue" | "pull" | "message";
   createdTime?: Date;
   resolvedTime?: Date | null;

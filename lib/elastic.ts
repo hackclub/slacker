@@ -148,11 +148,10 @@ export const indexDocument = async (id: string, data?: ElasticDocument) => {
           item.slackMessage?.updatedAt ??
           item.githubItem?.updatedAt ??
           item.updatedAt,
-        project:
-          getProject({
-            channelId: item.slackMessage?.channel.slackId,
-            repoUrl: item.githubItem?.repository.url,
-          }) ?? "",
+        project,
+        source: item.githubItem
+          ? item.githubItem?.repository.owner + "/" + item.githubItem?.repository.name
+          : `#${item.slackMessage?.channel.name}`,
         snoozedUntil: item.snoozedUntil,
         timesCommented: item.totalReplies,
         timesReopened: (doc?._source?.timesReopened ?? 0) + (data?.timesReopened ?? 0),
