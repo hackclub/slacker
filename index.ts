@@ -463,18 +463,8 @@ cron.schedule(
     try {
       for await (const maintainer of MAINTAINERS) {
         let text = `:wave: Hey ${maintainer.id}!`;
-        const user = await prisma.user.findFirst({
-          where: { OR: [{ slackId: maintainer.slack }, { githubUsername: maintainer.github }] },
-        });
 
-        if (!user) continue;
-
-        const { repositories } = await getYamlDetails(
-          "all",
-          user.slackId || maintainer.slack,
-          user?.githubUsername
-        );
-
+        const { repositories } = await getYamlDetails("all", maintainer.slack, maintainer.github);
         const octokit = new Octokit();
         const q = `${repositories
           .map((r) => "repo:" + r.uri.split("/")[3] + "/" + r.uri.split("/")[4])
