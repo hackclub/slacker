@@ -20,7 +20,7 @@ webhooks.on("pull_request.opened", async ({ payload }) => createGithubItem(paylo
 webhooks.on("pull_request.review_requested", async ({ payload }) => {
   metrics.increment("octokit.pull_request.review_requested");
 
-  const { pull_request, repository } = payload;
+  const { pull_request, repository, sender } = payload;
   const project = getProject({ repoUrl: repository.html_url });
   if (!project) return;
 
@@ -38,7 +38,7 @@ webhooks.on("pull_request.review_requested", async ({ payload }) => {
     if (user) {
       await slack.client.chat.postMessage({
         channel: user,
-        text: `You have been requested to review a pull request on ${project} by ${pull_request.user.login}.\n${pull_request.html_url}`,
+        text: `You have been requested to review a pull request on ${project} by ${sender.login}.\n${pull_request.html_url}`,
       });
     } else {
       console.log("No user found for", pull_request.requested_reviewers[i]);
