@@ -37,9 +37,9 @@ export default (router: ConnectRouter) =>
                 const items = await listGithubItems(owner, name);
 
                 for await (const item of items) {
-                  const maintainers = getMaintainers({ repoUrl: repo.uri });
-                  if (maintainers.find((maintainer) => maintainer?.github === item.author.login))
-                    continue;
+                  // const maintainers = getMaintainers({ repoUrl: repo.uri });
+                  // if (maintainers.find((maintainer) => maintainer?.github === item.author.login))
+                  //   continue;
 
                   // find user by login
                   const user = await prisma.user.findFirst({

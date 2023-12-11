@@ -616,14 +616,18 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
                 ? [{ githubItem: { repository: { url: { in: repositories.map((r) => r.uri) } } } }]
                 : []),
             ],
-            ...(isVolunteer || filter === "pulls" || filter === "issues"
+            ...(isVolunteer
+              ? {
+                  githubItem: {
+                    type: "issue",
+                    labelsOnItems: { some: { label: { name: "good first issue" } } },
+                  },
+                }
+              : filter === "pulls" || filter === "issues"
               ? {
                   githubItem: {
                     ...(filter === "issues" ? { type: "issue" } : {}),
                     ...(filter === "pulls" ? { type: "pull_request" } : {}),
-                    ...(isVolunteer
-                      ? { labelsOnItems: { some: { label: { name: "good first issue" } } } }
-                      : {}),
                   },
                 }
               : {}),
