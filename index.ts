@@ -80,6 +80,13 @@ app.get("/auth/callback", async (req, res) => {
   const { token } = await auth();
   const octokit = new Octokit({ auth: token });
   const user = await octokit.rest.users.getAuthenticated();
+  const maintainer = MAINTAINERS.find((m) => m.slack === id);
+
+  if (maintainer && user.data.login !== maintainer.github)
+    return res.json({
+      error: `We see that you're trying to authenticate as ${user.data.login}, but you're registered as ${maintainer.github} in the config. Please authenticate as ${maintainer.github} instead.`,
+    });
+
   let email = user.data.email;
 
   if (!email) {
