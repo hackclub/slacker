@@ -312,7 +312,11 @@ cron.schedule("0 * * * *", async () => {
           assignedOn: { not: null },
           status: ActionStatus.open,
         },
-        include: { assignee: true },
+        include: {
+          assignee: true,
+          githubItem: { select: { repository: true, number: true } },
+          slackMessage: { select: { channel: true, ts: true } },
+        },
       })
       .then((res) =>
         res.filter(
@@ -333,9 +337,15 @@ cron.schedule("0 * * * *", async () => {
       if (dayjs().isBefore(deadline)) continue;
       await prisma.actionItem.update({ where: { id: item.id }, data: { assigneeId: null } });
 
+      const url = item.githubItem
+        ? `${item.githubItem.repository.url}/issues/${item.githubItem.number}`
+        : `https://hackclub.slack.com/archives/${
+            item.slackMessage?.channel?.slackId
+          }/p${item.slackMessage?.ts.replace(".", "")}`;
+
       await slack.client.chat.postMessage({
         channel: item.assignee?.slackId ?? "",
-        text: `:warning: Hey, we unassigned ${item.id} from you because you didn't resolve it in time. Feel free to pick it up again!`,
+        text: `:warning: Hey, we unassigned <${url}|${item.id}> from you because you didn't resolve it in time. Feel free to pick it up again!`,
       });
 
       await indexDocument(item.id);
@@ -351,7 +361,12 @@ cron.schedule("0 * * * *", async () => {
   try {
     const items = await prisma.actionItem.findMany({
       where: { snoozedUntil: { not: null }, status: ActionStatus.open },
-      include: { snoozedBy: true, assignee: true },
+      include: {
+        snoozedBy: true,
+        assignee: true,
+        githubItem: { select: { repository: true, number: true } },
+        slackMessage: { select: { channel: true, ts: true } },
+      },
     });
 
     for await (const item of items) {
@@ -361,9 +376,15 @@ cron.schedule("0 * * * *", async () => {
 
       if (snoozedUntil.isAfter(now) || parseFloat(diff) >= 1) continue;
 
+      const url = item.githubItem
+        ? `${item.githubItem.repository.url}/issues/${item.githubItem.number}`
+        : `https://hackclub.slack.com/archives/${
+            item.slackMessage?.channel?.slackId
+          }/p${item.slackMessage?.ts.replace(".", "")}`;
+
       await slack.client.chat.postMessage({
         channel: item.snoozedBy?.slackId ?? "",
-        text: `:wave: Hey, we unsnoozed ${item.id} for you. Feel free to pick it up again!`,
+        text: `:wave: Hey, we unsnoozed <${url}|${item.id}> for you. Feel free to pick it up again!`,
       });
     }
   } catch (err) {
