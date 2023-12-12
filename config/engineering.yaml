@@ -21,7 +21,7 @@ repos:
     sla:
       responseTime: 1h
 resources:
-  - name: slack-channel
+  - name: hq-eng-slack-channel
     uri: https://hackclub.slack.com/archives/C05SVRTCDGV
   - name: grafana
     uri: https://telemetry.hackclub.com
@@ -29,3 +29,7 @@ resources:
     uri: https://dashboard.heroku.com
   - name: digitalocean
     uri: https://www.digitalocean.com
+  - name: dashboard-slacker
+    uri: https://telemetry.hackclub.com/d/fe0c8789-033d-4add-9cd6-6e38a4d2bde6/slacker?orgId=1
+  - name: alerts-slack-channel
+    uri: https://hackclub.slack.com/archives/C05G25Y9M6V
