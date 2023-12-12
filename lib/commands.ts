@@ -12,6 +12,7 @@ import prisma from "./db";
 import { indexDocument } from "./elastic";
 import metrics from "./metrics";
 import { MAINTAINERS, getMaintainers, getYamlDetails, getYamlFile, logActivity } from "./utils";
+import { assignIssueToVolunteer } from "./octokit";
 dayjs.extend(relativeTime);
 dayjs.extend(customParseFormat);
 
@@ -621,18 +622,20 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
                   githubItem: {
                     type: "issue",
                     labelsOnItems: { some: { label: { name: "good first issue" } } },
+                    state: "open",
+                    volunteer: { is: null },
                   },
                 }
-              : filter === "pulls" || filter === "issues"
+              : (filter === "pulls" || filter === "issues") && !isVolunteer
               ? {
                   githubItem: {
                     ...(filter === "issues" ? { type: "issue" } : {}),
                     ...(filter === "pulls" ? { type: "pull_request" } : {}),
                   },
                 }
+              : !isVolunteer
+              ? { status: { not: ActionStatus.closed }, assignee: { is: null } }
               : {}),
-            status: { not: ActionStatus.closed },
-            assignee: { is: null },
           },
           orderBy: { totalReplies: "asc" },
           include: {
@@ -654,6 +657,11 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
           channel: channel_id,
           text: `:white_check_mark: No action items available. Please check back later.`,
         });
+        return;
+      }
+
+      if (isVolunteer) {
+        await assignIssueToVolunteer(data, user, client, user_id, channel_id);
         return;
       }
 

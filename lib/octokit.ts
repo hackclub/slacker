@@ -1,6 +1,14 @@
 import { createAppAuth } from "@octokit/auth-app";
 import { Webhooks } from "@octokit/webhooks";
-import { GithubItemType, User } from "@prisma/client";
+import {
+  ActionItem,
+  Channel,
+  GithubItem,
+  GithubItemType,
+  Repository,
+  SlackMessage,
+  User,
+} from "@prisma/client";
 import { Octokit } from "octokit";
 import { slack } from "..";
 import prisma from "./db";
@@ -346,4 +354,101 @@ export const getGithubItem = async (owner: string, name: string, id: string) => 
   const octokit = new Octokit({ auth: "Bearer " + token });
   const res = (await octokit.graphql(query, { id })) as SingleIssueOrPullData;
   return res;
+};
+
+export const assignIssueToVolunteer = async (
+  items: (ActionItem & {
+    slackMessage: (SlackMessage & { channel: Channel | null; author: User | null }) | null;
+    githubItem: (GithubItem & { repository: Repository | null; author: User | null }) | null;
+    assignee: User | null;
+  })[],
+  user: User,
+  client: typeof slack.client,
+  user_id: string,
+  channel_id: string
+) => {
+  if (!user.githubToken || !user.githubUsername) {
+    return await client.chat.postEphemeral({
+      user: user_id,
+      channel: channel_id,
+      text: `You need to connect your GitHub account first. Please go to <${process.env.DEPLOY_URL}/auth?id=${user_id}|this link> to connect your GitHub account.`,
+    });
+  }
+
+  const volunteeringAt = await prisma.volunteerDetail.findFirst({
+    where: { assignee: { id: user.id } },
+    include: {
+      issue: { select: { repository: { select: { owner: true, name: true } }, number: true } },
+    },
+  });
+
+  if (volunteeringAt) {
+    return await client.chat.postEphemeral({
+      user: user_id,
+      channel: channel_id,
+      text:
+        "You can only volunteer for one issue at a time. Please finish your current issue first:\n\nhttps://github.com/" +
+        volunteeringAt.issue?.repository?.owner +
+        "/" +
+        volunteeringAt.issue?.repository?.name +
+        "/issues/" +
+        volunteeringAt.issue?.number,
+    });
+  }
+
+  try {
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      if (!item.githubItem) continue;
+
+      const octokit = new Octokit({
+        auth:
+          "Bearer " +
+          (await getOctokitToken(
+            item.githubItem.repository?.owner || "",
+            item.githubItem.repository?.name || ""
+          )),
+      });
+
+      const issue = await octokit.rest.issues.get({
+        owner: item.githubItem.repository?.owner || "",
+        repo: item.githubItem.repository?.name || "",
+        issue_number: item.githubItem.number,
+      });
+
+      if (issue.data.assignees && issue.data.assignees.length > 0) continue;
+      const userOctokit = new Octokit({ auth: "Bearer " + user.githubToken });
+
+      await userOctokit.rest.issues.createComment({
+        owner: item.githubItem.repository?.owner || "",
+        repo: item.githubItem.repository?.name || "",
+        issue_number: item.githubItem.number,
+        body: `I'm volunteering to work on this issue.`,
+        headers: { authorization: "Bearer " + user.githubToken },
+      });
+
+      await octokit.rest.issues.addAssignees({
+        owner: item.githubItem.repository?.owner || "",
+        repo: item.githubItem.repository?.name || "",
+        issue_number: item.githubItem.number,
+        assignees: [user.githubUsername],
+      });
+      break;
+    }
+
+    await prisma.volunteerDetail.create({
+      data: {
+        assignee: { connect: { id: user.id } },
+        assignedOn: new Date(),
+        issue: { connect: { id: items[0].githubItem?.id } },
+      },
+    });
+
+    await client.chat.postMessage({
+      channel: user_id,
+      text: `You have been assigned to issue #${items[0].githubItem?.number} on <${items[0].githubItem?.repository?.url}|${items[0].githubItem?.repository?.name}>.\n\nhttps://github.com/${items[0].githubItem?.repository?.owner}/${items[0].githubItem?.repository?.name}/issues/${items[0].githubItem?.number}`,
+    });
+  } catch (e) {
+    console.log(e);
+  }
 };

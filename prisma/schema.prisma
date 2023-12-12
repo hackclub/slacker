@@ -20,7 +20,8 @@ model User {
   issuesOpened       GithubItem[]
   participatingItems Participant[]
   snoozedItems       ActionItem[]
-  assignedItems      ActionItem[]   @relation("assignee")
+  assignedItems      ActionItem[]      @relation("assignee")
+  volunteer          VolunteerDetail[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -65,6 +66,7 @@ model GithubItem {
   author   User   @relation(fields: [authorId], references: [id], onDelete: Cascade)
 
   labelsOnItems LabelsOnItems[]
+  volunteer     VolunteerDetail?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -111,6 +113,23 @@ model ActionItem {
   @@index([slackMessageId])
   @@index([githubItemId])
   @@index([snoozedById])
+}
+
+model VolunteerDetail {
+  id String @id @default(cuid())
+
+  assignee   User     @relation(fields: [assigneeId], references: [id], onDelete: Cascade)
+  assigneeId String
+  assignedOn DateTime
+
+  issue   GithubItem? @relation(fields: [issueId], references: [id], onDelete: Cascade)
+  issueId String      @unique
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([id])
+  @@index([assigneeId])
 }
 
 // Slack channels that are being monitored
