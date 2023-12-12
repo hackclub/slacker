@@ -22,11 +22,10 @@ export const snoozeSubmit: Middleware<
   StringIndexed
 > = async ({ ack, body, client, logger }) => {
   await ack();
+  const { user, view } = body;
+  const { actionId, channelId, messageId } = JSON.parse(view.private_metadata);
 
   try {
-    const { user, view } = body;
-    const { actionId, channelId, messageId } = JSON.parse(view.private_metadata);
-
     const reason = view.state.values.reason["reason-action"].value;
 
     const action = await prisma.actionItem.findFirst({
@@ -84,6 +83,11 @@ export const snoozeSubmit: Middleware<
     metrics.increment("slack.snooze.submit", 1);
   } catch (err) {
     metrics.increment("errors.slack.snooze", 1);
+    await client.chat.postEphemeral({
+      channel: channelId,
+      user: user.id,
+      text: `:x: Failed to snooze action item (id=${actionId}) ${err.message}`,
+    });
     logger.error(err);
   }
 };
@@ -93,11 +97,10 @@ export const irrelevantSubmit: Middleware<
   StringIndexed
 > = async ({ ack, body, client, logger }) => {
   await ack();
+  const { user, view } = body;
+  const { actionId, channelId, messageId } = JSON.parse(view.private_metadata);
 
   try {
-    const { user, view } = body;
-    const { actionId, channelId, messageId } = JSON.parse(view.private_metadata);
-
     const reason = view.state.values.reason["reason-action"].value;
 
     const action = await prisma.actionItem.findFirst({
@@ -185,12 +188,6 @@ export const irrelevantSubmit: Middleware<
       await syncParticipants(Array.from(new Set(parent.reply_users)) || [], action.id);
     }
 
-    await client.chat.postEphemeral({
-      channel: channelId,
-      user: user.id,
-      text: `:white_check_mark: Action item (id=${actionId}) marked as irrelevant by <@${user.id}>`,
-    });
-
     const { messages } = await client.conversations.history({
       channel: channelId,
       latest: messageId,
@@ -214,6 +211,11 @@ export const irrelevantSubmit: Middleware<
     metrics.increment("slack.irrelevant.submit", 1);
   } catch (err) {
     metrics.increment("errors.slack.irrelevant", 1);
+    await client.chat.postEphemeral({
+      channel: channelId,
+      user: user.id,
+      text: `:x: Failed to mark action item (id=${actionId}) as irrelevant ${err.message}`,
+    });
     logger.error(err);
   }
 };
@@ -313,12 +315,6 @@ export const resolveSubmit: Middleware<
       await syncParticipants(Array.from(new Set(parent.reply_users)) || [], action.id);
     }
 
-    await client.chat.postEphemeral({
-      channel: channelId,
-      user: user.id,
-      text: `:white_check_mark: Action item (id=${actionId}) resolved by <@${user.id}>`,
-    });
-
     const { messages } = await client.conversations.history({
       channel: channelId,
       latest: messageId,
@@ -342,6 +338,11 @@ export const resolveSubmit: Middleware<
     metrics.increment("slack.resolve.submit", 1);
   } catch (err) {
     metrics.increment("errors.slack.resolve", 1);
+    await client.chat.postEphemeral({
+      channel: channelId,
+      user: user.id,
+      text: `:x: Failed to resolve action item (id=${actionId}) ${err.message}`,
+    });
     logger.error(err);
   }
 };
