@@ -80,11 +80,11 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
         return;
       }
 
-      if (filter && !["", "all", "github", "slack"].includes(filter.trim())) {
+      if (filter && !["", "all", "github", "slack", "issues", "pulls"].includes(filter.trim())) {
         await client.chat.postEphemeral({
           user: user_id,
           channel: channel_id,
-          text: `:warning: Invalid filter. Please check your command and try again. Available options: "all", "github", "slack".`,
+          text: `:warning: Invalid filter. Please check your command and try again. Available options: "all", "github", "slack", "issues", "pulls".`,
         });
         return;
       }
@@ -112,9 +112,17 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
               ...(!filter || filter === "all" || filter === "slack"
                 ? [{ slackMessage: { channel: { slackId: { in: channels.map((c) => c.id) } } } }]
                 : []),
-              ...((!filter || filter === "all" || filter === "github") &&
+              ...((!filter || ["all", "github", "issues", "pulls"].includes(filter.trim())) &&
               !!maintainers.find((m) => m.github === user?.githubUsername)
-                ? [{ githubItem: { repository: { url: { in: repositories.map((r) => r.uri) } } } }]
+                ? [
+                    {
+                      githubItem: {
+                        repository: { url: { in: repositories.map((r) => r.uri) } },
+                        ...(filter === "issues" ? { type: GithubItemType.issue } : {}),
+                        ...(filter === "pulls" ? { type: GithubItemType.pull_request } : {}),
+                      },
+                    },
+                  ]
                 : []),
             ],
             status: { not: ActionStatus.closed },
@@ -506,7 +514,15 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
                 ? [{ slackMessage: { channel: { slackId: { in: channels.map((c) => c.id) } } } }]
                 : []),
               ...(!filter || ["all", "github", "issues", "pulls"].includes(filter.trim())
-                ? [{ githubItem: { repository: { url: { in: repositories.map((r) => r.uri) } } } }]
+                ? [
+                    {
+                      githubItem: {
+                        repository: { url: { in: repositories.map((r) => r.uri) } },
+                        ...(filter === "issues" ? { type: GithubItemType.issue } : {}),
+                        ...(filter === "pulls" ? { type: GithubItemType.pull_request } : {}),
+                      },
+                    },
+                  ]
                 : []),
             ],
             assignee: { OR: [{ slackId: user_id }, { githubUsername: maintainer?.github }] },
