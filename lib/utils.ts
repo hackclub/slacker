@@ -3,6 +3,7 @@ import yaml from "js-yaml";
 import { slack } from "..";
 import prisma from "./db";
 import { Config, Maintainer } from "./types";
+import { buttons, githubItem, slackItem } from "./blocks";
 
 export const MAINTAINERS = yaml.load(readFileSync(`./maintainers.yaml`, "utf-8")) as Maintainer[];
 
@@ -189,22 +190,23 @@ export const logActivity = async (
 ) => {
   if (process.env.ACTIVITY_LOG_CHANNEL_ID === undefined) return;
 
-  const action = await prisma.actionItem.findUnique({
+  const item = await prisma.actionItem.findUnique({
     where: { id: actionId },
     include: {
-      slackMessage: { include: { channel: true } },
-      githubItem: { include: { repository: true } },
+      githubItem: { include: { repository: true, author: true } },
+      slackMessage: { include: { channel: true, author: true } },
+      assignee: true,
     },
   });
 
-  if (!action) return;
+  if (!item) return;
 
-  const url = action.githubItem
-    ? `https://github.com/${action.githubItem.repository.owner}/${action.githubItem.repository.name}/issues/${action.githubItem.number}`
-    : action.slackMessage
+  const url = item.githubItem
+    ? `https://github.com/${item.githubItem.repository.owner}/${item.githubItem.repository.name}/issues/${item.githubItem.number}`
+    : item.slackMessage
     ? `https://hackclub.slack.com/archives/${
-        action.slackMessage.channel.slackId
-      }/p${action.slackMessage.ts.replace(".", "")}`
+        item.slackMessage.channel.slackId
+      }/p${item.slackMessage.ts.replace(".", "")}`
     : undefined;
 
   await client.chat.postMessage({
@@ -217,13 +219,31 @@ export const logActivity = async (
   });
 
   if (notifyUser && user !== notifyUser && type === "assigned") {
+    const arr: any[] = [];
+
+    if (item.slackMessage !== null) arr.push(slackItem({ item }));
+    if (item.githubItem !== null) arr.push(githubItem({ item }));
+    arr.push(...buttons({ item, showAssignee: true, showActions: true }));
+
     await client.chat.postMessage({
       channel: notifyUser,
+      unfurl_links: false,
       text: `Hey <@${notifyUser}>, ${
         MAINTAINERS.find((u) => u.slack === user)?.id || user
-      } ${type} an action item to you. ID: ${actionId}\n\n${
-        url ? `<${url}|View action item>` : ""
-      }`,
+      } ${type} an action item to you:`,
+      blocks: [
+        {
+          type: "section",
+          text: {
+            type: "mrkdwn",
+            text: `Hey <@${notifyUser}>, ${
+              MAINTAINERS.find((u) => u.slack === user)?.id || user
+            } ${type} an action item to you:`,
+          },
+        },
+        { type: "divider" },
+        ...arr.flat(),
+      ],
     });
   }
 };
