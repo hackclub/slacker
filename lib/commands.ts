@@ -1,4 +1,4 @@
-import { ActionStatus } from "@prisma/client";
+import { ActionStatus, GithubItemType } from "@prisma/client";
 import { Middleware, SlackCommandMiddlewareArgs } from "@slack/bolt";
 import { StringIndexed } from "@slack/bolt/dist/types/helpers";
 import { closestMatch } from "closest-match";
@@ -606,36 +606,58 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
         return;
       }
 
+      if (isVolunteer) {
+        const data = await prisma.actionItem
+          .findMany({
+            where: {
+              githubItem: {
+                repository: { url: { in: repositories.map((r) => r.uri) } },
+                type: "issue",
+                labelsOnItems: { some: { label: { name: "good first issue" } } },
+                state: "open",
+                volunteer: { is: null },
+              },
+            },
+            orderBy: { totalReplies: "asc" },
+            include: {
+              githubItem: { include: { author: true, repository: true } },
+              slackMessage: { include: { author: true, channel: true } },
+              participants: { select: { user: true } },
+              assignee: true,
+            },
+          })
+          .then((res) =>
+            (res || []).filter(
+              (i) => i.snoozedUntil === null || dayjs().isAfter(dayjs(i.snoozedUntil))
+            )
+          );
+        await assignIssueToVolunteer(data, user, client, user_id, channel_id);
+        return;
+      }
+
       const data = await prisma.actionItem
         .findMany({
           where: {
             OR: [
-              ...((!filter || filter === "all" || filter === "slack") && !isVolunteer
+              ...(!filter || filter === "all" || filter === "slack"
                 ? [{ slackMessage: { channel: { slackId: { in: channels.map((c) => c.id) } } } }]
                 : []),
-              ...(!filter || ["all", "github", "issues", "pulls"].includes(filter.trim())
-                ? [{ githubItem: { repository: { url: { in: repositories.map((r) => r.uri) } } } }]
+              ...(!filter ||
+              (["all", "github", "issues", "pulls"].includes(filter.trim()) &&
+                !!maintainers.find((m) => m.github === user?.githubUsername))
+                ? [
+                    {
+                      githubItem: {
+                        repository: { url: { in: repositories.map((r) => r.uri) } },
+                        ...(filter === "issues" ? { type: GithubItemType.issue } : {}),
+                        ...(filter === "pulls" ? { type: GithubItemType.pull_request } : {}),
+                      },
+                    },
+                  ]
                 : []),
             ],
-            ...(isVolunteer
-              ? {
-                  githubItem: {
-                    type: "issue",
-                    labelsOnItems: { some: { label: { name: "good first issue" } } },
-                    state: "open",
-                    volunteer: { is: null },
-                  },
-                }
-              : (filter === "pulls" || filter === "issues") && !isVolunteer
-              ? {
-                  githubItem: {
-                    ...(filter === "issues" ? { type: "issue" } : {}),
-                    ...(filter === "pulls" ? { type: "pull_request" } : {}),
-                  },
-                }
-              : !isVolunteer
-              ? { status: { not: ActionStatus.closed }, assignee: { is: null } }
-              : {}),
+            status: { not: ActionStatus.closed },
+            assignee: { is: null },
           },
           orderBy: { totalReplies: "asc" },
           include: {
@@ -657,11 +679,6 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
           channel: channel_id,
           text: `:white_check_mark: No action items available. Please check back later.`,
         });
-        return;
-      }
-
-      if (isVolunteer) {
-        await assignIssueToVolunteer(data, user, client, user_id, channel_id);
         return;
       }
 
