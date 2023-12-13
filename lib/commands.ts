@@ -60,7 +60,6 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
         \n• *Review pulls on GitHub:* \`/slacker review [project]\`
         \n• *Reopen action item:* \`/slacker reopen [id]\`
         \n• *List snoozed items:* \`/slacker snoozed [project]\`
-        \n• *Get action item details:* \`/slacker get [id]\`
         \n• *Get a project report:* \`/slacker report [project]\`
         \n• *Opt out of status report notifications:* \`/slacker optout\`
         \n• *Opt in to status report notifications:* \`/slacker optin\`
@@ -80,20 +79,27 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
         return;
       }
 
-      if (filter && !["", "all", "github", "slack", "issues", "pulls"].includes(filter.trim())) {
-        await client.chat.postEphemeral({
-          user: user_id,
-          channel: channel_id,
-          text: `:warning: Invalid filter. Please check your command and try again. Available options: "all", "github", "slack", "issues", "pulls".`,
-        });
-        return;
-      }
-
-      const { maintainers, channels, repositories } = await getProjectDetails(
+      const { maintainers, channels, repositories, sections } = await getProjectDetails(
         project,
         user_id,
         user?.githubUsername
       );
+
+      if (
+        filter &&
+        !["", "all", "github", "slack", "issues", "pulls", ...sections.map((s) => s.name)].includes(
+          filter.trim()
+        )
+      ) {
+        await client.chat.postEphemeral({
+          user: user_id,
+          channel: channel_id,
+          text: `:warning: Invalid filter. Please check your command and try again. Available options: "all", "github", "slack", "issues", "pulls", ${sections.map(
+            (s, i) => (i === sections.length - 1 ? "" : " ") + `"${s.name}"`
+          )}.`,
+        });
+        return;
+      }
 
       if (!maintainers.find((m) => m.slack === user_id)) {
         if (!user) {
@@ -109,10 +115,10 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
         .findMany({
           where: {
             OR: [
-              ...(!filter || filter === "all" || filter === "slack"
+              ...(isfilteringSlack(sections, filter)
                 ? [{ slackMessage: { channel: { slackId: { in: channels.map((c) => c.id) } } } }]
                 : []),
-              ...((!filter || ["all", "github", "issues", "pulls"].includes(filter.trim())) &&
+              ...(isfilteringGithub(sections, filter) &&
               !!maintainers.find((m) => m.github === user?.githubUsername)
                 ? [
                     {
@@ -134,11 +140,11 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
             assignee: true,
           },
         })
-        .then((res) =>
-          (res || []).filter(
-            (i) => i.snoozedUntil === null || dayjs().isAfter(dayjs(i.snoozedUntil))
-          )
-        );
+        .then((res) => {
+          return (res || [])
+            .filter((i) => i.snoozedUntil === null || dayjs().isAfter(dayjs(i.snoozedUntil)))
+            .filter((i) => filterBySection(i, isfilteringSections(sections, filter)));
+        });
 
       await client.chat.postMessage({
         channel: user_id,
@@ -367,22 +373,6 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
             .flat(),
         ],
       });
-    } else if (args[0] === "get") {
-      const item = await prisma.actionItem.findFirst({
-        where: { id: args[1] },
-        include: { slackMessage: true, githubItem: true },
-      });
-
-      if (!item) {
-        await client.chat.postEphemeral({
-          user: user_id,
-          channel: channel_id,
-          text: `:warning: Action item not found. Please check your command and try again.`,
-        });
-        return;
-      }
-
-      // await client.chat.postMessage({});
     } else if (args[0] === "report") {
       const project = args[1]?.trim();
 
@@ -489,11 +479,25 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
         return;
       }
 
-      if (filter && !["", "all", "github", "slack", "issues", "pulls"].includes(filter.trim())) {
+      const { channels, repositories, sections } = await getProjectDetails(
+        project,
+        undefined,
+        undefined,
+        false
+      );
+
+      if (
+        filter &&
+        !["", "all", "github", "slack", "issues", "pulls", ...sections.map((s) => s.name)].includes(
+          filter.trim()
+        )
+      ) {
         await client.chat.postEphemeral({
           user: user_id,
           channel: channel_id,
-          text: `:warning: Invalid filter. Please check your command and try again. Available options: "all", "github", "slack", "issues", "pulls".`,
+          text: `:warning: Invalid filter. Please check your command and try again. Available options: "all", "github", "slack", "issues", "pulls", ${sections.map(
+            (s, i) => (i === sections.length - 1 ? "" : " ") + `"${s.name}"`
+          )}.`,
         });
         return;
       }
@@ -504,21 +508,14 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
         id: user?.id,
       };
 
-      const { channels, repositories } = await getProjectDetails(
-        project,
-        undefined,
-        undefined,
-        false
-      );
-
       const items = await prisma.actionItem
         .findMany({
           where: {
             OR: [
-              ...(!filter || filter === "all" || filter === "slack"
+              ...(isfilteringSlack(sections, filter)
                 ? [{ slackMessage: { channel: { slackId: { in: channels.map((c) => c.id) } } } }]
                 : []),
-              ...(!filter || ["all", "github", "issues", "pulls"].includes(filter.trim())
+              ...(isfilteringGithub(sections, filter)
                 ? [
                     {
                       githubItem: {
@@ -541,9 +538,9 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
           },
         })
         .then((res) =>
-          (res || []).filter(
-            (i) => i.snoozedUntil === null || dayjs().isAfter(dayjs(i.snoozedUntil))
-          )
+          (res || [])
+            .filter((i) => i.snoozedUntil === null || dayjs().isAfter(dayjs(i.snoozedUntil)))
+            .filter((i) => filterBySection(i, isfilteringSections(sections, filter)))
         );
 
       if (items.length > 0) {
@@ -592,20 +589,27 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
         return;
       }
 
-      if (filter && !["", "all", "github", "slack", "issues", "pulls"].includes(filter.trim())) {
-        await client.chat.postEphemeral({
-          user: user_id,
-          channel: channel_id,
-          text: `:warning: Invalid filter. Please check your command and try again. Available options: "all", "github", "slack", "issues", "pulls".`,
-        });
-        return;
-      }
-
-      const { maintainers, channels, repositories } = await getProjectDetails(
+      const { maintainers, channels, repositories, sections } = await getProjectDetails(
         project,
         user_id,
         user?.githubUsername
       );
+
+      if (
+        filter &&
+        !["", "all", "github", "slack", "issues", "pulls", ...sections.map((s) => s.name)].includes(
+          filter.trim()
+        )
+      ) {
+        await client.chat.postEphemeral({
+          user: user_id,
+          channel: channel_id,
+          text: `:warning: Invalid filter. Please check your command and try again. Available options: "all", "github", "slack", "issues", "pulls", ${sections.map(
+            (s, i) => (i === sections.length - 1 ? "" : " ") + `"${s.name}"`
+          )}.`,
+        });
+        return;
+      }
 
       let isVolunteer = !maintainers.find((m) => m.slack === user_id) && project !== "all";
 
@@ -660,12 +664,11 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
         .findMany({
           where: {
             OR: [
-              ...(!filter || filter === "all" || filter === "slack"
+              ...(isfilteringSlack(sections, filter)
                 ? [{ slackMessage: { channel: { slackId: { in: channels.map((c) => c.id) } } } }]
                 : []),
-              ...(!filter ||
-              (["all", "github", "issues", "pulls"].includes(filter.trim()) &&
-                !!maintainers.find((m) => m.github === user?.githubUsername))
+              ...(isfilteringGithub(sections, filter) &&
+              !!maintainers.find((m) => m.github === user?.githubUsername)
                 ? [
                     {
                       githubItem: {
@@ -689,9 +692,9 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
           },
         })
         .then((res) =>
-          (res || []).filter(
-            (i) => i.snoozedUntil === null || dayjs().isAfter(dayjs(i.snoozedUntil))
-          )
+          (res || [])
+            .filter((i) => i.snoozedUntil === null || dayjs().isAfter(dayjs(i.snoozedUntil)))
+            .filter((i) => filterBySection(i, isfilteringSections(sections, filter)))
         );
 
       if (data.length < 1) {
@@ -997,3 +1000,39 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
     logger.error(err);
   }
 };
+
+const filterBySection = (i, filteringSections: { name: string; pattern: string } | undefined) => {
+  if (filteringSections) {
+    const regex = new RegExp(filteringSections.pattern);
+    console.log(regex);
+    return regex.test(i.githubItem?.title || i.githubItem?.body || i.slackMessage?.text || "");
+  }
+
+  return true;
+};
+
+const isfilteringSlack = (
+  sections: {
+    name: string;
+    pattern: string;
+  }[],
+  filter: string
+) => !filter || ["", "all", "slack", ...sections.map((s) => s.name)].includes(filter.trim());
+
+const isfilteringGithub = (
+  sections: {
+    name: string;
+    pattern: string;
+  }[],
+  filter: string
+) =>
+  !filter ||
+  ["", "all", "github", "issues", "pulls", ...sections.map((s) => s.name)].includes(filter.trim());
+
+const isfilteringSections = (
+  sections: {
+    name: string;
+    pattern: string;
+  }[],
+  filter: string
+) => sections.find((s) => s.name === filter.trim());
