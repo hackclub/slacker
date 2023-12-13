@@ -21,7 +21,7 @@ import { webhooks } from "./lib/octokit";
 import {
   MAINTAINERS,
   getMaintainers,
-  getYamlDetails,
+  getProjectDetails,
   getYamlFile,
   joinChannels,
   syncParticipants,
@@ -492,7 +492,11 @@ cron.schedule(
       for await (const maintainer of MAINTAINERS) {
         let text = `:wave: Hey ${maintainer.id}!`;
 
-        const { repositories } = await getYamlDetails("all", maintainer.slack, maintainer.github);
+        const { repositories } = await getProjectDetails(
+          "all",
+          maintainer.slack,
+          maintainer.github
+        );
         const octokit = new Octokit();
         const q = `${repositories
           .map((r) => "repo:" + r.uri.split("/")[3] + "/" + r.uri.split("/")[4])
@@ -518,6 +522,10 @@ cron.schedule(
   { timezone: "America/New_York" }
 );
 
+cron.schedule("0 12 * * *", async () => {
+  console.log("⏳⏳ Running stale assigned issues cron job ⏳⏳");
+});
+
 const backFill = async () => {
   const actionItems = await prisma.actionItem.findMany({});
 
@@ -529,7 +537,7 @@ const backFill = async () => {
 
 const checkDuplicateResources = async () => {
   console.log("⏳⏳ Checking for duplicates ⏳⏳");
-  const { channels, repositories } = await getYamlDetails("all", undefined, null, false);
+  const { channels, repositories } = await getProjectDetails("all", undefined, null, false);
 
   const hasChannelDuplicates = channels.some(
     (channel) => channels.filter((c) => c.id === channel.id).length > 1

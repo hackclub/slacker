@@ -60,7 +60,13 @@ export const getMaintainers = ({
   return arr.map((id) => MAINTAINERS.find((user) => user.id === id));
 };
 
-export const getProject = ({ channelId, repoUrl }: { channelId?: string; repoUrl?: string }) => {
+export const getProjectName = ({
+  channelId,
+  repoUrl,
+}: {
+  channelId?: string;
+  repoUrl?: string;
+}) => {
   const files = fs.readdirSync("./config");
   let project: string | undefined;
 
@@ -134,7 +140,7 @@ export const getYamlFile = (filename: string) => {
   return yaml.load(readFileSync(`./config/${filename}`, "utf-8")) as Config;
 };
 
-export const getYamlDetails = async (
+export const getProjectDetails = async (
   project: string,
   user_id?: string,
   login?: string | null,
@@ -144,6 +150,7 @@ export const getYamlDetails = async (
   let channels: Config["channels"] = [];
   let repositories: Config["repos"] = [];
   let maintainers: Config["maintainers"] = [];
+  let sections: Config["sections"] = [];
 
   if (project === "all") {
     files.forEach((file) => {
@@ -163,6 +170,7 @@ export const getYamlDetails = async (
         channels = [...(channels || []), ...(config.channels || [])];
         repositories = [...repositories, ...config["repos"]];
         maintainers = [...maintainers, ...config.maintainers];
+        sections = [...(sections || []), ...(config.sections || [])];
       }
     });
   } else {
@@ -170,6 +178,7 @@ export const getYamlDetails = async (
     channels = config.channels || [];
     repositories = config["repos"];
     maintainers = config.maintainers;
+    sections = config.sections || [];
   }
 
   return {
@@ -178,6 +187,7 @@ export const getYamlDetails = async (
     maintainers: maintainers.map((id) =>
       MAINTAINERS.find((user) => user.id === id)
     ) as Maintainer[],
+    sections,
   };
 };
 

@@ -5,7 +5,7 @@ import { config } from "dotenv";
 import prisma from "./db";
 import { getDisplayName } from "./octokit";
 import { ElasticDocument } from "./types";
-import { MAINTAINERS, getProject } from "./utils";
+import { MAINTAINERS, getProjectName } from "./utils";
 import metrics from "./metrics";
 config();
 
@@ -75,7 +75,7 @@ export const indexDocument = async (id: string, data?: ElasticDocument) => {
       .then((res) => res)
       .catch(() => undefined);
 
-    const project = getProject({
+    const project = getProjectName({
       channelId: item.slackMessage?.channel.slackId,
       repoUrl: item.githubItem?.repository.url,
     });

@@ -15,7 +15,7 @@ import prisma from "./db";
 import { indexDocument } from "./elastic";
 import metrics from "./metrics";
 import { GithubData, SingleIssueOrPullData } from "./types";
-import { MAINTAINERS, getMaintainers, getProject } from "./utils";
+import { MAINTAINERS, getMaintainers, getProjectName } from "./utils";
 
 const appId = process.env.GITHUB_APP_ID || "";
 const base64 = process.env.GITHUB_PRIVATE_KEY || "";
@@ -29,7 +29,7 @@ webhooks.on("pull_request.review_requested", async ({ payload }) => {
   metrics.increment("octokit.pull_request.review_requested");
 
   const { pull_request, repository, sender } = payload;
-  const project = getProject({ repoUrl: repository.html_url });
+  const project = getProjectName({ repoUrl: repository.html_url });
   if (!project) return;
 
   for (let i = 0; i < pull_request.requested_reviewers.length; i++) {
@@ -60,7 +60,7 @@ export const createGithubItem = async (payload) => {
   const { issue, pull_request, repository } = payload;
   const item = issue || pull_request;
 
-  const project = getProject({ repoUrl: repository.html_url });
+  const project = getProjectName({ repoUrl: repository.html_url });
   if (!project) return;
 
   const dbRepo = await prisma.repository.upsert({

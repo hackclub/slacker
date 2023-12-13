@@ -2,7 +2,7 @@ import { ActionItem, Channel, GithubItem, Repository, SlackMessage, User } from 
 import dayjs from "dayjs";
 import customParseFormat from "dayjs/plugin/customParseFormat";
 import relativeTime from "dayjs/plugin/relativeTime";
-import { getMaintainers, getProject } from "./utils";
+import { getMaintainers, getProjectName } from "./utils";
 import metrics from "./metrics";
 dayjs.extend(relativeTime);
 dayjs.extend(customParseFormat);
@@ -19,7 +19,7 @@ export const slackItem = ({
   showActions?: boolean;
 }) => {
   const diff = dayjs().diff(dayjs(item.lastReplyOn), "day");
-  const project = getProject({ channelId: item.slackMessage?.channel?.slackId });
+  const project = getProjectName({ channelId: item.slackMessage?.channel?.slackId });
 
   const assigneeText = item.assignee
     ? `Assigned to: ${
@@ -123,7 +123,7 @@ export const githubItem = ({
   const diff = dayjs().diff(dayjs(item.lastReplyOn), "day");
   const url = `<https://github.com/${item.githubItem?.repository?.owner}/${item.githubItem?.repository?.name}/issues/${item.githubItem?.number}|View on GitHub>`;
   const text = item.githubItem?.title ? `*Issue:* ${item.githubItem?.title}` : url;
-  const project = getProject({ repoUrl: item.githubItem?.repository?.url });
+  const project = getProjectName({ repoUrl: item.githubItem?.repository?.url });
 
   const assigneeText = item.assignee
     ? `Assigned to ${

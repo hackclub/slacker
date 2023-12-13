@@ -11,7 +11,7 @@ import { buttons, githubItem, slackItem, unauthorizedError } from "./blocks";
 import prisma from "./db";
 import { indexDocument } from "./elastic";
 import metrics from "./metrics";
-import { MAINTAINERS, getMaintainers, getYamlDetails, getYamlFile, logActivity } from "./utils";
+import { MAINTAINERS, getMaintainers, getProjectDetails, getYamlFile, logActivity } from "./utils";
 import { assignIssueToVolunteer } from "./octokit";
 dayjs.extend(relativeTime);
 dayjs.extend(customParseFormat);
@@ -89,7 +89,7 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
         return;
       }
 
-      const { maintainers, channels, repositories } = await getYamlDetails(
+      const { maintainers, channels, repositories } = await getProjectDetails(
         project,
         user_id,
         user?.githubUsername
@@ -277,7 +277,7 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
         return;
       }
 
-      const { maintainers, channels, repositories } = await getYamlDetails(
+      const { maintainers, channels, repositories } = await getProjectDetails(
         project,
         user_id,
         user?.githubUsername
@@ -504,7 +504,12 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
         id: user?.id,
       };
 
-      const { channels, repositories } = await getYamlDetails(project, undefined, undefined, false);
+      const { channels, repositories } = await getProjectDetails(
+        project,
+        undefined,
+        undefined,
+        false
+      );
 
       const items = await prisma.actionItem
         .findMany({
@@ -596,7 +601,7 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
         return;
       }
 
-      const { maintainers, channels, repositories } = await getYamlDetails(
+      const { maintainers, channels, repositories } = await getProjectDetails(
         project,
         user_id,
         user?.githubUsername
@@ -853,7 +858,7 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
         return;
       }
 
-      const { repositories } = await getYamlDetails(project, user_id, user?.githubUsername);
+      const { repositories } = await getProjectDetails(project, user_id, user?.githubUsername);
       const octokit = new Octokit();
       const q = `${repositories
         .map((r) => "repo:" + r.uri.split("/")[3] + "/" + r.uri.split("/")[4])
@@ -920,7 +925,7 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
         return;
       }
 
-      const { repositories } = await getYamlDetails(project, user_id, user?.githubUsername);
+      const { repositories } = await getProjectDetails(project, user_id, user?.githubUsername);
       const octokit = new Octokit();
       const q = `${repositories
         .map((r) => "repo:" + r.uri.split("/")[3] + "/" + r.uri.split("/")[4])
