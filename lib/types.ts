@@ -17,6 +17,10 @@ export type Config = {
     name: string;
     uri: string;
   }[];
+  sections?: {
+    name: string;
+    pattern: string;
+  }[];
 };
 
 type SubsectionOwner = {

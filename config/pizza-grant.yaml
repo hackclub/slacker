@@ -19,3 +19,6 @@ repos:
   - uri: https://github.com/hackclub/pizza-fund
     sla:
       responseTime: 1h
+sections:
+  - name: india
+    pattern: india

@@ -37,3 +37,8 @@ resources:
     uri: https://sprig.hackclub.com
   - name: editor
     uri: https://sprig.hackclub.com/editor
+sections:
+  - name: games
+    pattern: What is your game about\?
+  - name: help
+    pattern: help
