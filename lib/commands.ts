@@ -735,8 +735,10 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
           ownSubSection.find((s) => {
             if (s?.pattern) {
               const regex = new RegExp(s.pattern);
-              return regex.test(
-                item.githubItem?.title || item.githubItem?.body || item.slackMessage?.text || ""
+              return (
+                regex.test(item.githubItem?.title || "") ||
+                regex.test(item.githubItem?.body || "") ||
+                regex.test(item.slackMessage?.text || "")
               );
             }
 
@@ -1004,8 +1006,11 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
 const filterBySection = (i, filteringSections: { name: string; pattern: string } | undefined) => {
   if (filteringSections) {
     const regex = new RegExp(filteringSections.pattern);
-    console.log(regex);
-    return regex.test(i.githubItem?.title || i.githubItem?.body || i.slackMessage?.text || "");
+    return (
+      regex.test(i.githubItem?.title || "") ||
+      regex.test(i.githubItem?.body || "") ||
+      regex.test(i.slackMessage?.text || "")
+    );
   }
 
   return true;
