@@ -1,6 +1,6 @@
 name: Onboard
 description: Teens make a PCB for $100 and get it shipped for free
-maintainers: [max, shawn, hugo]
+maintainers: [max, shawn, hugo, kara]
 channels:
   - name: onboard
     id: C056AMWSFKJ
