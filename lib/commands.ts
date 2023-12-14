@@ -138,6 +138,7 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
             participants: { include: { user: true } },
             assignee: true,
           },
+          orderBy: { createdAt: "asc" },
         })
         .then((res) => {
           console.log(res?.length);
