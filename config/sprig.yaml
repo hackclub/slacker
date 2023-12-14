@@ -27,8 +27,12 @@ repos:
     sla:
       responseTime: 24h
 resources:
-  - name: github
+  - name: github-sprig-editor
     uri: https://github.com/hackclub/sprig
+  - name: github-sprig-engine
+    uri: https://github.com/hackclub/sprig-engine
+  - name: github-firmware
+    uri: https://github.com/hackclub/spade
   - name: dashboard
     uri: https://telemetry.hackclub.com/d/b7ac7960-a18f-4c83-a4e5-767d50ad62c7/sprig?orgId=1
   - name: vercel
