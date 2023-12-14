@@ -118,8 +118,7 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
               ...(isfilteringSlack(sections, filter)
                 ? [{ slackMessage: { channel: { slackId: { in: channels.map((c) => c.id) } } } }]
                 : []),
-              ...(isfilteringGithub(sections, filter) &&
-              !!maintainers.find((m) => m.github === user?.githubUsername)
+              ...(isfilteringGithub(sections, filter)
                 ? [
                     {
                       githubItem: {
@@ -141,6 +140,7 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
           },
         })
         .then((res) => {
+          console.log(res?.length);
           return (res || [])
             .filter((i) => i.snoozedUntil === null || dayjs().isAfter(dayjs(i.snoozedUntil)))
             .filter((i) => filterBySection(i, isfilteringSections(sections, filter)));
