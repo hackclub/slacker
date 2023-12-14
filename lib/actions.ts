@@ -5,6 +5,8 @@ import prisma from "./db";
 import { indexDocument } from "./elastic";
 import metrics from "./metrics";
 import { MAINTAINERS, logActivity } from "./utils";
+import { Octokit } from "octokit";
+import { getOctokitToken } from "./octokit";
 
 export const markIrrelevant: Middleware<
   SlackActionMiddlewareArgs<SlackAction>,
@@ -394,6 +396,75 @@ export const assigned: Middleware<SlackActionMiddlewareArgs<SlackAction>, String
     metrics.increment("slack.assigned", 1);
   } catch (err) {
     metrics.increment("errors.slack.assigned", 1);
+    logger.error(err);
+  }
+};
+
+export const promptAssigneeYes: Middleware<
+  SlackActionMiddlewareArgs<SlackAction>,
+  StringIndexed
+> = async ({ ack, body, client, logger }) => {
+  await ack();
+
+  try {
+    const { user, channel, actions } = body as any;
+    const nodeId = actions[0].value;
+
+    const item = await prisma.githubItem.findUnique({ where: { nodeId } });
+    if (!item?.lastPromptedOn || dayjs().diff(dayjs(item.lastPromptedOn), "day") >= 2) return;
+    await prisma.githubItem.update({ where: { nodeId }, data: { lastAssignedOn: new Date() } });
+
+    await client.chat.postEphemeral({
+      channel: channel?.id as string,
+      user: user.id,
+      text: `:white_check_mark: Github issue marked as still being worked on. We'll check back again in 5 days.`,
+    });
+
+    metrics.increment("github.assignee.response.yes", 1);
+  } catch (err) {
+    metrics.increment("errors.github.assignee.response", 1);
+    logger.error(err);
+  }
+};
+
+export const promptAssigneeNo: Middleware<
+  SlackActionMiddlewareArgs<SlackAction>,
+  StringIndexed
+> = async ({ ack, body, client, logger }) => {
+  await ack();
+
+  try {
+    const { user, channel, actions } = body as any;
+    const [nodeId, login] = actions[0].value.split("-");
+
+    const i = await prisma.githubItem.findUnique({ where: { nodeId } });
+    if (!i?.lastPromptedOn || dayjs().diff(dayjs(i.lastPromptedOn), "day") >= 2) return;
+    const item = await prisma.githubItem.update({
+      where: { nodeId },
+      data: { lastAssignedOn: null, lastPromptedOn: null },
+      include: { repository: true },
+    });
+
+    const octokit = new Octokit({
+      auth: "Bearer " + (await getOctokitToken(item.repository.owner, item.repository.name)),
+    });
+
+    await octokit.rest.issues.removeAssignees({
+      owner: item.repository.owner,
+      repo: item.repository.name,
+      issue_number: item.number,
+      assignees: [login],
+    });
+
+    await client.chat.postEphemeral({
+      channel: channel?.id as string,
+      user: user.id,
+      text: `:white_check_mark: Alright, the issue has been unassigned from <@${login}>.`,
+    });
+
+    metrics.increment("github.assignee.response.no", 1);
+  } catch (err) {
+    metrics.increment("errors.github.assignee.response", 1);
     logger.error(err);
   }
 };

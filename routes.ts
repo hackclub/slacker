@@ -3,9 +3,9 @@ import { GithubItemType, GithubState, User } from "@prisma/client";
 import { readdirSync } from "fs";
 import { ElizaService } from "./gen/eliza_connect";
 import prisma from "./lib/db";
-import { getGithubItem, listGithubItems } from "./lib/octokit";
-import { getMaintainers, getYamlFile, syncGithubParticipants } from "./lib/utils";
 import { indexDocument } from "./lib/elastic";
+import { getGithubItem, listGithubItems } from "./lib/octokit";
+import { getYamlFile, syncGithubParticipants } from "./lib/utils";
 
 export default (router: ConnectRouter) =>
   router.service(ElizaService, {
@@ -72,6 +72,9 @@ export default (router: ConnectRouter) =>
                         : GithubItemType.pull_request,
                       createdAt: item.createdAt,
                       updatedAt: item.updatedAt,
+                      lastAssignedOn: item.assignees.nodes.sort(
+                        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+                      )[0]?.createdAt,
                       actionItem: {
                         create: {
                           status: "open",
@@ -142,6 +145,9 @@ export default (router: ConnectRouter) =>
                           label: { connectOrCreate: { where: { name }, create: { name } } },
                         })),
                       },
+                      lastAssignedOn: res.node.assignees.nodes.sort(
+                        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+                      )[0]?.createdAt,
                       actionItem: {
                         update: {
                           status: "closed",

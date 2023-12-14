@@ -2,6 +2,7 @@ export type Config = {
   name: string;
   description: string;
   maintainers: string[];
+  clawback?: boolean;
   channels?: {
     id: string;
     name: string;
@@ -56,6 +57,12 @@ export type IssueOrPull = {
         name: string;
       }[];
     };
+    assignees: {
+      nodes: {
+        login: string;
+        createdAt: string;
+      }[];
+    };
     participants: {
       nodes: {
         login: string;
@@ -83,6 +90,7 @@ export type SingleIssueOrPullData = {
     assignees: {
       nodes: {
         login: string;
+        createdAt: string;
       }[];
     };
     labels: {

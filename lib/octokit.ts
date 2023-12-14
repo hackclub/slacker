@@ -212,6 +212,12 @@ export const listGithubItems = async (owner: string, name: string) => {
             author {
               login
             }
+            assignees(first: 5) {
+              nodes {
+                login
+                createdAt
+              }
+            }
             labels(first:10) {
               nodes {
                 name
@@ -244,6 +250,12 @@ export const listGithubItems = async (owner: string, name: string) => {
             updatedAt
             author {
               login
+            }
+            assignees(first: 5) {
+              nodes {
+                login
+                createdAt
+              }
             }
             labels(first:10) {
               nodes {
@@ -290,9 +302,10 @@ export const getGithubItem = async (owner: string, name: string, id: string) => 
           title
           bodyText
           closedAt
-          assignees(first: 100) {
+          assignees(first: 5) {
             nodes {
               login
+              createdAt
             }
           }
           labels(first:10) {
@@ -321,9 +334,10 @@ export const getGithubItem = async (owner: string, name: string, id: string) => 
           title
           bodyText
           closedAt
-          assignees(first: 100) {
+          assignees(first: 5) {
             nodes {
               login
+              createdAt
             }
           }
           labels(first:10) {

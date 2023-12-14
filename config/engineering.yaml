@@ -1,6 +1,7 @@
 name: HQ Engineering
 description: HQ Engineering stuff for Hack Club
 maintainers: [faisal, graham, josias]
+clawback: true
 channels:
   - name: infra-alerts
     id: C05G25Y9M6V

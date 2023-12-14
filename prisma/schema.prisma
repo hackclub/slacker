@@ -68,6 +68,9 @@ model GithubItem {
   labelsOnItems LabelsOnItems[]
   volunteer     VolunteerDetail?
 
+  lastAssignedOn DateTime?
+  lastPromptedOn DateTime?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
