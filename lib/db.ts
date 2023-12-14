@@ -1,7 +1,10 @@
 import { PrismaClient } from "@prisma/client";
 import metrics from "./metrics";
 
-const prisma = new PrismaClient().$extends({
+const prisma = new PrismaClient({
+  log: ["error", "warn", "info"],
+  errorFormat: "pretty",
+}).$extends({
   // extend prisma client
   // to send query metrics such as latency & failures
   query: {
