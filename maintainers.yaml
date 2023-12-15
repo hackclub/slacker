@@ -89,3 +89,19 @@
 - id: hugo
   slack: U017EPB6LE9
   github: Hugoyhu
+
+- id: dev
+  slack: U0261EB1EG7
+  github: devenjadhav
+
+- id: sarthak
+  slack: U0161JDSHGR
+  github: sarthaktexas
+
+- id: kevin
+  slack: U015X5P6KAM
+  github: kvnyng
+
+- id: karmanyaah
+  slack: U04CNFV0T4M
+  github: karmanyaahm

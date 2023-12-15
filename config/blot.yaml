@@ -1,6 +1,6 @@
 name: Blot
 description: Teens make art and get a Blot
-maintainers: [leo, shawn]
+maintainers: [leo, shawn, kara]
 channels:
   - name: blot
     id: C04GCH8A91D
