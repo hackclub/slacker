@@ -576,7 +576,7 @@ cron.schedule("0 12 * * *", async () => {
 
       // it's been over the deadline since it was assigned. now we either have to prompt them to confirm or unassign them.
       if (
-        !item.githubItem.lastPromptedOn ||
+        item.githubItem.lastPromptedOn &&
         dayjs(item.githubItem.lastPromptedOn).isAfter(deadline)
       ) {
         // they have been prompted, unassign them after two days
