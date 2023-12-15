@@ -22,6 +22,7 @@ model User {
   snoozedItems       ActionItem[]
   assignedItems      ActionItem[]      @relation("assignee")
   volunteer          VolunteerDetail[]
+  followUp           FollowUp[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -108,6 +109,7 @@ model ActionItem {
   status     ActionStatus
   flag       ExtraFlags?
   resolvedAt DateTime?
+  followUp   FollowUp[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -116,6 +118,22 @@ model ActionItem {
   @@index([slackMessageId])
   @@index([githubItemId])
   @@index([snoozedById])
+}
+
+model FollowUp {
+  actionItem   ActionItem @relation(fields: [actionItemId], references: [id], onDelete: Cascade)
+  actionItemId String
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+
+  date      DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@id([actionItemId, userId])
+  @@index([actionItemId])
+  @@index([userId])
 }
 
 model VolunteerDetail {

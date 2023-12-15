@@ -14,6 +14,7 @@ import { Octokit } from "octokit";
 import responseTime from "response-time";
 import {
   assigned,
+  followUp,
   markIrrelevant,
   notes,
   promptAssigneeNo,
@@ -302,6 +303,7 @@ slack.event("message", async ({ event, client, logger, message }) => {
 slack.command("/slacker", handleSlackerCommand);
 slack.action("resolve", resolve);
 slack.action("snooze", snooze);
+slack.action("followup", followUp);
 slack.action("unsnooze", unsnooze);
 slack.action("irrelevant", markIrrelevant);
 slack.action("assigned", assigned);
@@ -401,6 +403,52 @@ cron.schedule("0 * * * *", async () => {
     }
   } catch (err) {
     console.log("🚨🚨 Error in unsnooze cron job 🚨🚨");
+    console.error(err);
+  }
+});
+
+cron.schedule("0 * * * *", async () => {
+  console.log("⏳⏳ Running follow up cron job ⏳⏳");
+  try {
+    const followUps = await prisma.followUp.findMany({
+      include: {
+        actionItem: {
+          include: {
+            assignee: true,
+            githubItem: { select: { repository: true, number: true } },
+            slackMessage: { select: { channel: true, ts: true } },
+          },
+        },
+        user: true,
+      },
+    });
+
+    for await (const f of followUps) {
+      const followUpOn = dayjs(f.date);
+      const now = dayjs();
+      const diff = now.diff(followUpOn, "hour", true).toFixed(2);
+
+      if (followUpOn.isAfter(now) || parseFloat(diff) >= 1) continue;
+
+      const url = f.actionItem.githubItem
+        ? `${f.actionItem.githubItem.repository.url}/issues/${f.actionItem.githubItem.number}`
+        : `https://hackclub.slack.com/archives/${
+            f.actionItem.slackMessage?.channel?.slackId
+          }/p${f.actionItem.slackMessage?.ts.replace(".", "")}`;
+
+      await slack.client.chat.postMessage({
+        channel: f.user?.slackId ?? "",
+        text: `:wave: Hey, you asked us to follow up on <${url}|${f.actionItem.id}>. Take a look into it again if needed!`,
+      });
+
+      if (f.actionItem.assigneeId !== f.user?.id)
+        await slack.client.chat.postMessage({
+          channel: f.actionItem.assignee?.slackId ?? "",
+          text: `:wave: Hey, you asked us to follow up on <${url}|${f.actionItem.id}>. Take a look into it again if needed!`,
+        });
+    }
+  } catch (err) {
+    console.log("🚨🚨 Error in follow up cron job 🚨🚨");
     console.error(err);
   }
 });

@@ -26,7 +26,7 @@ export const snoozeSubmit: Middleware<
   const { actionId, channelId, messageId } = JSON.parse(view.private_metadata);
 
   try {
-    const reason = view.state.values.reason["reason-action"].value;
+    const reason = view.state.values.reason?.["reason-action"]?.value;
 
     const action = await prisma.actionItem.findFirst({
       where: { id: actionId },
@@ -42,23 +42,38 @@ export const snoozeSubmit: Middleware<
     const snoozedUntil = dayjs(selected_date_time, "X").toDate();
     const dbUser = await prisma.user.findFirst({ where: { slackId: user.id } });
 
-    await prisma.actionItem.update({
-      where: { id: actionId },
-      data: {
-        snoozedUntil,
-        snoozeCount: { increment: 1 },
-        snoozedById: dbUser?.id,
-        reason: reason ?? "",
-      },
-    });
+    if (!dbUser) return;
+
+    if (view.title.text === "Snooze")
+      await prisma.actionItem.update({
+        where: { id: actionId },
+        data: {
+          snoozedUntil,
+          snoozeCount: { increment: 1 },
+          snoozedById: dbUser?.id,
+          reason: reason ?? "",
+        },
+      });
+    else
+      await prisma.followUp.upsert({
+        where: { actionItemId_userId: { actionItemId: actionId, userId: dbUser.id } },
+        create: { actionItemId: actionId, userId: dbUser.id, date: snoozedUntil },
+        update: { date: snoozedUntil },
+      });
 
     await client.chat.postEphemeral({
       channel: channelId,
       user: user.id,
-      text: `:white_check_mark: Action item (id=${actionId}) snoozed until ${dayjs(
-        snoozedUntil
-      ).format("MMM DD, YYYY hh:mm A")} by <@${user.id}> (Snooze count: ${action.snoozeCount + 1})`,
+      text: `:white_check_mark: Action item (id=${actionId}) ${
+        view.title.text === "Snooze" ? "snoozed until" : "will be followed up on"
+      } ${dayjs(snoozedUntil).format("MMM DD, YYYY hh:mm A")} ${
+        view.title.text === "Snooze"
+          ? `by <@${user.id}> (Snooze count: ${action.snoozeCount + 1})`
+          : ""
+      }`,
     });
+
+    if (view.title.text === "Snooze") return;
 
     const { messages } = await client.conversations.history({
       channel: channelId,
@@ -86,7 +101,9 @@ export const snoozeSubmit: Middleware<
     await client.chat.postEphemeral({
       channel: channelId,
       user: user.id,
-      text: `:x: Failed to snooze action item (id=${actionId}) ${err.message}`,
+      text: `:x: Failed to ${
+        view.title.text === "Snooze" ? "snooze" : "follow up on"
+      } action item (id=${actionId}) ${err.message}`,
     });
     logger.error(err);
   }

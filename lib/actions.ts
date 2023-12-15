@@ -153,17 +153,24 @@ export const resolve: Middleware<SlackActionMiddlewareArgs<SlackAction>, StringI
   }
 };
 
+export const followUp: Middleware<SlackActionMiddlewareArgs<SlackAction>, StringIndexed> = async (
+  args
+) => {
+  await args.ack();
+  await snooze(args);
+  metrics.increment("slack.follow_up", 1);
+};
+
 export const snooze: Middleware<SlackActionMiddlewareArgs<SlackAction>, StringIndexed> = async ({
   ack,
   body,
   client,
   logger,
 }) => {
-  await ack();
-
   try {
     const { actions, channel, message } = body as any;
     const actionId = actions[0].value;
+    actions[0].action_id === "snooze" && (await ack());
 
     const action = await prisma.actionItem.findFirst({
       where: { id: actionId },
@@ -195,11 +202,11 @@ export const snooze: Middleware<SlackActionMiddlewareArgs<SlackAction>, StringIn
         }),
         title: {
           type: "plain_text",
-          text: "Snooze",
+          text: actions[0].action_id === "snooze" ? "Snooze" : "Follow Up",
         },
         submit: {
           type: "plain_text",
-          text: "Snooze",
+          text: actions[0].action_id === "snooze" ? "Snooze" : "Follow Up",
         },
         blocks: [
           {
@@ -213,31 +220,36 @@ export const snooze: Middleware<SlackActionMiddlewareArgs<SlackAction>, StringIn
             },
             label: {
               type: "plain_text",
-              text: "Snooze until",
+              text: actions[0].action_id === "snooze" ? "Snooze until" : "Follow up on",
             },
           },
-          {
-            type: "input",
-            block_id: "reason",
-            element: {
-              type: "plain_text_input",
-              action_id: "reason-action",
-              multiline: true,
-            },
-            label: {
-              type: "plain_text",
-              text: "Why are you snoozing this?",
-            },
-          },
-          {
-            type: "context",
-            elements: [
-              {
-                type: "mrkdwn",
-                text: `:bangbang: Snooze wisely. If you keep snoozing an item repeatedly, you'll be called out for slackin'.`,
-              },
-            ],
-          },
+          ...(actions[0].action_id === "snooze"
+            ? [
+                {
+                  type: "input",
+                  block_id: "reason",
+                  // @ts-expect-error
+                  element: {
+                    type: "plain_text_input",
+                    action_id: "reason-action",
+                    multiline: true,
+                  },
+                  label: {
+                    type: "plain_text",
+                    text: "Why are you snoozing this?",
+                  },
+                },
+                {
+                  type: "context",
+                  elements: [
+                    {
+                      type: "mrkdwn",
+                      text: `:bangbang: Snooze wisely. If you keep snoozing an item repeatedly, you'll be called out for slackin'.`,
+                    },
+                  ],
+                },
+              ]
+            : []),
         ],
       },
     });

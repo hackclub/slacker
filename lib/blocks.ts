@@ -247,6 +247,12 @@ export const buttons = ({ item, showAssignee = false, showActions = true }) => {
               },
               {
                 type: "button",
+                text: { type: "plain_text", emoji: true, text: "Follow Up" },
+                value: item.id,
+                action_id: "followup",
+              },
+              {
+                type: "button",
                 text: { type: "plain_text", emoji: true, text: "Close - Irrelevant" },
                 value: item.id,
                 action_id: "irrelevant",
