@@ -73,7 +73,7 @@ export const snoozeSubmit: Middleware<
       }`,
     });
 
-    if (view.title.text === "Snooze") return;
+    if (view.title.text !== "Snooze") return;
 
     const { messages } = await client.conversations.history({
       channel: channelId,
