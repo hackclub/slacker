@@ -22,3 +22,6 @@ repos:
   - uri: https://github.com/hackclub/onboard
     sla:
       responseTime: 1h
+sections:
+  - name: grants
+    pattern: A new Onboard grant has been requested
