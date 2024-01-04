@@ -43,6 +43,8 @@ webhooks.on("pull_request.review_requested", async ({ payload }) => {
         })
       )?.slackId;
 
+    if (sender.login === (pull_request.requested_reviewers[i] as any)?.login) continue;
+
     if (user) {
       await slack.client.chat.postMessage({
         channel: user,

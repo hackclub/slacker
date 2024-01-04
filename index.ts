@@ -557,6 +557,9 @@ cron.schedule(
           maintainer.slack,
           maintainer.github
         );
+
+        if (repositories.length === 0) continue;
+
         const octokit = new Octokit();
         const q = `${repositories
           .map((r) => "repo:" + r.uri.split("/")[3] + "/" + r.uri.split("/")[4])
