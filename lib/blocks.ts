@@ -78,6 +78,10 @@ export const slackItem = ({
               text: { type: "plain_text", text: maintainer!.id, emoji: true },
               value: `${item.id}-${maintainer?.id}`,
             }))
+            .concat({
+              text: { type: "plain_text", text: "none", emoji: true },
+              value: `${item.id}-unassigned`,
+            })
             .concat(
               ...(item.assignee && !isMaintainer
                 ? [
@@ -103,7 +107,10 @@ export const slackItem = ({
                 },
                 value: `${item.id}-${currentAssignee.id}`,
               }
-            : undefined,
+            : {
+                text: { type: "plain_text", text: "none", emoji: true },
+                value: `${item.id}-unassigned`,
+              },
           action_id: "assigned",
         },
   };
@@ -180,6 +187,10 @@ export const githubItem = ({
               text: { type: "plain_text", text: maintainer!.id, emoji: true },
               value: `${item.id}-${maintainer?.id}`,
             }))
+            .concat({
+              text: { type: "plain_text", text: "none", emoji: true },
+              value: `${item.id}-unassigned`,
+            })
             .concat(
               ...(item.assignee && !isMaintainer
                 ? [
@@ -205,7 +216,10 @@ export const githubItem = ({
                 },
                 value: `${item.id}-${currentAssignee.id}`,
               }
-            : undefined,
+            : {
+                text: { type: "plain_text", text: "none", emoji: true },
+                value: `${item.id}-unassigned`,
+              },
           action_id: "assigned",
         },
   };
@@ -280,6 +294,10 @@ export const buttons = ({ item, showAssignee = false, showActions = true }) => {
                     text: { type: "plain_text", text: maintainer!.id, emoji: true },
                     value: `${item.id}-${maintainer?.id}`,
                   }))
+                  .concat({
+                    text: { type: "plain_text", text: "none", emoji: true },
+                    value: `${item.id}-unassigned`,
+                  })
                   .concat(
                     ...(item.assignee && !isMaintainer
                       ? [
@@ -305,7 +323,10 @@ export const buttons = ({ item, showAssignee = false, showActions = true }) => {
                       },
                       value: `${item.id}-${currentAssignee.id}`,
                     }
-                  : undefined,
+                  : {
+                      text: { type: "plain_text", text: "none", emoji: true },
+                      value: `${item.id}-unassigned`,
+                    },
                 action_id: "assigned",
               },
             ]

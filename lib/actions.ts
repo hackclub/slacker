@@ -368,6 +368,24 @@ export const assigned: Middleware<SlackActionMiddlewareArgs<SlackAction>, String
     const { user, channel, actions } = body as any;
     const [actionId, assigneeId] = actions[0].selected_option.value.split("-");
 
+    if (assigneeId === "unassigned") {
+      await prisma.actionItem.update({
+        where: { id: actionId },
+        data: { assigneeId: null, assignedOn: null },
+      });
+
+      await client.chat.postEphemeral({
+        channel: channel?.id as string,
+        user: user.id,
+        text: `:white_check_mark: Action item (id=${actionId}) unassigned.`,
+      });
+
+      await indexDocument(actionId);
+      await logActivity(client, user.id, actionId, "unassigned");
+      metrics.increment("slack.unassigned", 1);
+      return;
+    }
+
     const maintainer = MAINTAINERS.find((m) => m.id === assigneeId);
     let userOnDb = await prisma.user.findFirst({
       where: {

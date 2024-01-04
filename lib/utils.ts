@@ -195,7 +195,7 @@ export const logActivity = async (
   client: typeof slack.client,
   user: string,
   actionId: string,
-  type: "resolved" | "irrelevant" | "snoozed" | "reopened" | "unsnoozed" | "assigned",
+  type: "resolved" | "irrelevant" | "snoozed" | "reopened" | "unsnoozed" | "assigned" | "unassigned",
   notifyUser?: string
 ) => {
   if (process.env.ACTIVITY_LOG_CHANNEL_ID === undefined) return;
