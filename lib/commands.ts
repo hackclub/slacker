@@ -733,7 +733,7 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
 
       if (ownSubSection.length > 0) {
         const dataWithSubsection = data.filter((item) => {
-          ownSubSection.find((s) => {
+          return ownSubSection.find((s) => {
             if (s?.pattern) {
               const regex = new RegExp(s.pattern);
               return (
@@ -747,21 +747,21 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
           });
         });
 
-        if (dataWithSubsection.length > 0) {
-          id = dataWithSubsection[0].id;
-        }
-      } else if (ownerOfSpecificChannels.length > 0 || ownerOfSpecificRepos.length > 0) {
+        if (dataWithSubsection.length > 0) id = dataWithSubsection[0].id;
+      }
+
+      if (!id && (ownerOfSpecificChannels.length > 0 || ownerOfSpecificRepos.length > 0)) {
         const dataWithSpecific = data.filter((item) => {
-          ownerOfSpecificChannels.find((c) => c.id === item.slackMessage?.channel?.slackId);
-          ownerOfSpecificRepos.find((r) => r.uri === item.githubItem?.repository?.url);
+          return (
+            ownerOfSpecificChannels.find((c) => c.id === item.slackMessage?.channel?.slackId) ||
+            ownerOfSpecificRepos.find((r) => r.uri === item.githubItem?.repository?.url)
+          );
         });
 
-        if (dataWithSpecific.length > 0) {
-          id = dataWithSpecific[0].id;
-        }
-      } else {
-        id = data[0].id;
+        if (dataWithSpecific.length > 0) id = dataWithSpecific[0].id;
       }
+
+      if (!id) id = data[0].id;
 
       const item = await prisma.actionItem.update({
         where: { id },
