@@ -8,11 +8,6 @@ channels:
       responseTime: 1h
   - name: pizza-party-approval
     id: C05RZATA3QR
-    owners:
-      default: [thomas, arpan]
-      subsections:
-        - owners: [arpan]
-          pattern: india
     sla:
       responseTime: 1h
 repos:

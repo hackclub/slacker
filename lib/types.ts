@@ -7,12 +7,10 @@ export type Config = {
     id: string;
     name: string;
     sla: { responseTime: number };
-    owners?: SubsectionOwner;
   }[];
   repos: {
     uri: string;
     sla: { responseTime: number };
-    owners?: SubsectionOwner;
   }[];
   resources?: {
     name: string;
@@ -20,14 +18,6 @@ export type Config = {
   }[];
   sections?: {
     name: string;
-    pattern: string;
-  }[];
-};
-
-type SubsectionOwner = {
-  default: string[];
-  subsections?: {
-    owners: string[];
     pattern: string;
   }[];
 };
