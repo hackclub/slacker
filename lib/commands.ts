@@ -752,6 +752,10 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
           },
           {
             type: "context",
+            elements: [{ type: "plain_text", text: `/slacker ${text}`, emoji: true }],
+          },
+          {
+            type: "context",
             elements: [
               {
                 type: "mrkdwn",
