@@ -15,6 +15,7 @@ import responseTime from "response-time";
 import {
   assigned,
   followUp,
+  gimmeAgain,
   markIrrelevant,
   notes,
   promptAssigneeNo,
@@ -310,6 +311,7 @@ slack.action("assigned", assigned);
 slack.action("notes", notes);
 slack.action("prompt-assignee-yes", promptAssigneeYes);
 slack.action("prompt-assignee-no", promptAssigneeNo);
+slack.action("gimme_again", gimmeAgain);
 slack.view("snooze_submit", snoozeSubmit);
 slack.view("notes_submit", notesSubmit);
 slack.view("irrelevant_submit", irrelevantSubmit);

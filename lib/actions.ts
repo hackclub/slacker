@@ -7,6 +7,7 @@ import metrics from "./metrics";
 import { MAINTAINERS, logActivity } from "./utils";
 import { Octokit } from "octokit";
 import { getOctokitToken } from "./octokit";
+import { handleSlackerCommand } from "./commands";
 
 export const markIrrelevant: Middleware<
   SlackActionMiddlewareArgs<SlackAction>,
@@ -426,6 +427,29 @@ export const assigned: Middleware<SlackActionMiddlewareArgs<SlackAction>, String
     metrics.increment("slack.assigned", 1);
   } catch (err) {
     metrics.increment("errors.slack.assigned", 1);
+    logger.error(err);
+  }
+};
+
+export const gimmeAgain: Middleware<
+  SlackActionMiddlewareArgs<SlackAction>,
+  StringIndexed
+> = async ({ ack, body, client, logger, ...args }) => {
+  await ack();
+
+  try {
+    const { user, channel, actions } = body as any;
+    const command = actions[0].value as string;
+
+    await handleSlackerCommand({
+      ack: async () => {},
+      // @ts-expect-error
+      command: { channel_id: channel?.id, user_id: user.id, text: command },
+      client,
+      logger,
+      ...args,
+    });
+  } catch (err) {
     logger.error(err);
   }
 };

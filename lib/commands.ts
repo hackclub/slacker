@@ -740,6 +740,17 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
           { type: "divider" },
           ...arr.flat(),
           {
+            type: "actions",
+            elements: [
+              {
+                type: "button",
+                text: { type: "plain_text", text: "Gimme another", emoji: true },
+                value: text,
+                action_id: "gimme_again",
+              },
+            ],
+          },
+          {
             type: "context",
             elements: [
               {
