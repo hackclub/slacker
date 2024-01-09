@@ -991,13 +991,19 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
 
       const { channels } = await getProjectDetails(project);
 
-      await prisma.actionItem.deleteMany({
+      const res = await prisma.actionItem.deleteMany({
         where: {
           slackMessages: {
             some: { channel: { slackId: { in: channels.map((c) => c.id) } } },
           },
           status: { not: ActionStatus.closed },
         },
+      });
+
+      await client.chat.postEphemeral({
+        user: user_id,
+        channel: channel_id,
+        text: `:white_check_mark: Cleanup complete. ${res.count} action items deleted.`,
       });
     } else {
       const closest = closestMatch(args[0], [
