@@ -964,7 +964,7 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
             .flat(),
         ],
       });
-    } else if ("cleanup") {
+    } else if (args[0] === "cleanup") {
       const project = args[1]?.trim();
       const files = readdirSync("./config");
 
@@ -993,7 +993,9 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
 
       await prisma.actionItem.deleteMany({
         where: {
-          slackMessages: { some: { channel: { slackId: { in: channels.map((c) => c.id) } } } },
+          slackMessages: {
+            some: { channel: { slackId: { in: channels.map((c) => c.id) } } },
+          },
           status: { not: ActionStatus.closed },
         },
       });
