@@ -13,13 +13,13 @@ export const slackItem = ({
 }: {
   item: ActionItem & {
     assignee: User | null | undefined;
-    githubItem: (GithubItem & { repository: Repository }) | null | undefined;
-    slackMessage: (SlackMessage & { channel: Channel; author: User }) | null | undefined;
+    githubItems: (GithubItem & { repository: Repository })[];
+    slackMessages: (SlackMessage & { channel: Channel; author: User })[];
   };
   showActions?: boolean;
 }) => {
   const diff = dayjs().diff(dayjs(item.lastReplyOn), "day");
-  const project = getProjectName({ channelId: item.slackMessage?.channel?.slackId });
+  const project = getProjectName({ channelId: item.slackMessages[0].channel?.slackId });
 
   const assigneeText = item.assignee
     ? `Assigned to: ${
@@ -27,7 +27,7 @@ export const slackItem = ({
       }`
     : "Unassigned";
 
-  const maintainers = getMaintainers({ channelId: item.slackMessage?.channel?.slackId });
+  const maintainers = getMaintainers({ channelId: item.slackMessages[0].channel?.slackId });
   const isMaintainer = maintainers.find(
     (maintainer) =>
       maintainer?.slack === item.assignee?.slackId ||
@@ -49,17 +49,17 @@ export const slackItem = ({
     type: "section",
     text: {
       type: "mrkdwn",
-      text: `*Project:* ${project}\n*Action Id:* ${item.id}\n*Query:* ${
-        item.slackMessage?.text
-      }\n\nOpened by <@${item.slackMessage?.author?.slackId}> on ${dayjs(
-        item.slackMessage?.createdAt
-      ).format("MMM DD, YYYY")} at ${dayjs(item.slackMessage?.createdAt).format("hh:mm A")}${
+      text: `*Project:* ${project}\n*Action Id:* ${item.id}\n*Query:* ${item.slackMessages
+        .map((m) => `<@${m.author?.slackId}>: ${m.text}`)
+        .join("\n")}\n\nOpened by <@${item.slackMessages[0].author?.slackId}> on ${dayjs(
+        item.slackMessages[0].createdAt
+      ).format("MMM DD, YYYY")} at ${dayjs(item.slackMessages[0].createdAt).format("hh:mm A")}${
         item.lastReplyOn
           ? `\n*Last reply:* ${dayjs(item.lastReplyOn).fromNow()} ${diff > 10 ? ":panik:" : ""}`
           : "\n:panik: *No replies yet*"
       } | ${assigneeText}\n<https://hackclub.slack.com/archives/${
-        item.slackMessage?.channel?.slackId
-      }/p${item.slackMessage?.ts.replace(".", "")}|View on Slack>`,
+        item.slackMessages[0].channel?.slackId
+      }/p${item.slackMessages[0].ts.replace(".", "")}|View on Slack>`,
     },
     accessory: showActions
       ? {
@@ -122,15 +122,15 @@ export const githubItem = ({
 }: {
   item: ActionItem & {
     assignee: User | null | undefined;
-    githubItem: (GithubItem & { repository: Repository; author: User }) | null | undefined;
-    slackMessage: (SlackMessage & { channel: Channel; author: User }) | null | undefined;
+    githubItems: (GithubItem & { repository: Repository; author: User })[];
+    slackMessages: (SlackMessage & { channel: Channel; author: User })[];
   };
   showActions?: boolean;
 }) => {
   const diff = dayjs().diff(dayjs(item.lastReplyOn), "day");
-  const url = `<https://github.com/${item.githubItem?.repository?.owner}/${item.githubItem?.repository?.name}/issues/${item.githubItem?.number}|View on GitHub>`;
-  const text = item.githubItem?.title ? `*Issue:* ${item.githubItem?.title}` : url;
-  const project = getProjectName({ repoUrl: item.githubItem?.repository?.url });
+  const url = `<https://github.com/${item.githubItems[0].repository?.owner}/${item.githubItems[0].repository?.name}/issues/${item.githubItems[0].number}|View on GitHub>`;
+  const text = item.githubItems[0].title ? `*Issue:* ${item.githubItems[0].title}` : url;
+  const project = getProjectName({ repoUrl: item.githubItems[0].repository?.url });
 
   const assigneeText = item.assignee
     ? `Assigned to ${
@@ -138,7 +138,7 @@ export const githubItem = ({
       }`
     : "Unassigned";
 
-  const maintainers = getMaintainers({ repoUrl: item.githubItem?.repository?.url });
+  const maintainers = getMaintainers({ repoUrl: item.githubItems[0].repository?.url });
   const isMaintainer = maintainers.find(
     (maintainer) =>
       maintainer?.slack === item.assignee?.slackId ||
@@ -161,14 +161,14 @@ export const githubItem = ({
     text: {
       type: "mrkdwn",
       text: `*Project:* ${project}\n*Action Id:* ${item.id}\n${text}\n\nOpened by ${
-        item.githubItem?.author?.githubUsername
-      } on ${dayjs(item.githubItem?.createdAt).format("MMM DD, YYYY")} at ${dayjs(
-        item.githubItem?.createdAt
+        item.githubItems[0].author?.githubUsername
+      } on ${dayjs(item.githubItems[0].createdAt).format("MMM DD, YYYY")} at ${dayjs(
+        item.githubItems[0].createdAt
       ).format("hh:mm A")}${
         item.lastReplyOn
           ? `\n*Last reply:* ${dayjs(item.lastReplyOn).fromNow()} ${diff > 10 ? ":panik:" : ""}`
           : "\n:panik: *No replies yet*"
-      } | ${assigneeText}\n${item.githubItem?.title ? url : ""}`,
+      } | ${assigneeText}\n${item.githubItems[0].title ? url : ""}`,
     },
     accessory: showActions
       ? {
@@ -225,10 +225,22 @@ export const githubItem = ({
   };
 };
 
-export const buttons = ({ item, showAssignee = false, showActions = true }) => {
+export const buttons = ({
+  item,
+  showAssignee = false,
+  showActions = true,
+}: {
+  item: ActionItem & {
+    assignee: User | null | undefined;
+    githubItems: (GithubItem & { repository: Repository; author: User })[];
+    slackMessages: (SlackMessage & { channel: Channel; author: User })[];
+  };
+  showAssignee?: boolean;
+  showActions?: boolean;
+}) => {
   const maintainers = getMaintainers({
-    repoUrl: item.githubItem?.repository?.url,
-    channelId: item.slackMessage?.channel?.slackId,
+    repoUrl: item.githubItems[0]?.repository?.url,
+    channelId: item.slackMessages[0]?.channel?.slackId,
   });
   const isMaintainer = maintainers.find(
     (maintainer) =>

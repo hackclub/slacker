@@ -75,19 +75,14 @@ export const createGithubItem = async (payload) => {
   if (maintainers.find((maintainer) => maintainer?.github === item.user.login)) return;
 
   // find user by login
-  const user = await prisma.user.findFirst({
-    where: { githubUsername: item.user.login },
-  });
+  const user = await prisma.user.findFirst({ where: { githubUsername: item.user.login } });
   let author: User;
 
-  if (!user)
-    author = await prisma.user.create({
-      data: { githubUsername: item.user.login },
-    });
+  if (!user) author = await prisma.user.create({ data: { githubUsername: item.user.login } });
   else author = user;
 
   const actionItem = await prisma.actionItem.findFirst({
-    where: { githubItem: { nodeId: item.node_id } },
+    where: { githubItems: { some: { nodeId: item.node_id } } },
   });
 
   const githubItem = await prisma.githubItem.upsert({
@@ -374,8 +369,8 @@ export const getGithubItem = async (owner: string, name: string, id: string) => 
 
 export const assignIssueToVolunteer = async (
   items: (ActionItem & {
-    slackMessage: (SlackMessage & { channel: Channel | null; author: User | null }) | null;
-    githubItem: (GithubItem & { repository: Repository | null; author: User | null }) | null;
+    slackMessages: (SlackMessage & { channel: Channel | null; author: User | null })[];
+    githubItems: (GithubItem & { repository: Repository | null; author: User | null })[];
     assignee: User | null;
   })[],
   user: User,
@@ -413,56 +408,67 @@ export const assignIssueToVolunteer = async (
   }
 
   try {
-    for (let i = 0; i < items.length; i++) {
-      const item = items[i];
-      if (!item.githubItem) continue;
+    let assignedIssue: (GithubItem & { repository: Repository | null }) | undefined;
+    for await (const item of items) {
+      if (item.githubItems.length === 0) continue;
 
+      // * Github items are always singular for now
       const octokit = new Octokit({
         auth:
           "Bearer " +
           (await getOctokitToken(
-            item.githubItem.repository?.owner || "",
-            item.githubItem.repository?.name || ""
+            item.githubItems[0].repository?.owner || "",
+            item.githubItems[0].repository?.name || ""
           )),
       });
 
       const issue = await octokit.rest.issues.get({
-        owner: item.githubItem.repository?.owner || "",
-        repo: item.githubItem.repository?.name || "",
-        issue_number: item.githubItem.number,
+        owner: item.githubItems[0].repository?.owner || "",
+        repo: item.githubItems[0].repository?.name || "",
+        issue_number: item.githubItems[0].number,
       });
 
       if (issue.data.assignees && issue.data.assignees.length > 0) continue;
       const userOctokit = new Octokit({ auth: "Bearer " + user.githubToken });
 
       await userOctokit.rest.issues.createComment({
-        owner: item.githubItem.repository?.owner || "",
-        repo: item.githubItem.repository?.name || "",
-        issue_number: item.githubItem.number,
+        owner: item.githubItems[0].repository?.owner || "",
+        repo: item.githubItems[0].repository?.name || "",
+        issue_number: item.githubItems[0].number,
         body: `I'm volunteering to work on this issue.`,
         headers: { authorization: "Bearer " + user.githubToken },
       });
 
       await octokit.rest.issues.addAssignees({
-        owner: item.githubItem.repository?.owner || "",
-        repo: item.githubItem.repository?.name || "",
-        issue_number: item.githubItem.number,
+        owner: item.githubItems[0].repository?.owner || "",
+        repo: item.githubItems[0].repository?.name || "",
+        issue_number: item.githubItems[0].number,
         assignees: [user.githubUsername],
       });
+
+      assignedIssue = item.githubItems[0];
       break;
+    }
+
+    if (!assignedIssue) {
+      return await client.chat.postEphemeral({
+        user: user_id,
+        channel: channel_id,
+        text: "No issues found to assign to you. Please try again later.",
+      });
     }
 
     await prisma.volunteerDetail.create({
       data: {
         assignee: { connect: { id: user.id } },
         assignedOn: new Date(),
-        issue: { connect: { id: items[0].githubItem?.id } },
+        issue: { connect: { id: assignedIssue.id } },
       },
     });
 
     await client.chat.postMessage({
       channel: user_id,
-      text: `You have been assigned to issue #${items[0].githubItem?.number} on <${items[0].githubItem?.repository?.url}|${items[0].githubItem?.repository?.name}>.\n\nhttps://github.com/${items[0].githubItem?.repository?.owner}/${items[0].githubItem?.repository?.name}/issues/${items[0].githubItem?.number}`,
+      text: `You have been assigned to issue #${assignedIssue.number} on <${assignedIssue.repository?.url}|${assignedIssue.repository?.name}>.\n\nhttps://github.com/${assignedIssue.repository?.owner}/${assignedIssue.repository?.name}/issues/${assignedIssue.number}`,
     });
   } catch (e) {
     console.log(e);

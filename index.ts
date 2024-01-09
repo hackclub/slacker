@@ -1,10 +1,11 @@
 import { expressConnectMiddleware } from "@connectrpc/connect-express";
 import { createOAuthUserAuth } from "@octokit/auth-app";
 import { createNodeMiddleware } from "@octokit/webhooks";
-import { ActionStatus, User } from "@prisma/client";
+import { ActionItem, ActionStatus, SlackMessage, User } from "@prisma/client";
 import { App, ExpressReceiver, LogLevel } from "@slack/bolt";
 import dayjs from "dayjs";
 import customParseFormat from "dayjs/plugin/customParseFormat";
+import minMax from "dayjs/plugin/minMax";
 import relativeTime from "dayjs/plugin/relativeTime";
 import { config } from "dotenv";
 import express from "express";
@@ -43,6 +44,7 @@ import routes from "./routes";
 
 dayjs.extend(relativeTime);
 dayjs.extend(customParseFormat);
+dayjs.extend(minMax);
 config();
 
 const app = express();
@@ -230,27 +232,63 @@ slack.event("message", async ({ event, client, logger, message }) => {
         where: { id: parentInDb.id },
         data: {
           text: parent.text || "",
+          actionItem: { update: { participants: { deleteMany: {} } } },
+          replies: parent.reply_count,
+        },
+        include: {
           actionItem: {
-            update: {
-              firstReplyOn: threadReplies?.[0]?.ts
-                ? dayjs(threadReplies[0].ts.split(".")[0], "X").toDate()
-                : undefined,
-              lastReplyOn: parent.latest_reply
-                ? dayjs(parent.latest_reply.split(".")[0], "X").toDate()
-                : undefined,
-              totalReplies: parent.reply_count || 0,
-              participants: { deleteMany: {} },
-            },
+            include: { participants: { select: { user: true } }, slackMessages: true },
           },
         },
-        include: { actionItem: true },
       });
 
-      await syncParticipants(
-        Array.from(new Set(parent.reply_users)) || [],
-        slackMessage.actionItem!.id
+      const firstReplyOn =
+        threadReplies?.[0]?.ts && slackMessage.actionItem!.firstReplyOn
+          ? dayjs.min([
+              dayjs(threadReplies[0].ts.split(".")[0], "X"),
+              dayjs(slackMessage.actionItem!.firstReplyOn),
+            ])
+          : slackMessage.actionItem!.firstReplyOn
+          ? dayjs(slackMessage.actionItem!.firstReplyOn)
+          : threadReplies?.[0]?.ts
+          ? dayjs(threadReplies[0].ts.split(".")[0], "X")
+          : undefined;
+
+      const lastReplyOn =
+        parent.latest_reply && slackMessage.actionItem!.lastReplyOn
+          ? dayjs.max([
+              dayjs(parent.latest_reply.split(".")[0], "X"),
+              dayjs(slackMessage.actionItem!.lastReplyOn),
+            ])
+          : parent.latest_reply && !slackMessage.actionItem!.lastReplyOn
+          ? dayjs(parent.latest_reply.split(".")[0], "X")
+          : slackMessage.actionItem!.lastReplyOn && !parent.latest_reply
+          ? dayjs(slackMessage.actionItem!.lastReplyOn)
+          : undefined;
+
+      await prisma.actionItem.update({
+        where: { id: slackMessage.actionItem!.id },
+        data: {
+          firstReplyOn: firstReplyOn?.toDate(),
+          lastReplyOn: lastReplyOn?.toDate(),
+          totalReplies: slackMessage.actionItem!.slackMessages.reduce(
+            (acc, cur) => acc + cur.replies,
+            0
+          ),
+        },
+      });
+
+      const participants = Array.from(
+        new Set(
+          parent.reply_users?.concat(
+            slackMessage.actionItem.participants
+              .map((p) => p.user.slackId)
+              .filter((p) => p) as string[]
+          ) || []
+        )
       );
 
+      await syncParticipants(participants, slackMessage.actionItem!.id);
       await indexDocument(slackMessage.actionItem!.id);
     } else {
       // create new action item:
@@ -265,34 +303,115 @@ slack.event("message", async ({ event, client, logger, message }) => {
         author = await prisma.user.create({ data: { email, slackId: parent.user as string } });
       else author = user;
 
-      const slackMessage = await prisma.slackMessage.create({
-        data: {
-          text: parent.text || "",
-          ts: parent.ts || "",
-          createdAt: dayjs(parent.ts?.split(".")[0], "X").toDate(),
-          actionItem: {
-            create: {
-              lastReplyOn: parent.latest_reply
-                ? dayjs(parent.latest_reply.split(".")[0], "X").toDate()
-                : undefined,
-              firstReplyOn: threadReplies?.[0]?.ts
-                ? dayjs(threadReplies[0].ts.split(".")[0], "X").toDate()
-                : undefined,
-              totalReplies: parent.reply_count || 0,
-              status: ActionStatus.open,
+      const project = getProjectName({ channelId: event.channel });
+      const details = getYamlFile(`${project}.yaml`);
+      const shouldGroup = details.grouping && typeof details.grouping.minutes;
+
+      const recentSlackMessage = details.grouping?.minutes
+        ? await prisma.slackMessage.findFirst({
+            where: {
+              channel: { slackId: event.channel },
+              createdAt: { gte: dayjs().subtract(details.grouping.minutes, "minute").toDate() },
+            },
+            include: { actionItem: { select: { id: true } } },
+            orderBy: { createdAt: "desc" },
+          })
+        : null;
+
+      let slackMessage: SlackMessage & {
+        actionItem: ActionItem & { participants: { user: User }[]; slackMessages?: SlackMessage[] };
+      };
+
+      if (recentSlackMessage && shouldGroup) {
+        slackMessage = await prisma.slackMessage.create({
+          data: {
+            text: parent.text || "",
+            ts: parent.ts || "",
+            replies: parent.reply_count,
+            createdAt: dayjs(parent.ts?.split(".")[0], "X").toDate(),
+            actionItem: { connect: { id: recentSlackMessage.actionItem!.id } },
+            channel: { connect: { slackId: event.channel } },
+            author: { connect: { id: author.id } },
+          },
+          include: {
+            actionItem: {
+              include: { participants: { select: { user: true } }, slackMessages: true },
             },
           },
-          channel: { connect: { slackId: event.channel } },
-          author: { connect: { id: author.id } },
-        },
-        include: { actionItem: true },
-      });
+        });
 
-      await syncParticipants(
-        Array.from(new Set(parent.reply_users)) || [],
-        slackMessage.actionItem!.id
+        const firstReplyOn =
+          threadReplies?.[0]?.ts && slackMessage.actionItem!.firstReplyOn
+            ? dayjs.min([
+                dayjs(threadReplies[0].ts.split(".")[0], "X"),
+                dayjs(slackMessage.actionItem!.firstReplyOn),
+              ])
+            : slackMessage.actionItem!.firstReplyOn
+            ? dayjs(slackMessage.actionItem!.firstReplyOn)
+            : threadReplies?.[0]?.ts
+            ? dayjs(threadReplies[0].ts.split(".")[0], "X")
+            : undefined;
+
+        const lastReplyOn =
+          parent.latest_reply && slackMessage.actionItem!.lastReplyOn
+            ? dayjs.max([
+                dayjs(parent.latest_reply.split(".")[0], "X"),
+                dayjs(slackMessage.actionItem!.lastReplyOn),
+              ])
+            : parent.latest_reply && !slackMessage.actionItem!.lastReplyOn
+            ? dayjs(parent.latest_reply.split(".")[0], "X")
+            : slackMessage.actionItem!.lastReplyOn && !parent.latest_reply
+            ? dayjs(slackMessage.actionItem!.lastReplyOn)
+            : undefined;
+
+        await prisma.actionItem.update({
+          where: { id: recentSlackMessage.actionItem!.id },
+          data: {
+            firstReplyOn: firstReplyOn?.toDate(),
+            lastReplyOn: lastReplyOn?.toDate(),
+            totalReplies: slackMessage.actionItem!.slackMessages?.reduce(
+              (acc, cur) => acc + cur.replies,
+              0
+            ),
+          },
+        });
+      } else {
+        slackMessage = await prisma.slackMessage.create({
+          data: {
+            text: parent.text || "",
+            ts: parent.ts || "",
+            replies: parent.reply_count,
+            createdAt: dayjs(parent.ts?.split(".")[0], "X").toDate(),
+            actionItem: {
+              create: {
+                lastReplyOn: parent.latest_reply
+                  ? dayjs(parent.latest_reply.split(".")[0], "X").toDate()
+                  : undefined,
+                firstReplyOn: threadReplies?.[0]?.ts
+                  ? dayjs(threadReplies[0].ts.split(".")[0], "X").toDate()
+                  : undefined,
+                totalReplies: parent.reply_count || 0,
+                status: ActionStatus.open,
+              },
+            },
+            channel: { connect: { slackId: event.channel } },
+            author: { connect: { id: author.id } },
+          },
+          include: { actionItem: { include: { participants: { select: { user: true } } } } },
+        });
+      }
+
+      const participants = Array.from(
+        new Set(
+          parent.reply_users?.concat(
+            slackMessage.actionItem.participants
+              .map((p) => p.user.slackId)
+              .filter((p) => p) as string[]
+          ) || []
+        )
       );
 
+      await syncParticipants(participants, slackMessage.actionItem!.id);
       await indexDocument(slackMessage.actionItem!.id);
     }
   } catch (err) {
@@ -330,8 +449,8 @@ cron.schedule("0 * * * *", async () => {
         },
         include: {
           assignee: true,
-          githubItem: { select: { repository: true, number: true } },
-          slackMessage: { select: { channel: true, ts: true } },
+          githubItems: { select: { repository: true, number: true } },
+          slackMessages: { select: { channel: true, ts: true } },
         },
       })
       .then((res) =>
@@ -353,11 +472,12 @@ cron.schedule("0 * * * *", async () => {
       if (dayjs().isBefore(deadline)) continue;
       await prisma.actionItem.update({ where: { id: item.id }, data: { assigneeId: null } });
 
-      const url = item.githubItem
-        ? `${item.githubItem.repository.url}/issues/${item.githubItem.number}`
-        : `https://hackclub.slack.com/archives/${
-            item.slackMessage?.channel?.slackId
-          }/p${item.slackMessage?.ts.replace(".", "")}`;
+      const url =
+        item.githubItems.length > 0
+          ? `${item.githubItems.at(-1)?.repository.url}/issues/${item.githubItems.at(-1)?.number}`
+          : `https://hackclub.slack.com/archives/${
+              item.slackMessages.at(-1)?.channel?.slackId
+            }/p${item.slackMessages.at(-1)?.ts.replace(".", "")}`;
 
       await slack.client.chat.postMessage({
         channel: item.assignee?.slackId ?? "",
@@ -380,8 +500,8 @@ cron.schedule("0 * * * *", async () => {
       include: {
         snoozedBy: true,
         assignee: true,
-        githubItem: { select: { repository: true, number: true } },
-        slackMessage: { select: { channel: true, ts: true } },
+        githubItems: { select: { repository: true, number: true } },
+        slackMessages: { select: { channel: true, ts: true } },
       },
     });
 
@@ -392,11 +512,12 @@ cron.schedule("0 * * * *", async () => {
 
       if (snoozedUntil.isAfter(now) || parseFloat(diff) >= 1) continue;
 
-      const url = item.githubItem
-        ? `${item.githubItem.repository.url}/issues/${item.githubItem.number}`
-        : `https://hackclub.slack.com/archives/${
-            item.slackMessage?.channel?.slackId
-          }/p${item.slackMessage?.ts.replace(".", "")}`;
+      const url =
+        item.githubItems.length > 0
+          ? `${item.githubItems.at(-1)?.repository.url}/issues/${item.githubItems.at(-1)?.number}`
+          : `https://hackclub.slack.com/archives/${
+              item.slackMessages.at(-1)?.channel?.slackId
+            }/p${item.slackMessages.at(-1)?.ts.replace(".", "")}`;
 
       await slack.client.chat.postMessage({
         channel: item.snoozedBy?.slackId ?? "",
@@ -417,8 +538,8 @@ cron.schedule("0 * * * *", async () => {
         actionItem: {
           include: {
             assignee: true,
-            githubItem: { select: { repository: true, number: true } },
-            slackMessage: { select: { channel: true, ts: true } },
+            githubItems: { select: { repository: true, number: true } },
+            slackMessages: { select: { channel: true, ts: true } },
           },
         },
         user: true,
@@ -432,11 +553,14 @@ cron.schedule("0 * * * *", async () => {
 
       if (followUpOn.isAfter(now) || parseFloat(diff) >= 1) continue;
 
-      const url = f.actionItem.githubItem
-        ? `${f.actionItem.githubItem.repository.url}/issues/${f.actionItem.githubItem.number}`
-        : `https://hackclub.slack.com/archives/${
-            f.actionItem.slackMessage?.channel?.slackId
-          }/p${f.actionItem.slackMessage?.ts.replace(".", "")}`;
+      const url =
+        f.actionItem.githubItems.length > 0
+          ? `${f.actionItem.githubItems.at(-1)?.repository.url}/issues/${
+              f.actionItem.githubItems.at(-1)?.number
+            }`
+          : `https://hackclub.slack.com/archives/${
+              f.actionItem.slackMessages.at(-1)?.channel?.slackId
+            }/p${f.actionItem.slackMessages.at(-1)?.ts.replace(".", "")}`;
 
       await slack.client.chat.postMessage({
         channel: f.user?.slackId ?? "",
@@ -478,17 +602,23 @@ cron.schedule(
               OR: [
                 channels
                   ? {
-                      slackMessage: {
-                        channel: { slackId: { in: channels?.map((c) => c.id) } },
+                      slackMessages: {
+                        some: {
+                          channel: { slackId: { in: channels?.map((c) => c.id) } },
+                        },
                       },
                     }
                   : {},
                 repos
-                  ? { githubItem: { repository: { url: { in: repos.map((r) => r.uri) } } } }
+                  ? {
+                      githubItems: {
+                        some: { repository: { url: { in: repos.map((r) => r.uri) } } },
+                      },
+                    }
                   : {},
               ],
             },
-            include: { slackMessage: true, githubItem: true, assignee: true },
+            include: { slackMessages: true, githubItems: true, assignee: true },
           });
 
           const open = items.filter(
@@ -496,18 +626,26 @@ cron.schedule(
               item.status === ActionStatus.open &&
               (item.snoozedUntil === null || dayjs(item.snoozedUntil).isBefore(dayjs()))
           );
-          const openMessages = open.filter((item) => item.slackMessageId);
-          const openPRs = open.filter((item) => item.githubItem?.type === "pull_request");
-          const openIssues = open.filter((item) => item.githubItem?.type === "issue");
+          const openMessages = open.filter((item) => item.slackMessages.length > 0);
+          const openPRs = open.filter(
+            (item) => item.githubItems.filter((i) => i.type === "pull_request").length > 0
+          );
+          const openIssues = open.filter(
+            (item) => item.githubItems.filter((i) => i.type === "issue").length > 0
+          );
 
           const closed = items.filter(
             (item) =>
               item.status === ActionStatus.closed &&
               dayjs(item.resolvedAt).isAfter(dayjs().subtract(6, "days"))
           );
-          const closedMessages = closed.filter((item) => item.slackMessageId);
-          const closedPRs = closed.filter((item) => item.githubItem?.type === "pull_request");
-          const closedIssues = closed.filter((item) => item.githubItem?.type === "issue");
+          const closedMessages = closed.filter((item) => item.slackMessages.length > 0);
+          const closedPRs = closed.filter(
+            (item) => item.githubItems.filter((i) => i.type === "pull_request").length > 0
+          );
+          const closedIssues = closed.filter(
+            (item) => item.githubItems.filter((i) => i.type === "issue").length > 0
+          );
 
           const assigned = open.filter((item) => item.assigneeId !== null);
           const contributors = Array.from(
@@ -592,30 +730,27 @@ cron.schedule("0 12 * * *", async () => {
 
   try {
     const items = await prisma.actionItem.findMany({
-      where: { githubItem: { state: "open" } },
-      select: { githubItem: { include: { repository: true } } },
+      where: { githubItems: { some: { state: "open" } } },
+      select: { githubItems: { include: { repository: true } } },
     });
 
     for (let i = 0; i < items.length; i++) {
       const item = items[i];
-      if (!item.githubItem) continue;
+      if (item.githubItems.length < 1) continue;
 
-      const project = getProjectName({ repoUrl: item.githubItem?.repository.url });
+      const gh = item.githubItems.at(-1);
+      if (!gh) continue;
+
+      const project = getProjectName({ repoUrl: gh.repository.url });
       if (!project) continue;
 
       const config = getYamlFile(`${project}.yaml`);
       if (!config.clawback) continue;
 
-      const ghItem = await getGithubItem(
-        item.githubItem.repository.owner,
-        item.githubItem.repository.name,
-        item.githubItem.nodeId
-      );
+      const ghItem = await getGithubItem(gh.repository.owner, gh.repository.name, gh.nodeId);
 
       if (ghItem.node.assignees.nodes.length < 1) continue;
-      const assignedOn = dayjs(
-        item.githubItem.lastAssignedOn || ghItem.node.assignees.nodes[0].createdAt
-      );
+      const assignedOn = dayjs(gh.lastAssignedOn || ghItem.node.assignees.nodes[0].createdAt);
       let deadline = assignedOn;
 
       let count = 0;
@@ -628,10 +763,7 @@ cron.schedule("0 12 * * *", async () => {
       if (dayjs().isBefore(deadline)) continue;
 
       // it's been over the deadline since it was assigned. now we either have to prompt them to confirm or unassign them.
-      if (
-        item.githubItem.lastPromptedOn &&
-        dayjs(item.githubItem.lastPromptedOn).isAfter(deadline)
-      ) {
+      if (gh.lastPromptedOn && dayjs(gh.lastPromptedOn).isAfter(deadline)) {
         // they have been prompted, unassign them after two days
         const unassignDeadline = dayjs(deadline).add(2, "day");
         if (dayjs().isBefore(unassignDeadline)) continue;
@@ -641,24 +773,19 @@ cron.schedule("0 12 * * *", async () => {
         });
 
         const octokit = new Octokit({
-          auth:
-            "Bearer " +
-            (await getOctokitToken(
-              item.githubItem.repository.owner,
-              item.githubItem.repository.name
-            )),
+          auth: "Bearer " + (await getOctokitToken(gh.repository.owner, gh.repository.name)),
         });
 
         await octokit.rest.issues.removeAssignees({
-          owner: item.githubItem.repository.owner,
-          repo: item.githubItem.repository.name,
-          issue_number: item.githubItem.number,
+          owner: gh.repository.owner,
+          repo: gh.repository.name,
+          issue_number: gh.number,
           assignees: [ghItem.node.assignees.nodes[0].login],
         });
 
         await slack.client.chat.postMessage({
           channel: assignee?.slackId ?? "",
-          text: `:warning: Hey, we unassigned #${item.githubItem.number} *<${item.githubItem.repository.url}/issues/${item.githubItem.number}|${item.githubItem.title}>* from you because you didn't resolve it in time. Feel free to pick it up again!`,
+          text: `:warning: Hey, we unassigned #${gh.number} *<${gh.repository.url}/issues/${gh.number}|${gh.title}>* from you because you didn't resolve it in time. Feel free to pick it up again!`,
         });
       } else {
         // prompt them to confirm
@@ -668,13 +795,13 @@ cron.schedule("0 12 * * *", async () => {
 
         await slack.client.chat.postMessage({
           channel: assignee?.slackId ?? "",
-          text: `:wave: Hey, we noticed that you've been assigned #${item.githubItem.number} *<${item.githubItem.repository.url}/issues/${item.githubItem.number}|${item.githubItem.title}>* for a while now. Are you still working on it?`,
+          text: `:wave: Hey, we noticed that you've been assigned #${gh.number} *<${gh.repository.url}/issues/${gh.number}|${gh.title}>* for a while now. Are you still working on it?`,
           blocks: [
             {
               type: "section",
               text: {
                 type: "mrkdwn",
-                text: `:wave: Hey, we noticed that you've been assigned #${item.githubItem.number} *<${item.githubItem.repository.url}/issues/${item.githubItem.number}|${item.githubItem.title}>* for a while now. Are you still working on it?`,
+                text: `:wave: Hey, we noticed that you've been assigned #${gh.number} *<${gh.repository.url}/issues/${gh.number}|${gh.title}>* for a while now. Are you still working on it?`,
               },
             },
             {
@@ -685,14 +812,14 @@ cron.schedule("0 12 * * *", async () => {
                   text: { type: "plain_text", text: "Yes, I'm still working on it" },
                   style: "primary",
                   action_id: "prompt-assignee-yes",
-                  value: item.githubItem.nodeId,
+                  value: gh.nodeId,
                 },
                 {
                   type: "button",
                   text: { type: "plain_text", text: "No, I'm not working on it anymore" },
                   style: "danger",
                   action_id: "prompt-assignee-no",
-                  value: `${item.githubItem.nodeId}-${ghItem.node.assignees.nodes[0].login}`,
+                  value: `${gh.nodeId}-${ghItem.node.assignees.nodes[0].login}`,
                 },
               ],
             },
@@ -700,7 +827,7 @@ cron.schedule("0 12 * * *", async () => {
         });
 
         await prisma.githubItem.update({
-          where: { id: item.githubItem.id },
+          where: { id: gh.id },
           data: { lastPromptedOn: new Date() },
         });
       }
@@ -754,7 +881,7 @@ const checkDuplicateResources = async () => {
     metrics.increment("server.start.increment", 1);
     await checkDuplicateResources();
     await slack.start(process.env.PORT || 5000);
-    await joinChannels();
+    // await joinChannels();
     // await backFill();
     console.log(`Server running on http://localhost:5000`);
   } catch (err) {

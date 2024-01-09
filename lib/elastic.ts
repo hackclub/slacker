@@ -60,8 +60,8 @@ export const indexDocument = async (id: string, data?: ElasticDocument) => {
     const item = await prisma.actionItem.findUnique({
       where: { id },
       include: {
-        slackMessage: { include: { channel: true, author: true } },
-        githubItem: { include: { repository: true, author: true } },
+        slackMessages: { include: { channel: true, author: true } },
+        githubItems: { include: { repository: true, author: true } },
         assignee: true,
         snoozedBy: true,
         participants: { select: { user: true } },
@@ -76,8 +76,8 @@ export const indexDocument = async (id: string, data?: ElasticDocument) => {
       .catch(() => undefined);
 
     const project = getProjectName({
-      channelId: item.slackMessage?.channel.slackId,
-      repoUrl: item.githubItem?.repository.url,
+      channelId: item.slackMessages[0]?.channel.slackId,
+      repoUrl: item.githubItems[0]?.repository.url,
     });
 
     if (!project) return;
@@ -119,7 +119,8 @@ export const indexDocument = async (id: string, data?: ElasticDocument) => {
     timesAssigned = timesAssigned === 0 && item.assignee ? 1 : timesAssigned;
 
     const createdAt =
-      item.githubItem?.createdAt || dayjs(item.slackMessage?.ts?.split(".")[0], "X").toDate();
+      item.githubItems[0]?.createdAt ||
+      dayjs(item.slackMessages[0]?.ts?.split(".")[0], "X").toDate();
 
     await elastic.index<ElasticDocument>({
       id: item.id,
@@ -127,11 +128,12 @@ export const indexDocument = async (id: string, data?: ElasticDocument) => {
       index: "search-slacker-analytics",
       document: {
         id: item.id,
-        actionItemType: item.slackMessage
-          ? "message"
-          : item.githubItem?.type === "issue"
-          ? "issue"
-          : "pull",
+        actionItemType:
+          item.slackMessages.length > 0
+            ? "message"
+            : item.githubItems[0].type === "issue"
+            ? "issue"
+            : "pull",
         createdTime: createdAt ?? item.createdAt,
         resolvedTime: item.resolvedAt,
         firstResponseTime: item.firstReplyOn,
@@ -139,19 +141,20 @@ export const indexDocument = async (id: string, data?: ElasticDocument) => {
           item.snoozedUntil && dayjs(item.snoozedUntil).isAfter(dayjs())
             ? "snoozed"
             : item.status === ActionStatus.closed
-            ? item.slackMessage
+            ? item.slackMessages.length > 0
               ? "resolved"
               : "triaged"
             : "open",
         lastModifiedTime:
           item.lastReplyOn ??
-          item.slackMessage?.updatedAt ??
-          item.githubItem?.updatedAt ??
+          item.slackMessages.at(-1)?.updatedAt ??
+          item.githubItems[0].updatedAt ??
           item.updatedAt,
         project,
-        source: item.githubItem
-          ? item.githubItem?.repository.owner + "/" + item.githubItem?.repository.name
-          : `#${item.slackMessage?.channel.name}`,
+        source:
+          item.githubItems.length > 0
+            ? item.githubItems[0].repository.owner + "/" + item.githubItems[0].repository.name
+            : `#${item.slackMessages[0].channel.name}`,
         snoozedUntil: item.snoozedUntil,
         timesCommented: item.totalReplies,
         timesReopened: (doc?._source?.timesReopened ?? 0) + (data?.timesReopened ?? 0),
@@ -171,14 +174,15 @@ export const indexDocument = async (id: string, data?: ElasticDocument) => {
         ),
         author: participants.find(
           (actor) =>
-            actor.slack === (item.slackMessage || item.githubItem)?.author.slackId ||
-            actor.github === (item.slackMessage || item.githubItem)?.author.githubUsername
+            actor.slack === (item.slackMessages || item.githubItems)[0].author.slackId ||
+            actor.github === (item.slackMessages || item.githubItems)[0].author.githubUsername
         ),
-        url: item.githubItem
-          ? `https://github.com/${item.githubItem?.repository?.owner}/${item.githubItem?.repository?.name}/issues/${item.githubItem?.number}`
-          : `https://hackclub.slack.com/archives/${
-              item.slackMessage?.channel.slackId
-            }/p${item.slackMessage?.ts.replace(".", "")}`,
+        url:
+          item.githubItems.length > 0
+            ? `https://github.com/${item.githubItems[0].repository?.owner}/${item.githubItems[0].repository?.name}/issues/${item.githubItems[0].number}`
+            : `https://hackclub.slack.com/archives/${
+                item.slackMessages[0].channel.slackId
+              }/p${item.slackMessages[0]?.ts.replace(".", "")}`,
       },
     });
   } catch (err) {

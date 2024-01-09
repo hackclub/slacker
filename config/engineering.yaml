@@ -2,6 +2,8 @@ name: HQ Engineering
 description: HQ Engineering stuff for Hack Club
 maintainers: [faisal, graham, josias, marios]
 clawback: true
+grouping:
+  minutes: 10
 channels:
   - name: infra-alerts
     id: C05G25Y9M6V

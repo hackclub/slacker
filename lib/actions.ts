@@ -1,13 +1,13 @@
 import { Middleware, SlackAction, SlackActionMiddlewareArgs } from "@slack/bolt";
 import { StringIndexed } from "@slack/bolt/dist/types/helpers";
 import dayjs from "dayjs";
+import { Octokit } from "octokit";
+import { handleSlackerCommand } from "./commands";
 import prisma from "./db";
 import { indexDocument } from "./elastic";
 import metrics from "./metrics";
-import { MAINTAINERS, logActivity } from "./utils";
-import { Octokit } from "octokit";
 import { getOctokitToken } from "./octokit";
-import { handleSlackerCommand } from "./commands";
+import { MAINTAINERS, logActivity } from "./utils";
 
 export const markIrrelevant: Middleware<
   SlackActionMiddlewareArgs<SlackAction>,
@@ -18,15 +18,7 @@ export const markIrrelevant: Middleware<
   try {
     const { actions, channel, message } = body as any;
     const actionId = actions[0].value;
-
-    const action = await prisma.actionItem.findFirst({
-      where: { id: actionId },
-      include: {
-        slackMessage: { include: { channel: true } },
-        githubItem: { include: { repository: true } },
-      },
-    });
-
+    const action = await prisma.actionItem.findFirst({ where: { id: actionId } });
     if (!action) return;
 
     await client.views.open({
@@ -91,15 +83,7 @@ export const resolve: Middleware<SlackActionMiddlewareArgs<SlackAction>, StringI
   try {
     const { actions, channel, message } = body as any;
     const actionId = actions[0].value;
-
-    const action = await prisma.actionItem.findFirst({
-      where: { id: actionId },
-      include: {
-        slackMessage: { include: { channel: true } },
-        githubItem: { include: { repository: true } },
-      },
-    });
-
+    const action = await prisma.actionItem.findFirst({ where: { id: actionId } });
     if (!action) return;
 
     await client.views.open({
@@ -172,15 +156,7 @@ export const snooze: Middleware<SlackActionMiddlewareArgs<SlackAction>, StringIn
     const { actions, channel, message } = body as any;
     const actionId = actions[0].value;
     actions[0].action_id === "snooze" && (await ack());
-
-    const action = await prisma.actionItem.findFirst({
-      where: { id: actionId },
-      include: {
-        slackMessage: { include: { channel: true } },
-        githubItem: { include: { repository: true } },
-      },
-    });
-
+    const action = await prisma.actionItem.findFirst({ where: { id: actionId } });
     if (!action) return;
 
     let nextBusinessDay = dayjs().add(1, "day");
@@ -273,15 +249,7 @@ export const notes: Middleware<SlackActionMiddlewareArgs<SlackAction>, StringInd
   try {
     const { actions } = body as any;
     const actionId = actions[0].value;
-
-    const action = await prisma.actionItem.findFirst({
-      where: { id: actionId },
-      include: {
-        slackMessage: { include: { channel: true } },
-        githubItem: { include: { repository: true } },
-      },
-    });
-
+    const action = await prisma.actionItem.findFirst({ where: { id: actionId } });
     if (!action) return;
 
     await client.views.open({
