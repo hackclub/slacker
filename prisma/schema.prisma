@@ -31,16 +31,19 @@ model User {
 }
 
 model SlackMessage {
-  id   String @id @default(cuid())
-  text String
-  ts   String // Cannot convert into DateTime since slack uses this as an ID (string) - 17241837419.1200
+  id      String @id @default(cuid())
+  text    String
+  ts      String // Cannot convert into DateTime since slack uses this as an ID (string) - 17241837419.1200
+  replies Int    @default(0)
 
   channelId String
   channel   Channel @relation(fields: [channelId], references: [id], onDelete: Cascade)
 
-  authorId   String
-  author     User        @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  actionItem ActionItem?
+  authorId String
+  author   User   @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  actionItemId String
+  actionItem   ActionItem @relation(fields: [actionItemId], references: [id])
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -51,14 +54,16 @@ model SlackMessage {
 }
 
 model GithubItem {
-  id         String         @id @default(cuid())
-  title      String         @default("")
-  body       String         @default("")
-  number     Int
-  nodeId     String         @unique
-  state      GithubState
-  type       GithubItemType
-  actionItem ActionItem?
+  id     String         @id @default(cuid())
+  title  String         @default("")
+  body   String         @default("")
+  number Int
+  nodeId String         @unique
+  state  GithubState
+  type   GithubItemType
+
+  actionItemId String
+  actionItem   ActionItem @relation(fields: [actionItemId], references: [id])
 
   repositoryId String
   repository   Repository @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
@@ -84,11 +89,8 @@ model GithubItem {
 model ActionItem {
   id String @id @default(cuid())
 
-  slackMessageId String?       @unique
-  slackMessage   SlackMessage? @relation(fields: [slackMessageId], references: [id], onDelete: Cascade)
-
-  githubItemId String?     @unique
-  githubItem   GithubItem? @relation(fields: [githubItemId], references: [id], onDelete: Cascade)
+  slackMessages SlackMessage[]
+  githubItems   GithubItem[]
 
   firstReplyOn DateTime?
   lastReplyOn  DateTime?
@@ -115,8 +117,6 @@ model ActionItem {
   updatedAt DateTime @updatedAt
 
   @@index([id])
-  @@index([slackMessageId])
-  @@index([githubItemId])
   @@index([snoozedById])
 }
 
