@@ -41,3 +41,7 @@ sections:
     pattern: What is your game about
   - name: help
     pattern: help
+  - name: devices
+    pattern: A new Sprig device has been requested
+  - name: devices-india
+    pattern: A new Sprig device from India has been requested
