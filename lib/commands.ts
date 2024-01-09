@@ -116,15 +116,23 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
           where: {
             OR: [
               ...(isfilteringSlack(sections, filter)
-                ? [{ slackMessage: { channel: { slackId: { in: channels.map((c) => c.id) } } } }]
+                ? [
+                    {
+                      slackMessages: {
+                        some: { channel: { slackId: { in: channels.map((c) => c.id) } } },
+                      },
+                    },
+                  ]
                 : []),
               ...(isfilteringGithub(sections, filter)
                 ? [
                     {
-                      githubItem: {
-                        repository: { url: { in: repositories.map((r) => r.uri) } },
-                        ...(filter === "issues" ? { type: GithubItemType.issue } : {}),
-                        ...(filter === "pulls" ? { type: GithubItemType.pull_request } : {}),
+                      githubItems: {
+                        some: {
+                          repository: { url: { in: repositories.map((r) => r.uri) } },
+                          ...(filter === "issues" ? { type: GithubItemType.issue } : {}),
+                          ...(filter === "pulls" ? { type: GithubItemType.pull_request } : {}),
+                        },
                       },
                     },
                   ]
@@ -133,15 +141,14 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
             status: { not: ActionStatus.closed },
           },
           include: {
-            githubItem: { include: { author: true, repository: true } },
-            slackMessage: { include: { author: true, channel: true } },
+            githubItems: { include: { author: true, repository: true } },
+            slackMessages: { include: { author: true, channel: true } },
             participants: { include: { user: true } },
             assignee: true,
           },
           orderBy: { createdAt: "asc" },
         })
         .then((res) => {
-          console.log(res?.length);
           return (res || [])
             .filter((i) => i.snoozedUntil === null || dayjs().isAfter(dayjs(i.snoozedUntil)))
             .filter((i) => filterBySection(i, isfilteringSections(sections, filter)));
@@ -162,8 +169,8 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
             .map((item) => {
               const arr: any[] = [];
 
-              if (item.slackMessage !== null) arr.push(slackItem({ item, showActions: false }));
-              if (item.githubItem !== null) arr.push(githubItem({ item, showActions: false }));
+              if (item.slackMessages.length > 0) arr.push(slackItem({ item, showActions: false }));
+              if (item.githubItems.length > 0) arr.push(githubItem({ item, showActions: false }));
               arr.push(...buttons({ item, showActions: false, showAssignee: false }));
 
               return arr;
@@ -185,10 +192,7 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
         ],
       });
     } else if (args[0] === "reopen") {
-      const item = await prisma.actionItem.findFirst({
-        where: { id: args[1] },
-        include: { slackMessage: true, githubItem: true },
-      });
+      const item = await prisma.actionItem.findFirst({ where: { id: args[1] } });
 
       if (!item) {
         await client.chat.postEphemeral({
@@ -304,16 +308,24 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
         where: {
           snoozedUntil: { not: null, lte: dayjs().toDate() },
           OR: [
-            { slackMessage: { channel: { slackId: { in: channels.map((c) => c.id) } } } },
+            {
+              slackMessages: { some: { channel: { slackId: { in: channels.map((c) => c.id) } } } },
+            },
             ...(maintainers.find((m) => m.github === user?.githubUsername)
-              ? [{ githubItem: { repository: { url: { in: repositories.map((r) => r.uri) } } } }]
+              ? [
+                  {
+                    githubItems: {
+                      some: { repository: { url: { in: repositories.map((r) => r.uri) } } },
+                    },
+                  },
+                ]
               : []),
           ],
           status: { not: ActionStatus.closed },
         },
         include: {
-          githubItem: { include: { author: true, repository: true } },
-          slackMessage: { include: { author: true, channel: true } },
+          githubItems: { include: { author: true, repository: true } },
+          slackMessages: { include: { author: true, channel: true } },
           participants: { include: { user: true } },
         },
       });
@@ -335,14 +347,14 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
             .map((item) => {
               const arr: any[] = [];
 
-              if (item.slackMessage !== null)
+              if (item.slackMessages.length > 0)
                 arr.push({
                   type: "section",
                   text: {
                     type: "mrkdwn",
                     text: `${item.id}: https://hackclub.slack.com/archives/${
-                      item.slackMessage?.channel?.slackId
-                    }/p${item.slackMessage?.ts.replace(".", "")}`,
+                      item.slackMessages[0].channel?.slackId
+                    }/p${item.slackMessages[0].ts.replace(".", "")}`,
                   },
                   accessory: {
                     type: "button",
@@ -353,12 +365,12 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
                   },
                 });
 
-              if (item.githubItem !== null)
+              if (item.githubItems.length > 0)
                 arr.push({
                   type: "section",
                   text: {
                     type: "mrkdwn",
-                    text: `${item.id}: https://github.com/${item.githubItem?.repository?.owner}/${item.githubItem?.repository?.name}/issues/${item.githubItem?.number}`,
+                    text: `${item.id}: https://github.com/${item.githubItems[0].repository?.owner}/${item.githubItems[0].repository?.name}/issues/${item.githubItems[0].number}`,
                   },
                   accessory: {
                     type: "button",
@@ -407,8 +419,8 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
       const item = await prisma.actionItem.findFirst({
         where: { id, status: ActionStatus.open },
         include: {
-          githubItem: { include: { repository: true } },
-          slackMessage: { include: { channel: true } },
+          githubItems: { include: { repository: true } },
+          slackMessages: { include: { channel: true } },
         },
       });
 
@@ -422,8 +434,8 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
       }
 
       const maintainers = getMaintainers({
-        channelId: item.slackMessage?.channel?.slackId,
-        repoUrl: item.githubItem?.repository?.url,
+        channelId: item.slackMessages[0].channel?.slackId,
+        repoUrl: item.githubItems[0].repository?.url,
       });
 
       if (!maintainers.find((m) => m?.id === assignee)) {
@@ -514,15 +526,23 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
           where: {
             OR: [
               ...(isfilteringSlack(sections, filter)
-                ? [{ slackMessage: { channel: { slackId: { in: channels.map((c) => c.id) } } } }]
+                ? [
+                    {
+                      slackMessages: {
+                        some: { channel: { slackId: { in: channels.map((c) => c.id) } } },
+                      },
+                    },
+                  ]
                 : []),
               ...(isfilteringGithub(sections, filter)
                 ? [
                     {
-                      githubItem: {
-                        repository: { url: { in: repositories.map((r) => r.uri) } },
-                        ...(filter === "issues" ? { type: GithubItemType.issue } : {}),
-                        ...(filter === "pulls" ? { type: GithubItemType.pull_request } : {}),
+                      githubItems: {
+                        some: {
+                          repository: { url: { in: repositories.map((r) => r.uri) } },
+                          ...(filter === "issues" ? { type: GithubItemType.issue } : {}),
+                          ...(filter === "pulls" ? { type: GithubItemType.pull_request } : {}),
+                        },
                       },
                     },
                   ]
@@ -533,8 +553,8 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
             resolvedAt: null,
           },
           include: {
-            githubItem: { include: { repository: true, author: true } },
-            slackMessage: { include: { channel: true, author: true } },
+            githubItems: { include: { repository: true, author: true } },
+            slackMessages: { include: { channel: true, author: true } },
             assignee: true,
           },
         })
@@ -548,8 +568,8 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
         const arr: any[] = [];
 
         items.forEach((item) => {
-          if (item.slackMessage !== null) arr.push(slackItem({ item }));
-          if (item.githubItem !== null) arr.push(githubItem({ item }));
+          if (item.slackMessages.length > 0) arr.push(slackItem({ item }));
+          if (item.githubItems.length > 0) arr.push(githubItem({ item }));
           arr.push(...buttons({ item, showAssignee: true, showActions: true }));
         });
 
@@ -636,18 +656,20 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
         const data = await prisma.actionItem
           .findMany({
             where: {
-              githubItem: {
-                repository: { url: { in: repositories.map((r) => r.uri) } },
-                type: "issue",
-                labelsOnItems: { some: { label: { name: "good first issue" } } },
-                state: "open",
-                volunteer: { is: null },
+              githubItems: {
+                some: {
+                  repository: { url: { in: repositories.map((r) => r.uri) } },
+                  type: "issue",
+                  labelsOnItems: { some: { label: { name: "good first issue" } } },
+                  state: "open",
+                  volunteer: { is: null },
+                },
               },
             },
             orderBy: { totalReplies: "asc" },
             include: {
-              githubItem: { include: { author: true, repository: true } },
-              slackMessage: { include: { author: true, channel: true } },
+              githubItems: { include: { author: true, repository: true } },
+              slackMessages: { include: { author: true, channel: true } },
               participants: { select: { user: true } },
               assignee: true,
             },
@@ -666,16 +688,24 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
           where: {
             OR: [
               ...(isfilteringSlack(sections, filter)
-                ? [{ slackMessage: { channel: { slackId: { in: channels.map((c) => c.id) } } } }]
+                ? [
+                    {
+                      slackMessages: {
+                        some: { channel: { slackId: { in: channels.map((c) => c.id) } } },
+                      },
+                    },
+                  ]
                 : []),
               ...(isfilteringGithub(sections, filter) &&
               !!maintainers.find((m) => m.github === user?.githubUsername)
                 ? [
                     {
-                      githubItem: {
-                        repository: { url: { in: repositories.map((r) => r.uri) } },
-                        ...(filter === "issues" ? { type: GithubItemType.issue } : {}),
-                        ...(filter === "pulls" ? { type: GithubItemType.pull_request } : {}),
+                      githubItems: {
+                        some: {
+                          repository: { url: { in: repositories.map((r) => r.uri) } },
+                          ...(filter === "issues" ? { type: GithubItemType.issue } : {}),
+                          ...(filter === "pulls" ? { type: GithubItemType.pull_request } : {}),
+                        },
                       },
                     },
                   ]
@@ -686,8 +716,8 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
           },
           orderBy: { totalReplies: "asc" },
           include: {
-            githubItem: { include: { author: true, repository: true } },
-            slackMessage: { include: { author: true, channel: true } },
+            githubItems: { include: { author: true, repository: true } },
+            slackMessages: { include: { author: true, channel: true } },
             participants: { select: { user: true } },
             assignee: true,
           },
@@ -713,16 +743,16 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
         where: { id },
         data: { assignee: { connect: { id: user?.id } }, assignedOn: new Date() },
         include: {
-          githubItem: { include: { author: true, repository: true } },
-          slackMessage: { include: { author: true, channel: true } },
+          githubItems: { include: { author: true, repository: true } },
+          slackMessages: { include: { author: true, channel: true } },
           participants: { include: { user: true } },
           assignee: true,
         },
       });
 
       const arr: any[] = [];
-      if (item.slackMessage !== null) arr.push(slackItem({ item }));
-      if (item.githubItem !== null) arr.push(githubItem({ item }));
+      if (item.slackMessages.length > 0) arr.push(slackItem({ item }));
+      if (item.githubItems.length > 0) arr.push(githubItem({ item }));
       arr.push(...buttons({ item, showAssignee: true, showActions: true }));
 
       await client.chat.postMessage({

@@ -12,7 +12,7 @@ import relativeTime from "dayjs/plugin/relativeTime";
 import prisma from "./db";
 import { indexDocument } from "./elastic";
 import { getGithubItem } from "./octokit";
-import { logActivity, syncGithubParticipants, syncParticipants } from "./utils";
+import { logActivity, syncGithubParticipants } from "./utils";
 import metrics from "./metrics";
 dayjs.extend(relativeTime);
 dayjs.extend(customParseFormat);
@@ -27,17 +27,7 @@ export const snoozeSubmit: Middleware<
 
   try {
     const reason = view.state.values.reason?.["reason-action"]?.value;
-
-    const action = await prisma.actionItem.findFirst({
-      where: { id: actionId },
-      include: {
-        slackMessage: { include: { channel: true } },
-        githubItem: { include: { repository: true } },
-      },
-    });
-
-    if (!action) return;
-
+    const action = await prisma.actionItem.findFirstOrThrow({ where: { id: actionId } });
     const { selected_date_time } = view.state.values.datetime["datetimepicker-action"];
     const snoozedUntil = dayjs(selected_date_time, "X").toDate();
     const dbUser = await prisma.user.findFirst({ where: { slackId: user.id } });
@@ -123,22 +113,23 @@ export const irrelevantSubmit: Middleware<
     const action = await prisma.actionItem.findFirst({
       where: { id: actionId },
       include: {
-        slackMessage: { include: { channel: true } },
-        githubItem: { include: { repository: true } },
+        slackMessages: { include: { channel: true } },
+        githubItems: { include: { repository: true } },
       },
     });
 
     if (!action) return;
 
-    if (action.githubItem !== null) {
+    if (action.githubItems.length > 0) {
+      // * Github items are always singular for now
       const res = await getGithubItem(
-        action.githubItem.repository.owner,
-        action.githubItem.repository.name,
-        action.githubItem.nodeId
+        action.githubItems[0].repository.owner,
+        action.githubItems[0].repository.name,
+        action.githubItems[0].nodeId
       );
 
       await prisma.githubItem.update({
-        where: { nodeId: action.githubItem.nodeId },
+        where: { nodeId: action.githubItems[0].nodeId },
         data: {
           state: "closed",
           actionItem: {
@@ -159,50 +150,16 @@ export const irrelevantSubmit: Middleware<
 
       const logins = res.node.participants.nodes.map((node) => node.login);
       await syncGithubParticipants(logins, action.id);
-    } else if (action.slackMessage !== null) {
-      const parent = await client.conversations
-        .history({
-          channel: action.slackMessage.channel.slackId,
-          latest: action.slackMessage.ts,
-          limit: 1,
-          inclusive: true,
-        })
-        .then((res) => res.messages?.[0]);
-
-      if (!parent) return;
-
-      const threadReplies = await client.conversations
-        .replies({
-          channel: action.slackMessage.channel.slackId,
-          ts: parent.ts as string,
-          limit: 100,
-        })
-        .then((res) => res.messages?.slice(1));
-
-      await prisma.slackMessage.update({
-        where: { id: action.slackMessage.id },
+    } else if (action.slackMessages.length > 0) {
+      await prisma.actionItem.update({
+        where: { id: action.id },
         data: {
-          actionItem: {
-            update: {
-              status: "closed",
-              lastReplyOn: parent.latest_reply
-                ? dayjs(parent.latest_reply.split(".")[0], "X").toDate()
-                : undefined,
-              firstReplyOn: threadReplies?.[0]?.ts
-                ? dayjs(threadReplies[0].ts.split(".")[0], "X").toDate()
-                : undefined,
-              totalReplies: parent.reply_count || 0,
-              resolvedAt: new Date(),
-              participants: { deleteMany: {} },
-              flag: "irrelevant",
-              reason: reason ?? "",
-            },
-          },
+          status: "closed",
+          resolvedAt: new Date(),
+          flag: "irrelevant",
+          reason: reason ?? "",
         },
-        include: { actionItem: { include: { participants: true } } },
       });
-
-      await syncParticipants(Array.from(new Set(parent.reply_users)) || [], action.id);
     }
 
     const { messages } = await client.conversations.history({
@@ -251,23 +208,24 @@ export const resolveSubmit: Middleware<
   const action = await prisma.actionItem.findFirst({
     where: { id: actionId },
     include: {
-      slackMessage: { include: { channel: true } },
-      githubItem: { include: { repository: true } },
+      slackMessages: { include: { channel: true } },
+      githubItems: { include: { repository: true } },
     },
   });
 
   if (!action) return;
 
   try {
-    if (action.githubItem !== null) {
+    if (action.githubItems.length > 0) {
+      // * Github items are always singular for now
       const res = await getGithubItem(
-        action.githubItem.repository.owner,
-        action.githubItem.repository.name,
-        action.githubItem.nodeId
+        action.githubItems[0].repository.owner,
+        action.githubItems[0].repository.name,
+        action.githubItems[0].nodeId
       );
 
       await prisma.githubItem.update({
-        where: { nodeId: action.githubItem.nodeId },
+        where: { nodeId: action.githubItems[0].nodeId },
         data: {
           state: "closed",
           actionItem: {
@@ -287,49 +245,11 @@ export const resolveSubmit: Middleware<
 
       const logins = res.node.participants.nodes.map((node) => node.login);
       await syncGithubParticipants(logins, action.id);
-    } else if (action.slackMessage !== null) {
-      const parent = await client.conversations
-        .history({
-          channel: action.slackMessage.channel.slackId,
-          latest: action.slackMessage.ts,
-          limit: 1,
-          inclusive: true,
-        })
-        .then((res) => res.messages?.[0]);
-
-      if (!parent) return;
-
-      const threadReplies = await client.conversations
-        .replies({
-          channel: action.slackMessage.channel.slackId,
-          ts: parent.ts as string,
-          limit: 100,
-        })
-        .then((res) => res.messages?.slice(1));
-
-      await prisma.slackMessage.update({
-        where: { id: action.slackMessage.id },
-        data: {
-          actionItem: {
-            update: {
-              status: "closed",
-              lastReplyOn: parent.latest_reply
-                ? dayjs(parent.latest_reply.split(".")[0], "X").toDate()
-                : undefined,
-              firstReplyOn: threadReplies?.[0]?.ts
-                ? dayjs(threadReplies[0].ts.split(".")[0], "X").toDate()
-                : undefined,
-              totalReplies: parent.reply_count || 0,
-              resolvedAt: new Date(),
-              participants: { deleteMany: {} },
-              reason: reason ?? "",
-            },
-          },
-        },
-        include: { actionItem: { include: { participants: true } } },
+    } else if (action.slackMessages.length > 0) {
+      await prisma.actionItem.update({
+        where: { id: action.id },
+        data: { status: "closed", resolvedAt: new Date(), reason: reason ?? "" },
       });
-
-      await syncParticipants(Array.from(new Set(parent.reply_users)) || [], action.id);
     }
 
     const { messages } = await client.conversations.history({

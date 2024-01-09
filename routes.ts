@@ -54,7 +54,7 @@ export default (router: ConnectRouter) =>
                   else author = user;
 
                   const actionItem = await prisma.actionItem.findFirst({
-                    where: { githubItem: { nodeId: item.id } },
+                    where: { githubItems: { some: { nodeId: item.id } } },
                   });
 
                   const githubItem = await prisma.githubItem.upsert({

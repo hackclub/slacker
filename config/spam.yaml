@@ -1,0 +1,11 @@
+name: Spam
+description: Bot spam testing
+maintainers: [faisal]
+grouping:
+  minutes: 10
+channels:
+  - name: bot-spam
+    id: C0P5NE354
+    sla:
+      responseTime: 1h
+repos: []

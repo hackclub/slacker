@@ -203,21 +203,22 @@ export const logActivity = async (
   const item = await prisma.actionItem.findUnique({
     where: { id: actionId },
     include: {
-      githubItem: { include: { repository: true, author: true } },
-      slackMessage: { include: { channel: true, author: true } },
+      githubItems: { include: { repository: true, author: true } },
+      slackMessages: { include: { channel: true, author: true } },
       assignee: true,
     },
   });
 
   if (!item) return;
 
-  const url = item.githubItem
-    ? `https://github.com/${item.githubItem.repository.owner}/${item.githubItem.repository.name}/issues/${item.githubItem.number}`
-    : item.slackMessage
-    ? `https://hackclub.slack.com/archives/${
-        item.slackMessage.channel.slackId
-      }/p${item.slackMessage.ts.replace(".", "")}`
-    : undefined;
+  const url =
+    item.githubItems.length > 0
+      ? `https://github.com/${item.githubItems[0].repository.owner}/${item.githubItems[0].repository.name}/issues/${item.githubItems[0].number}`
+      : item.slackMessages.length > 0
+      ? `https://hackclub.slack.com/archives/${
+          item.slackMessages[0].channel.slackId
+        }/p${item.slackMessages[0].ts.replace(".", "")}`
+      : undefined;
 
   await client.chat.postMessage({
     channel: process.env.ACTIVITY_LOG_CHANNEL_ID,
@@ -231,8 +232,8 @@ export const logActivity = async (
   if (notifyUser && user !== notifyUser && type === "assigned") {
     const arr: any[] = [];
 
-    if (item.slackMessage !== null) arr.push(slackItem({ item }));
-    if (item.githubItem !== null) arr.push(githubItem({ item }));
+    if (item.slackMessages.length > 0) arr.push(slackItem({ item }));
+    if (item.githubItems.length > 0) arr.push(githubItem({ item }));
     arr.push(...buttons({ item, showAssignee: true, showActions: true }));
 
     await client.chat.postMessage({
