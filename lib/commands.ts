@@ -964,6 +964,39 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
             .flat(),
         ],
       });
+    } else if ("cleanup") {
+      const project = args[1]?.trim();
+      const files = readdirSync("./config");
+
+      if (!project || !files.includes(`${project}.yaml`)) {
+        await client.chat.postEphemeral({
+          user: user_id,
+          channel: channel_id,
+          text: `:warning: Project not found. Please check your command and try again.`,
+        });
+        return;
+      }
+
+      if (
+        MAINTAINERS.find((m) => m.slack === user_id)?.id !== "faisal" &&
+        MAINTAINERS.find((m) => m.slack === user_id)?.id !== "graham"
+      ) {
+        await client.chat.postEphemeral({
+          user: user_id,
+          channel: channel_id,
+          text: `:warning: You're not authorized to run this command.`,
+        });
+        return;
+      }
+
+      const { channels } = await getProjectDetails(project);
+
+      await prisma.actionItem.deleteMany({
+        where: {
+          slackMessages: { some: { channel: { slackId: { in: channels.map((c) => c.id) } } } },
+          status: { not: ActionStatus.closed },
+        },
+      });
     } else {
       const closest = closestMatch(args[0], [
         "list",
