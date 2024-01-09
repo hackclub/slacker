@@ -991,7 +991,7 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
 
       const { channels } = await getProjectDetails(project);
       const res = await prisma.$transaction(async (tx) => {
-        const messages = await prisma.slackMessage.findMany({
+        const messages = await tx.slackMessage.findMany({
           where: {
             channel: { slackId: { in: channels.map((c) => c.id) } },
             actionItem: { status: ActionStatus.open },
@@ -1001,7 +1001,7 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
 
         await tx.slackMessage.deleteMany({ where: { id: { in: messages.map((m) => m.id) } } });
 
-        const items = await prisma.actionItem.findMany({
+        const items = await tx.actionItem.findMany({
           where: {
             status: ActionStatus.open,
             slackMessages: { some: { id: { in: messages.map((m) => m.id) } } },
