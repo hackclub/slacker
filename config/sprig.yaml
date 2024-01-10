@@ -1,6 +1,8 @@
 name: Sprig
 description: Teens make games and get a Sprig
 maintainers: [leo, lucas, max, graham, josias, shawn, hugo, shubham, faisal, kara, marios]
+grouping:
+  minutes: 10
 channels:
   - name: sprig
     id: C02UN35M7LG
