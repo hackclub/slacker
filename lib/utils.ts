@@ -195,7 +195,14 @@ export const logActivity = async (
   client: typeof slack.client,
   user: string,
   actionId: string,
-  type: "resolved" | "irrelevant" | "snoozed" | "reopened" | "unsnoozed" | "assigned" | "unassigned",
+  type:
+    | "resolved"
+    | "irrelevant"
+    | "snoozed"
+    | "reopened"
+    | "unsnoozed"
+    | "assigned"
+    | "unassigned",
   notifyUser?: string
 ) => {
   if (process.env.ACTIVITY_LOG_CHANNEL_ID === undefined) return;
@@ -224,8 +231,8 @@ export const logActivity = async (
     channel: process.env.ACTIVITY_LOG_CHANNEL_ID,
     text: `:white_check_mark: ${
       MAINTAINERS.find((u) => u.slack === user)?.id || user
-    } ${type} an action item. ID: ${actionId} ${
-      notifyUser && user !== notifyUser ? `cc:<@${notifyUser}>` : ""
+    } ${type} an action item. ${notifyUser && user !== notifyUser ? `cc:<@${notifyUser}>` : ""}${
+      type === "irrelevant" || type === "resolved" ? `\n\nReason: ${item.reason}` : ""
     }\n\n${url ? `<${url}|View action item>` : ""}`,
   });
 
