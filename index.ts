@@ -312,6 +312,7 @@ slack.event("message", async ({ event, client, logger, message }) => {
             where: {
               channel: { slackId: event.channel },
               createdAt: { gte: dayjs().subtract(details.grouping.minutes, "minute").toDate() },
+              actionItem: { status: ActionStatus.open, assigneeId: null },
             },
             include: { actionItem: { select: { id: true } } },
             orderBy: { createdAt: "desc" },
