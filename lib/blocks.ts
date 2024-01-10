@@ -50,6 +50,7 @@ export const slackItem = ({
     text: {
       type: "mrkdwn",
       text: `*Project:* ${project}\n*Action Id:* ${item.id}\n*Query:* ${item.slackMessages
+        .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
         .map((m) => `<@${m.author?.slackId}>: ${m.text}`)
         .join("\n")}\n\nOpened by <@${item.slackMessages[0].author?.slackId}> on ${dayjs(
         item.slackMessages[0].createdAt
