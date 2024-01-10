@@ -119,6 +119,7 @@ export type ElasticDocument = {
   actionItemType?: "issue" | "pull" | "message";
   createdTime?: Date;
   resolvedTime?: Date | null;
+  reason?: string;
   firstResponseTime?: Date | null;
   lastModifiedTime?: Date;
   snoozedUntil?: Date | null;

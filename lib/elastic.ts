@@ -137,6 +137,7 @@ export const indexDocument = async (id: string, data?: ElasticDocument) => {
         createdTime: createdAt ?? item.createdAt,
         resolvedTime: item.resolvedAt,
         firstResponseTime: item.firstReplyOn,
+        reason: item.reason,
         state:
           item.snoozedUntil && dayjs(item.snoozedUntil).isAfter(dayjs())
             ? "snoozed"
