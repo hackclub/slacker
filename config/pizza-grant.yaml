@@ -5,18 +5,18 @@ channels:
   - name: pizza-party
     id: C05RZ6K7RS5
     sla:
-      responseTime: 1h
+      responseTime: 24h
   - name: pizza-party-approval
     id: C05RZATA3QR
     sla:
-      responseTime: 1h
+      responseTime: 24h
 repos:
   - uri: https://github.com/hackclub/pizza-fund
     sla:
-      responseTime: 1h
+      responseTime: 2h
   - uri: https://github.com/hackclub/pizza-logbook
     sla: 
-      responseTime: 1h
+      responseTime: 2h
 sections:
   - name: india
     pattern: india
