@@ -10,6 +10,10 @@ channels:
     id: C05RZATA3QR
     sla:
       responseTime: 24h
+  - name: pizza-logbook
+    id: U05NX48GL3T
+    sla:
+      responseTime: 1h
 repos:
   - uri: https://github.com/hackclub/pizza-fund
     sla:
