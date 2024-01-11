@@ -1,5 +1,5 @@
 import { Client } from "@elastic/elasticsearch";
-import { ActionStatus } from "@prisma/client";
+import { ActionItem, ActionStatus, User } from "@prisma/client";
 import dayjs from "dayjs";
 import { config } from "dotenv";
 import prisma from "./db";
@@ -17,7 +17,16 @@ export const elastic = new Client({
 
 const INDEX_NAME = "search-slacker-analytics";
 
-const getParticipant = async (user, item) => {
+const getParticipant = async (
+  user: User,
+  item: ActionItem & {
+    slackMessages: { channel: { slackId: string }; author: { slackId: string | null } }[];
+    githubItems: {
+      repository: { owner: string; name: string };
+      author: { githubUsername: string | null };
+    }[];
+  }
+) => {
   const maintainer = MAINTAINERS.find(
     (maintainer) => maintainer.github === user.githubUsername || maintainer.slack === user.slackId
   );
@@ -30,8 +39,8 @@ const getParticipant = async (user, item) => {
     };
   } else {
     const displayName = await getDisplayName({
-      owner: item.githubItem?.repository.owner ?? "",
-      name: item.githubItem?.repository.name ?? "",
+      owner: item.githubItems[0]?.repository.owner ?? "",
+      name: item.githubItems[0]?.repository.name ?? "",
       github: user.githubUsername ?? undefined,
       slackId: user.slackId ?? undefined,
     });
@@ -40,10 +49,19 @@ const getParticipant = async (user, item) => {
   }
 };
 
-const getActor = async (actor, item) => {
+const getActor = async (
+  actor: User,
+  item: ActionItem & {
+    slackMessages: { channel: { slackId: string }; author: { slackId: string | null } }[];
+    githubItems: {
+      repository: { owner: string; name: string };
+      author: { githubUsername: string | null };
+    }[];
+  }
+) => {
   const displayName = await getDisplayName({
-    owner: item.githubItem?.repository.owner ?? "",
-    name: item.githubItem?.repository.name ?? "",
+    owner: item.githubItems[0]?.repository.owner ?? "",
+    name: item.githubItems[0]?.repository.name ?? "",
     github: actor.githubUsername ?? undefined,
     slackId: actor.slackId ?? undefined,
   });
@@ -175,8 +193,12 @@ export const indexDocument = async (id: string, data?: ElasticDocument) => {
         ),
         author: participants.find(
           (actor) =>
-            actor.slack === (item.slackMessages || item.githubItems)[0].author.slackId ||
-            actor.github === (item.slackMessages || item.githubItems)[0].author.githubUsername
+            actor.slack ===
+              (item.slackMessages.length > 0 ? item.slackMessages : item.githubItems)[0].author
+                .slackId ||
+            actor.github ===
+              (item.slackMessages.length > 0 ? item.slackMessages : item.githubItems)[0].author
+                .githubUsername
         ),
         url:
           item.githubItems.length > 0
