@@ -1,6 +1,6 @@
 name: Leaders
 description: Place where leaders get help
-maintainers: [thomas, arpan, sahiti]
+maintainers: [thomas, arpan, sahiti, jasper]
 channels:
   - name: leaders
     id: C02PA5G01ND

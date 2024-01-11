@@ -1,19 +1,26 @@
 name: Pizza Grant
 description: Pizza for everyone!
-maintainers: [thomas, arpan, sahiti]
+maintainers: [thomas, arpan, sahiti, jasper]
 channels:
   - name: pizza-party
     id: C05RZ6K7RS5
     sla:
-      responseTime: 1h
+      responseTime: 24h
   - name: pizza-party-approval
     id: C05RZATA3QR
+    sla:
+      responseTime: 24h
+  - name: pizza-logbook
+    id: U05NX48GL3T
     sla:
       responseTime: 1h
 repos:
   - uri: https://github.com/hackclub/pizza-fund
     sla:
-      responseTime: 1h
+      responseTime: 2h
+  - uri: https://github.com/hackclub/pizza-logbook
+    sla: 
+      responseTime: 2h
 sections:
   - name: india
     pattern: india
