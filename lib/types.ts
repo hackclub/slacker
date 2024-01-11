@@ -3,6 +3,7 @@ export type Config = {
   description: string;
   maintainers: string[];
   clawback?: boolean;
+  logging?: boolean;
   grouping?: { minutes: number };
   channels?: {
     id: string;
