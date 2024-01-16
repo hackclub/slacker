@@ -217,8 +217,8 @@ export const logActivity = async (
   });
 
   const project = getProjectName({
-    channelId: item?.slackMessages[0].channel.slackId,
-    repoUrl: item?.githubItems[0].repository.url,
+    channelId: item?.slackMessages[0]?.channel.slackId,
+    repoUrl: item?.githubItems[0]?.repository.url,
   });
 
   const config = getYamlFile(`${project}.yaml`);
