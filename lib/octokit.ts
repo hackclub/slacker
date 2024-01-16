@@ -234,6 +234,15 @@ export const listGithubItems = async (owner: string, name: string) => {
                 createdAt
               }
             }
+            timelineItems (itemTypes:ASSIGNED_EVENT, last: 1) {
+              edges {
+                node {
+                  ... on AssignedEvent {
+                    createdAt
+                  }
+                }
+              }
+            }
           }
         }
 
@@ -270,6 +279,15 @@ export const listGithubItems = async (owner: string, name: string) => {
                   login
                 }
                 createdAt
+              }
+            }
+            timelineItems (itemTypes:ASSIGNED_EVENT, last: 1) {
+              edges {
+                node {
+                  ... on AssignedEvent {
+                    createdAt
+                  }
+                }
               }
             }
           }
@@ -324,6 +342,15 @@ export const getGithubItem = async (owner: string, name: string, id: string) => 
               createdAt
             }
           }
+          timelineItems (itemTypes:ASSIGNED_EVENT, last: 1) {
+            edges {
+              node {
+                ... on AssignedEvent {
+                  createdAt
+                }
+              }
+            }
+          }
         }
         ... on PullRequest {
           id
@@ -354,6 +381,15 @@ export const getGithubItem = async (owner: string, name: string, id: string) => 
                 login
               }
               createdAt
+            }
+          }
+          timelineItems (itemTypes:ASSIGNED_EVENT, last: 1) {
+            edges {
+              node {
+                ... on AssignedEvent {
+                  createdAt
+                }
+              }
             }
           }
         }

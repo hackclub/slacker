@@ -72,9 +72,7 @@ export default (router: ConnectRouter) =>
                         : GithubItemType.pull_request,
                       createdAt: item.createdAt,
                       updatedAt: item.updatedAt,
-                      lastAssignedOn: item.assignees.nodes.sort(
-                        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-                      )[0]?.createdAt,
+                      lastAssignedOn: item.timelineItems.edges[0].node.createdAt,
                       actionItem: {
                         create: {
                           status: "open",
@@ -145,9 +143,7 @@ export default (router: ConnectRouter) =>
                           label: { connectOrCreate: { where: { name }, create: { name } } },
                         })),
                       },
-                      lastAssignedOn: res.node.assignees.nodes.sort(
-                        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-                      )[0]?.createdAt,
+                      lastAssignedOn: res.node.timelineItems.edges[0].node.createdAt,
                       actionItem: {
                         update: {
                           status: "closed",

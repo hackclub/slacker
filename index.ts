@@ -753,7 +753,9 @@ cron.schedule("0 12 * * *", async () => {
       const ghItem = await getGithubItem(gh.repository.owner, gh.repository.name, gh.nodeId);
 
       if (ghItem.node.assignees.nodes.length < 1) continue;
-      const assignedOn = dayjs(gh.lastAssignedOn || ghItem.node.assignees.nodes[0].createdAt);
+      const assignedOn = dayjs(
+        gh.lastAssignedOn || ghItem.node.timelineItems.edges[0].node.createdAt
+      );
       let deadline = assignedOn;
 
       let count = 0;

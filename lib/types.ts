@@ -69,6 +69,7 @@ export type IssueOrPull = {
         createdAt: string;
       }[];
     };
+    timelineItems: { edges: { node: { createdAt: string } }[] };
   }[];
 };
 
@@ -104,6 +105,7 @@ export type SingleIssueOrPullData = {
         createdAt: string;
       }[];
     };
+    timelineItems: { edges: { node: { createdAt: string } }[] };
   };
 };
 
