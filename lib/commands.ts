@@ -59,7 +59,7 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
         \n• *Get GitHub items assigned to you:* \`/slacker gh [project] [filter]\`
         \n• *Review pulls on GitHub:* \`/slacker review [project]\`
         \n• *Reopen action item:* \`/slacker reopen [id]\`
-        \n• *List snoozed items:* \`/slacker snoozed [project]\`
+        \n• *List snoozed items:* \`/slacker snoozed [project] [filter]\`
         \n• *Get a project report:* \`/slacker report [project]\`
         \n• *Opt out of status report notifications:* \`/slacker optout\`
         \n• *Opt in to status report notifications:* \`/slacker optin\`
@@ -277,6 +277,7 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
       await client.chat.postEphemeral({ user: user_id, channel: channel_id, text });
     } else if (args[0] === "snoozed") {
       const project = args[1]?.trim() || "all";
+      const filter = args[2]?.trim() || "";
       const files = readdirSync("./config");
 
       if (project !== "all" && !files.includes(`${project}.yaml`)) {
@@ -288,11 +289,27 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
         return;
       }
 
-      const { maintainers, channels, repositories } = await getProjectDetails(
+      const { maintainers, channels, repositories, sections } = await getProjectDetails(
         project,
         user_id,
         user?.githubUsername
       );
+
+      if (
+        filter &&
+        !["", "all", "github", "slack", "issues", "pulls", ...sections.map((s) => s.name)].includes(
+          filter.trim()
+        )
+      ) {
+        await client.chat.postEphemeral({
+          user: user_id,
+          channel: channel_id,
+          text: `:warning: Invalid filter. Please check your command and try again. Available options: "all", "github", "slack", "issues", "pulls", ${sections.map(
+            (s, i) => (i === sections.length - 1 ? "" : " ") + `"${s.name}"`
+          )}.`,
+        });
+        return;
+      }
 
       if (!maintainers.find((m) => m.slack === user_id)) {
         if (!user) {
@@ -304,31 +321,47 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
         }
       }
 
-      const data = await prisma.actionItem.findMany({
-        where: {
-          snoozedUntil: { not: null, lte: dayjs().toDate() },
-          OR: [
-            {
-              slackMessages: { some: { channel: { slackId: { in: channels.map((c) => c.id) } } } },
-            },
-            ...(maintainers.find((m) => m.github === user?.githubUsername)
-              ? [
-                  {
-                    githubItems: {
-                      some: { repository: { url: { in: repositories.map((r) => r.uri) } } },
+      const data = await prisma.actionItem
+        .findMany({
+          where: {
+            snoozedUntil: { not: null, gte: dayjs().toDate() },
+            OR: [
+              ...(isfilteringSlack(sections, filter)
+                ? [
+                    {
+                      slackMessages: {
+                        some: { channel: { slackId: { in: channels.map((c) => c.id) } } },
+                      },
                     },
-                  },
-                ]
-              : []),
-          ],
-          status: { not: ActionStatus.closed },
-        },
-        include: {
-          githubItems: { include: { author: true, repository: true } },
-          slackMessages: { include: { author: true, channel: true } },
-          participants: { include: { user: true } },
-        },
-      });
+                  ]
+                : []),
+              ...(isfilteringGithub(sections, filter)
+                ? [
+                    {
+                      githubItems: {
+                        some: {
+                          repository: { url: { in: repositories.map((r) => r.uri) } },
+                          ...(filter === "issues" ? { type: GithubItemType.issue } : {}),
+                          ...(filter === "pulls" ? { type: GithubItemType.pull_request } : {}),
+                        },
+                      },
+                    },
+                  ]
+                : []),
+            ],
+            status: { not: ActionStatus.closed },
+          },
+          include: {
+            githubItems: { include: { author: true, repository: true } },
+            slackMessages: { include: { author: true, channel: true } },
+            participants: { include: { user: true } },
+          },
+        })
+        .then((res) => {
+          return (res || []).filter((i) =>
+            filterBySection(i, isfilteringSections(sections, filter))
+          );
+        });
 
       await client.chat.postMessage({
         channel: user_id,
@@ -384,6 +417,10 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
               return arr;
             })
             .flat(),
+          {
+            type: "context",
+            elements: [{ type: "mrkdwn", text: `*Total snoozed items:* ${data.length}` }],
+          },
         ],
       });
     } else if (args[0] === "report") {
