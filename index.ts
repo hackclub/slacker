@@ -204,6 +204,8 @@ slack.event("message", async ({ event, client, logger, message }) => {
 
     if (message.subtype || (message.bot_id && !ALLOWED_BOTS.includes(message.bot_id))) return;
     if ((message.text?.length || 0) <= 4) return;
+    if (message.text?.startsWith(":") && message.text?.endsWith(":") && !message.text.includes(" "))
+      return;
 
     const channel = await prisma.channel.findFirst({ where: { slackId: event.channel } });
     if (!channel) return;
@@ -292,9 +294,6 @@ slack.event("message", async ({ event, client, logger, message }) => {
       await indexDocument(slackMessage.actionItem!.id);
     } else {
       // create new action item:
-      const maintainers = getMaintainers({ channelId: event.channel });
-      if (maintainers.find((maintainer) => maintainer?.slack === parent.user)) return;
-
       // find user by slack id
       const user = await prisma.user.findFirst({ where: { slackId: parent.user as string } });
       let author: User;
@@ -377,6 +376,9 @@ slack.event("message", async ({ event, client, logger, message }) => {
           },
         });
       } else {
+        const maintainers = getMaintainers({ channelId: event.channel });
+        if (maintainers.find((maintainer) => maintainer?.slack === parent.user)) return;
+
         slackMessage = await prisma.slackMessage.create({
           data: {
             text: parent.text || "",
