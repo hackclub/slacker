@@ -1,4 +1,4 @@
-import { ActionStatus, GithubItemType } from "@prisma/client";
+import { ActionItem, ActionStatus, GithubItem, GithubItemType, SlackMessage } from "@prisma/client";
 import { Middleware, SlackCommandMiddlewareArgs } from "@slack/bolt";
 import { StringIndexed } from "@slack/bolt/dist/types/helpers";
 import { closestMatch } from "closest-match";
@@ -1055,13 +1055,16 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
   }
 };
 
-const filterBySection = (i, filteringSections: { name: string; pattern: string } | undefined) => {
+const filterBySection = (
+  i: ActionItem & { slackMessages: SlackMessage[]; githubItems: GithubItem[] },
+  filteringSections: { name: string; pattern: string } | undefined
+) => {
   if (filteringSections) {
     const regex = new RegExp(filteringSections.pattern);
     return (
-      regex.test(i.githubItem?.title || "") ||
-      regex.test(i.githubItem?.body || "") ||
-      regex.test(i.slackMessage?.text || "")
+      regex.test(i.githubItems[0]?.title || "") ||
+      regex.test(i.githubItems[0]?.body || "") ||
+      regex.test(i.slackMessages.map((m) => m.text).join(" "))
     );
   }
 
