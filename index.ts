@@ -792,6 +792,8 @@ cron.schedule("0 12 * * *", async () => {
           channel: assignee?.slackId ?? "",
           text: `:warning: Hey, we unassigned #${gh.number} *<${gh.repository.url}/issues/${gh.number}|${gh.title}>* from you because you didn't resolve it in time. Feel free to pick it up again!`,
         });
+
+        metrics.increment("gh.clawback.unassign", 1);
       } else {
         // prompt them to confirm
         const assignee = await prisma.user.findFirst({
@@ -835,6 +837,8 @@ cron.schedule("0 12 * * *", async () => {
           where: { id: gh.id },
           data: { lastPromptedOn: new Date() },
         });
+
+        metrics.increment("gh.clawback.prompt", 1);
       }
     }
   } catch (err) {
