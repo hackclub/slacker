@@ -754,7 +754,7 @@ cron.schedule("0 12 * * *", async () => {
 
       if (ghItem.node.assignees.nodes.length < 1) continue;
       const assignedOn = dayjs(
-        gh.lastAssignedOn || ghItem.node.timelineItems.edges[0].node.createdAt
+        gh.lastAssignedOn || ghItem.node.timelineItems.edges[0]?.node.createdAt
       );
       let deadline = assignedOn;
 

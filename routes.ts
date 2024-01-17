@@ -72,7 +72,7 @@ export default (router: ConnectRouter) =>
                         : GithubItemType.pull_request,
                       createdAt: item.createdAt,
                       updatedAt: item.updatedAt,
-                      lastAssignedOn: item.timelineItems.edges[0].node.createdAt,
+                      lastAssignedOn: item.timelineItems.edges[0]?.node.createdAt,
                       actionItem: {
                         create: {
                           status: "open",
@@ -143,7 +143,7 @@ export default (router: ConnectRouter) =>
                           label: { connectOrCreate: { where: { name }, create: { name } } },
                         })),
                       },
-                      lastAssignedOn: res.node.timelineItems.edges[0].node.createdAt,
+                      lastAssignedOn: res.node.timelineItems.edges[0]?.node.createdAt,
                       actionItem: {
                         update: {
                           status: "closed",
