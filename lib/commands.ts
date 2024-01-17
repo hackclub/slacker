@@ -604,7 +604,7 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
       if (items.length > 0) {
         const arr: any[] = [];
 
-        items.forEach((item) => {
+        items.slice(0, 15).forEach((item) => {
           if (item.slackMessages.length > 0) arr.push(slackItem({ item }));
           if (item.githubItems.length > 0) arr.push(githubItem({ item }));
           arr.push(...buttons({ item, showAssignee: true, showActions: true }));
