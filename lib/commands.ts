@@ -669,7 +669,11 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
         return;
       }
 
-      let isVolunteer = !maintainers.find((m) => m.slack === user_id) && project !== "all";
+      const volunteerFilters = ["", "all", "github", "issues", "pulls"];
+      let isVolunteer =
+        !maintainers.find((m) => m.slack === user_id) &&
+        project !== "all" &&
+        volunteerFilters.includes(filter);
 
       if (!user) {
         return await unauthorizedError({ client, user_id, channel_id });
