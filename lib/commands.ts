@@ -115,28 +115,71 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
         .findMany({
           where: {
             OR: [
-              ...(isfilteringSlack(sections, filter)
-                ? [
-                    {
-                      slackMessages: {
-                        some: { channel: { slackId: { in: channels.map((c) => c.id) } } },
-                      },
-                    },
-                  ]
-                : []),
-              ...(isfilteringGithub(sections, filter)
-                ? [
-                    {
-                      githubItems: {
-                        some: {
-                          repository: { url: { in: repositories.map((r) => r.uri) } },
-                          ...(filter === "issues" ? { type: GithubItemType.issue } : {}),
-                          ...(filter === "pulls" ? { type: GithubItemType.pull_request } : {}),
+              {
+                OR: [
+                  ...(isfilteringSlack(sections, filter)
+                    ? [
+                        {
+                          slackMessages: {
+                            some: { channel: { slackId: { in: channels.map((c) => c.id) } } },
+                          },
                         },
-                      },
+                      ]
+                    : []),
+                  ...(isfilteringGithub(sections, filter)
+                    ? [
+                        {
+                          githubItems: {
+                            some: {
+                              repository: { url: { in: repositories.map((r) => r.uri) } },
+                              ...(filter === "issues" ? { type: GithubItemType.issue } : {}),
+                              ...(filter === "pulls" ? { type: GithubItemType.pull_request } : {}),
+                            },
+                          },
+                        },
+                      ]
+                    : []),
+                ],
+              },
+              // Filters for follow-ups
+              {
+                slackMessages: { none: {} },
+                githubItems: { none: {} },
+                parentItems: {
+                  some: {
+                    parent: {
+                      OR: [
+                        ...(isfilteringSlack(sections, filter)
+                          ? [
+                              {
+                                slackMessages: {
+                                  some: { channel: { slackId: { in: channels.map((c) => c.id) } } },
+                                },
+                              },
+                            ]
+                          : []),
+                        ...(isfilteringGithub(sections, filter)
+                          ? [
+                              {
+                                githubItems: {
+                                  some: {
+                                    repository: {
+                                      url: { in: repositories.map((r) => r.uri) },
+                                    },
+                                    ...(filter === "issues" ? { type: GithubItemType.issue } : {}),
+                                    ...(filter === "pulls"
+                                      ? { type: GithubItemType.pull_request }
+                                      : {}),
+                                  },
+                                },
+                              },
+                            ]
+                          : []),
+                      ],
                     },
-                  ]
-                : []),
+                  },
+                },
+              },
             ],
             status: { not: ActionStatus.closed },
           },
@@ -145,6 +188,18 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
             slackMessages: { include: { author: true, channel: true } },
             participants: { include: { user: true } },
             assignee: true,
+            parentItems: {
+              include: {
+                parent: {
+                  include: {
+                    githubItems: { include: { author: true, repository: true } },
+                    slackMessages: { include: { author: true, channel: true } },
+                    participants: { include: { user: true } },
+                    assignee: true,
+                  },
+                },
+              },
+            },
           },
           orderBy: { createdAt: "asc" },
         })
@@ -166,14 +221,52 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
           { type: "divider" },
           ...data
             .slice(0, 15)
-            .map((item) => {
-              const arr: any[] = [];
+            .flatMap((item) => {
+              const items: any[] = [];
+              const isFollowUp =
+                item.slackMessages.length === 0 &&
+                item.githubItems.length === 0 &&
+                item.parentItems.length > 0;
 
-              if (item.slackMessages.length > 0) arr.push(slackItem({ item, showActions: false }));
-              if (item.githubItems.length > 0) arr.push(githubItem({ item, showActions: false }));
-              arr.push(...buttons({ item, showActions: false, showAssignee: false }));
+              if (item.slackMessages.length > 0)
+                items.push(slackItem({ item, showActions: false }));
+              if (item.githubItems.length > 0) items.push(githubItem({ item, showActions: false }));
 
-              return arr;
+              if (isFollowUp) {
+                if (item.parentItems[0]?.parent.slackMessages.length > 0) {
+                  items.push(
+                    slackItem({
+                      item: item.parentItems[0]?.parent,
+                      showActions: false,
+                      isFollowUp: true,
+                    })
+                  );
+                }
+                if (item.parentItems[0]?.parent.githubItems.length > 0) {
+                  items.push(
+                    githubItem({
+                      item: item.parentItems[0]?.parent,
+                      showActions: false,
+                      isFollowUp: true,
+                    })
+                  );
+                }
+              }
+
+              if (isFollowUp) {
+                items.push(
+                  ...buttons({
+                    item: item.parentItems[0]?.parent,
+                    showActions: false,
+                    showAssignee: false,
+                    followUpId: item.id,
+                  })
+                );
+              } else if (item.slackMessages.length > 0 || item.githubItems.length > 0) {
+                items.push(...buttons({ item, showActions: false, showAssignee: false }));
+              }
+
+              return items;
             })
             .flat(),
           {
@@ -562,28 +655,71 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
         .findMany({
           where: {
             OR: [
-              ...(isfilteringSlack(sections, filter)
-                ? [
-                    {
-                      slackMessages: {
-                        some: { channel: { slackId: { in: channels.map((c) => c.id) } } },
-                      },
-                    },
-                  ]
-                : []),
-              ...(isfilteringGithub(sections, filter)
-                ? [
-                    {
-                      githubItems: {
-                        some: {
-                          repository: { url: { in: repositories.map((r) => r.uri) } },
-                          ...(filter === "issues" ? { type: GithubItemType.issue } : {}),
-                          ...(filter === "pulls" ? { type: GithubItemType.pull_request } : {}),
+              {
+                OR: [
+                  ...(isfilteringSlack(sections, filter)
+                    ? [
+                        {
+                          slackMessages: {
+                            some: { channel: { slackId: { in: channels.map((c) => c.id) } } },
+                          },
                         },
-                      },
+                      ]
+                    : []),
+                  ...(isfilteringGithub(sections, filter)
+                    ? [
+                        {
+                          githubItems: {
+                            some: {
+                              repository: { url: { in: repositories.map((r) => r.uri) } },
+                              ...(filter === "issues" ? { type: GithubItemType.issue } : {}),
+                              ...(filter === "pulls" ? { type: GithubItemType.pull_request } : {}),
+                            },
+                          },
+                        },
+                      ]
+                    : []),
+                ],
+              },
+              // Filters for follow-ups
+              {
+                slackMessages: { none: {} },
+                githubItems: { none: {} },
+                parentItems: {
+                  some: {
+                    parent: {
+                      OR: [
+                        ...(isfilteringSlack(sections, filter)
+                          ? [
+                              {
+                                slackMessages: {
+                                  some: { channel: { slackId: { in: channels.map((c) => c.id) } } },
+                                },
+                              },
+                            ]
+                          : []),
+                        ...(isfilteringGithub(sections, filter)
+                          ? [
+                              {
+                                githubItems: {
+                                  some: {
+                                    repository: {
+                                      url: { in: repositories.map((r) => r.uri) },
+                                    },
+                                    ...(filter === "issues" ? { type: GithubItemType.issue } : {}),
+                                    ...(filter === "pulls"
+                                      ? { type: GithubItemType.pull_request }
+                                      : {}),
+                                  },
+                                },
+                              },
+                            ]
+                          : []),
+                      ],
                     },
-                  ]
-                : []),
+                  },
+                },
+              },
             ],
             assignee: { OR: [{ slackId: user_id }, { githubUsername: maintainer?.github }] },
             status: { not: ActionStatus.closed },
@@ -592,7 +728,20 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
           include: {
             githubItems: { include: { repository: true, author: true } },
             slackMessages: { include: { channel: true, author: true } },
+            participants: { include: { user: true } },
             assignee: true,
+            parentItems: {
+              include: {
+                parent: {
+                  include: {
+                    githubItems: { include: { author: true, repository: true } },
+                    slackMessages: { include: { author: true, channel: true } },
+                    participants: { include: { user: true } },
+                    assignee: true,
+                  },
+                },
+              },
+            },
           },
         })
         .then((res) =>
@@ -605,9 +754,35 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
         const arr: any[] = [];
 
         items.slice(0, 15).forEach((item) => {
+          const isFollowUp =
+            item.slackMessages.length === 0 &&
+            item.githubItems.length === 0 &&
+            item.parentItems.length > 0;
+
           if (item.slackMessages.length > 0) arr.push(slackItem({ item }));
           if (item.githubItems.length > 0) arr.push(githubItem({ item }));
-          arr.push(...buttons({ item, showAssignee: true, showActions: true }));
+
+          if (isFollowUp) {
+            if (item.parentItems[0]?.parent.slackMessages.length > 0) {
+              arr.push(slackItem({ item: item.parentItems[0]?.parent, isFollowUp: true }));
+            }
+            if (item.parentItems[0]?.parent.githubItems.length > 0) {
+              arr.push(githubItem({ item: item.parentItems[0]?.parent, isFollowUp: true }));
+            }
+          }
+
+          if (isFollowUp) {
+            arr.push(
+              ...buttons({
+                item: item.parentItems[0]?.parent,
+                showAssignee: true,
+                showActions: true,
+                followUpId: item.id,
+              })
+            );
+          } else if (item.slackMessages.length > 0 || item.githubItems.length > 0) {
+            arr.push(...buttons({ item, showAssignee: true, showActions: true }));
+          }
         });
 
         await client.chat.postMessage({
@@ -1042,16 +1217,24 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
 
         await tx.slackMessage.deleteMany({ where: { id: { in: messages.map((m) => m.id) } } });
 
-        const items = await prisma.actionItem.findMany({
+        const items = await tx.actionItem.findMany({
           where: { status: ActionStatus.open, slackMessages: { none: {} } },
-          select: { id: true, _count: { select: { slackMessages: true, githubItems: true } } },
+          select: {
+            id: true,
+            _count: { select: { slackMessages: true, githubItems: true, parentItems: true } },
+          },
         });
 
         const res = await tx.actionItem.deleteMany({
           where: {
             id: {
               in: items
-                .filter((i) => i._count.slackMessages === 0 && i._count.githubItems === 0)
+                .filter(
+                  (i) =>
+                    i._count.slackMessages === 0 &&
+                    i._count.githubItems === 0 &&
+                    i._count.parentItems === 0
+                )
                 .map((i) => i.id),
             },
           },

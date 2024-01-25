@@ -22,7 +22,6 @@ model User {
   snoozedItems       ActionItem[]
   assignedItems      ActionItem[]      @relation("assignee")
   volunteer          VolunteerDetail[]
-  followUp           FollowUp[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -111,29 +110,31 @@ model ActionItem {
   status     ActionStatus
   flag       ExtraFlags?
   resolvedAt DateTime?
-  followUp   FollowUp[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  followUps   FollowUp[] @relation("parent")
+  parentItems FollowUp[] @relation("followUp")
 
   @@index([id])
   @@index([snoozedById])
 }
 
 model FollowUp {
-  actionItem   ActionItem @relation(fields: [actionItemId], references: [id], onDelete: Cascade)
-  actionItemId String
+  parent   ActionItem @relation("parent", fields: [parentId], references: [id], onDelete: Cascade)
+  parentId String     @map("parentId")
 
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId String
+  nextItem   ActionItem @relation("followUp", fields: [nextItemId], references: [id], onDelete: Cascade)
+  nextItemId String     @map("nextItemId")
 
   date      DateTime
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@id([actionItemId, userId])
-  @@index([actionItemId])
-  @@index([userId])
+  @@id([parentId, nextItemId])
+  @@index([parentId])
+  @@index([nextItemId])
 }
 
 model VolunteerDetail {
@@ -216,6 +217,7 @@ enum GithubState {
 enum ActionStatus {
   open
   closed
+  followUp
 }
 
 enum ExtraFlags {

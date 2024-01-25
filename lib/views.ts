@@ -44,12 +44,55 @@ export const snoozeSubmit: Middleware<
           reason: reason ?? "",
         },
       });
-    else
-      await prisma.followUp.upsert({
-        where: { actionItemId_userId: { actionItemId: actionId, userId: dbUser.id } },
-        create: { actionItemId: actionId, userId: dbUser.id, date: snoozedUntil },
-        update: { date: snoozedUntil },
-      });
+    else {
+      const alreadyFollowingUp = await prisma.followUp.findFirst({ where: { parentId: actionId } });
+
+      if (alreadyFollowingUp) {
+        await prisma.followUp.update({
+          where: {
+            parentId_nextItemId: { parentId: actionId, nextItemId: alreadyFollowingUp.nextItemId },
+          },
+          data: {
+            date: snoozedUntil,
+            nextItem: {
+              create: {
+                status: "followUp",
+                totalReplies: 0,
+                snoozedUntil: snoozedUntil,
+                snoozedById: dbUser?.id,
+                assigneeId: action.assigneeId,
+                notes: reason ?? "",
+              },
+              update: {
+                status: "followUp",
+                totalReplies: 0,
+                snoozedUntil: snoozedUntil,
+                snoozedById: dbUser?.id,
+                assigneeId: action.assigneeId,
+                notes: reason ?? "",
+              },
+            },
+          },
+        });
+      } else {
+        await prisma.followUp.create({
+          data: {
+            parent: { connect: { id: actionId } },
+            date: snoozedUntil,
+            nextItem: {
+              create: {
+                status: "followUp",
+                totalReplies: 0,
+                snoozedUntil: snoozedUntil,
+                snoozedById: dbUser?.id,
+                assigneeId: action.assigneeId,
+                notes: reason ?? "",
+              },
+            },
+          },
+        });
+      }
+    }
 
     await client.chat.postEphemeral({
       channel: channelId,
@@ -261,7 +304,25 @@ export const resolveSubmit: Middleware<
 
     const blocks = messages?.[0].blocks || [];
     const idx = blocks.findIndex((block: any) => block.text && block.text.text.includes(actionId));
-    const newBlocks = blocks.filter((_, i) => i !== idx && i !== idx + 1) as (Block | KnownBlock)[];
+    const newBlocks = blocks
+      .map((b, i) =>
+        i === idx
+          ? {
+              type: "actions",
+              elements: [
+                {
+                  type: "button",
+                  text: { type: "plain_text", emoji: true, text: "Follow Up" },
+                  value: action.id,
+                  action_id: "followup",
+                },
+              ],
+            }
+          : i === idx + 1
+          ? null
+          : b
+      )
+      .filter((b) => b) as (Block | KnownBlock)[];
 
     await client.chat.update({
       ts: messageId,

@@ -143,7 +143,6 @@ export const followUp: Middleware<SlackActionMiddlewareArgs<SlackAction>, String
 ) => {
   await args.ack();
   await snooze(args);
-  metrics.increment("slack.follow_up", 1);
 };
 
 export const snooze: Middleware<SlackActionMiddlewareArgs<SlackAction>, StringIndexed> = async ({
@@ -152,8 +151,9 @@ export const snooze: Middleware<SlackActionMiddlewareArgs<SlackAction>, StringIn
   client,
   logger,
 }) => {
+  const { actions, channel, message } = body as any;
+
   try {
-    const { actions, channel, message } = body as any;
     const actionId = actions[0].value;
     actions[0].action_id === "snooze" && (await ack());
     const action = await prisma.actionItem.findFirst({ where: { id: actionId } });
@@ -200,40 +200,42 @@ export const snooze: Middleware<SlackActionMiddlewareArgs<SlackAction>, StringIn
               text: actions[0].action_id === "snooze" ? "Snooze until" : "Follow up on",
             },
           },
-          ...(actions[0].action_id === "snooze"
-            ? [
-                {
-                  type: "input",
-                  block_id: "reason",
-                  // @ts-expect-error
-                  element: {
-                    type: "plain_text_input",
-                    action_id: "reason-action",
-                    multiline: true,
-                  },
-                  label: {
-                    type: "plain_text",
-                    text: "Why are you snoozing this?",
-                  },
-                },
-                {
-                  type: "context",
-                  elements: [
-                    {
-                      type: "mrkdwn",
-                      text: `:bangbang: Snooze wisely. If you keep snoozing an item repeatedly, you'll be called out for slackin'.`,
-                    },
-                  ],
-                },
-              ]
-            : []),
+          {
+            type: "input",
+            block_id: "reason",
+            element: {
+              type: "plain_text_input",
+              action_id: "reason-action",
+              multiline: true,
+            },
+            label: {
+              type: "plain_text",
+              text: "Why?",
+            },
+          },
+          {
+            type: "context",
+            elements: [
+              {
+                type: "mrkdwn",
+                text:
+                  actions[0].action_id === "snooze"
+                    ? `:bangbang: Snooze wisely. If you keep snoozing an item repeatedly, you'll be called out for slackin'.`
+                    : `You can only follow up on an item once. If you need to follow up again, you can do so once the first follow up has been completed.`,
+              },
+            ],
+          },
         ],
       },
     });
 
-    metrics.increment("slack.snooze.open", 1);
+    actions[0].action_id === "snooze"
+      ? metrics.increment("slack.snooze.open", 1)
+      : metrics.increment("slack.follow_up.open", 1);
   } catch (err) {
-    metrics.increment("errors.slack.snooze", 1);
+    actions[0].action_id === "snooze"
+      ? metrics.increment("errors.slack.snooze", 1)
+      : metrics.increment("errors.slack.follow_up", 1);
     logger.error(err);
   }
 };

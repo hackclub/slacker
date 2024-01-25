@@ -2,8 +2,8 @@ export type Config = {
   name: string;
   description: string;
   maintainers: string[];
-  clawback?: boolean;
-  logging?: boolean;
+  clawback?: boolean; // removes assigned issues from github if not resolved in time
+  logging?: boolean; // log the slacker activity in the public channel
   grouping?: { minutes: number };
   channels?: {
     id: string;

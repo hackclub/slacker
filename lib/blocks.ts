@@ -10,6 +10,8 @@ dayjs.extend(customParseFormat);
 export const slackItem = ({
   item,
   showActions = true,
+  isFollowUp = false,
+  followUpId,
 }: {
   item: ActionItem & {
     assignee: User | null | undefined;
@@ -17,6 +19,8 @@ export const slackItem = ({
     slackMessages: (SlackMessage & { channel: Channel; author: User })[];
   };
   showActions?: boolean;
+  isFollowUp?: boolean;
+  followUpId?: string;
 }) => {
   const diff = dayjs().diff(dayjs(item.lastReplyOn), "day");
   const project = getProjectName({ channelId: item.slackMessages[0].channel?.slackId });
@@ -49,7 +53,10 @@ export const slackItem = ({
     type: "section",
     text: {
       type: "mrkdwn",
-      text: `*Project:* ${project}\n*Action Id:* ${item.id}\n*Query:* ${item.slackMessages
+      text: `${isFollowUp ? ":information_source: Follow up :information_source:" : ""}
+      *Project:* ${project}\n*Action Id:* ${
+        isFollowUp ? followUpId : item.id
+      }\n*Query:* ${item.slackMessages
         .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
         .map((m) => `<@${m.author?.slackId}>: ${m.text}`)
         .join("\n")}\n\nOpened by <@${item.slackMessages[0].author?.slackId}> on ${dayjs(
@@ -67,7 +74,7 @@ export const slackItem = ({
           type: "button",
           text: { type: "plain_text", emoji: true, text: "Resolve" },
           style: "primary",
-          value: item.id,
+          value: isFollowUp ? followUpId : item.id,
           action_id: "resolve",
         }
       : {
@@ -77,12 +84,16 @@ export const slackItem = ({
             .filter((m) => !!m)
             .map((maintainer) => ({
               text: { type: "plain_text", text: maintainer!.id, emoji: true },
-              value: `${item.id}-${maintainer?.id}`,
+              value: `${isFollowUp ? followUpId : item.id}-${maintainer?.id}`,
             }))
-            .concat({
-              text: { type: "plain_text", text: "none", emoji: true },
-              value: `${item.id}-unassigned`,
-            })
+            .concat(
+              isFollowUp
+                ? []
+                : {
+                    text: { type: "plain_text", text: "none", emoji: true },
+                    value: `${item.id}-unassigned`,
+                  }
+            )
             .concat(
               ...(item.assignee && !isMaintainer
                 ? [
@@ -92,7 +103,7 @@ export const slackItem = ({
                         text: `<@${currentAssignee?.slack}> (volunteer)`,
                         emoji: true,
                       },
-                      value: `${item.id}-${currentAssignee?.id}`,
+                      value: `${isFollowUp ? followUpId : item.id}-${currentAssignee?.id}`,
                     },
                   ]
                 : [])
@@ -106,8 +117,10 @@ export const slackItem = ({
                     : `<@${currentAssignee.slack}> (volunteer)`,
                   emoji: true,
                 },
-                value: `${item.id}-${currentAssignee.id}`,
+                value: `${isFollowUp ? followUpId : item.id}-${currentAssignee.id}`,
               }
+            : isFollowUp
+            ? undefined
             : {
                 text: { type: "plain_text", text: "none", emoji: true },
                 value: `${item.id}-unassigned`,
@@ -120,6 +133,8 @@ export const slackItem = ({
 export const githubItem = ({
   item,
   showActions = true,
+  isFollowUp = false,
+  followUpId,
 }: {
   item: ActionItem & {
     assignee: User | null | undefined;
@@ -127,6 +142,8 @@ export const githubItem = ({
     slackMessages: (SlackMessage & { channel: Channel; author: User })[];
   };
   showActions?: boolean;
+  isFollowUp?: boolean;
+  followUpId?: string;
 }) => {
   const diff = dayjs().diff(dayjs(item.lastReplyOn), "day");
   const url = `<https://github.com/${item.githubItems[0].repository?.owner}/${item.githubItems[0].repository?.name}/issues/${item.githubItems[0].number}|View on GitHub>`;
@@ -161,11 +178,13 @@ export const githubItem = ({
     type: "section",
     text: {
       type: "mrkdwn",
-      text: `*Project:* ${project}\n*Action Id:* ${item.id}\n${text}\n\nOpened by ${
-        item.githubItems[0].author?.githubUsername
-      } on ${dayjs(item.githubItems[0].createdAt).format("MMM DD, YYYY")} at ${dayjs(
+      text: `${
+        isFollowUp ? ":information_source: Follow up :information_source:" : ""
+      }\n*Project:* ${project}\n*Action Id:* ${
+        isFollowUp ? followUpId : item.id
+      }\n${text}\n\nOpened by ${item.githubItems[0].author?.githubUsername} on ${dayjs(
         item.githubItems[0].createdAt
-      ).format("hh:mm A")}${
+      ).format("MMM DD, YYYY")} at ${dayjs(item.githubItems[0].createdAt).format("hh:mm A")}${
         item.lastReplyOn
           ? `\n*Last reply:* ${dayjs(item.lastReplyOn).fromNow()} ${diff > 10 ? ":panik:" : ""}`
           : "\n:panik: *No replies yet*"
@@ -176,7 +195,7 @@ export const githubItem = ({
           type: "button",
           text: { type: "plain_text", emoji: true, text: "Resolve" },
           style: "primary",
-          value: item.id,
+          value: isFollowUp ? followUpId : item.id,
           action_id: "resolve",
         }
       : {
@@ -186,12 +205,16 @@ export const githubItem = ({
             .filter((m) => !!m)
             .map((maintainer) => ({
               text: { type: "plain_text", text: maintainer!.id, emoji: true },
-              value: `${item.id}-${maintainer?.id}`,
+              value: `${isFollowUp ? followUpId : item.id}-${maintainer?.id}`,
             }))
-            .concat({
-              text: { type: "plain_text", text: "none", emoji: true },
-              value: `${item.id}-unassigned`,
-            })
+            .concat(
+              isFollowUp
+                ? []
+                : {
+                    text: { type: "plain_text", text: "none", emoji: true },
+                    value: `${item.id}-unassigned`,
+                  }
+            )
             .concat(
               ...(item.assignee && !isMaintainer
                 ? [
@@ -201,7 +224,7 @@ export const githubItem = ({
                         text: `<@${currentAssignee?.slack}> (volunteer)`,
                         emoji: true,
                       },
-                      value: `${item.id}-${currentAssignee?.id}`,
+                      value: `${isFollowUp ? followUpId : item.id}-${currentAssignee?.id}`,
                     },
                   ]
                 : [])
@@ -215,8 +238,10 @@ export const githubItem = ({
                     : `<@${currentAssignee.slack}> (volunteer)`,
                   emoji: true,
                 },
-                value: `${item.id}-${currentAssignee.id}`,
+                value: `${isFollowUp ? followUpId : item.id}-${currentAssignee.id}`,
               }
+            : isFollowUp
+            ? undefined
             : {
                 text: { type: "plain_text", text: "none", emoji: true },
                 value: `${item.id}-unassigned`,
@@ -230,6 +255,7 @@ export const buttons = ({
   item,
   showAssignee = false,
   showActions = true,
+  followUpId,
 }: {
   item: ActionItem & {
     assignee: User | null | undefined;
@@ -238,6 +264,7 @@ export const buttons = ({
   };
   showAssignee?: boolean;
   showActions?: boolean;
+  followUpId?: string;
 }) => {
   const maintainers = getMaintainers({
     repoUrl: item.githubItems[0]?.repository?.url,
@@ -269,7 +296,7 @@ export const buttons = ({
               {
                 type: "button",
                 text: { type: "plain_text", emoji: true, text: "Snooze" },
-                value: item.id,
+                value: followUpId ?? item.id,
                 action_id: "snooze",
               },
               {
@@ -281,7 +308,7 @@ export const buttons = ({
               {
                 type: "button",
                 text: { type: "plain_text", emoji: true, text: "Close - Irrelevant" },
-                value: item.id,
+                value: followUpId ?? item.id,
                 action_id: "irrelevant",
               },
             ]
@@ -293,7 +320,7 @@ export const buttons = ({
             emoji: true,
             text: `Notes ${item.notes.length > 0 ? "(👀)" : ""}`,
           },
-          value: item.id,
+          value: followUpId ?? item.id,
           action_id: "notes",
         },
         ...(showAssignee
@@ -305,12 +332,16 @@ export const buttons = ({
                   .filter((m) => !!m)
                   .map((maintainer) => ({
                     text: { type: "plain_text", text: maintainer!.id, emoji: true },
-                    value: `${item.id}-${maintainer?.id}`,
+                    value: `${followUpId ?? item.id}-${maintainer?.id}`,
                   }))
-                  .concat({
-                    text: { type: "plain_text", text: "none", emoji: true },
-                    value: `${item.id}-unassigned`,
-                  })
+                  .concat(
+                    followUpId
+                      ? []
+                      : {
+                          text: { type: "plain_text", text: "none", emoji: true },
+                          value: `${item.id}-unassigned`,
+                        }
+                  )
                   .concat(
                     ...(item.assignee && !isMaintainer
                       ? [
@@ -320,7 +351,7 @@ export const buttons = ({
                               text: `<@${currentAssignee?.slack}> (volunteer)`,
                               emoji: true,
                             },
-                            value: `${item.id}-${currentAssignee?.id}`,
+                            value: `${followUpId ?? item.id}-${currentAssignee?.id}`,
                           },
                         ]
                       : [])
@@ -334,11 +365,13 @@ export const buttons = ({
                           : `<@${currentAssignee.slack}> (volunteer)`,
                         emoji: true,
                       },
-                      value: `${item.id}-${currentAssignee.id}`,
+                      value: `${followUpId ?? item.id}-${currentAssignee.id}`,
                     }
+                  : followUpId
+                  ? undefined
                   : {
                       text: { type: "plain_text", text: "none", emoji: true },
-                      value: `${item.id}-unassigned`,
+                      value: `${followUpId ?? item.id}-unassigned`,
                     },
                 action_id: "assigned",
               },

@@ -424,6 +424,7 @@ slack.event("message", async ({ event, client, logger, message }) => {
 });
 
 slack.command("/slacker", handleSlackerCommand);
+slack.command("/slacker-dev", handleSlackerCommand);
 slack.action("resolve", resolve);
 slack.action("snooze", snooze);
 slack.action("followup", followUp);
@@ -538,43 +539,59 @@ cron.schedule("0 * * * *", async () => {
   try {
     const followUps = await prisma.followUp.findMany({
       include: {
-        actionItem: {
+        parent: {
           include: {
             assignee: true,
             githubItems: { select: { repository: true, number: true } },
             slackMessages: { select: { channel: true, ts: true } },
           },
         },
-        user: true,
+        nextItem: { include: { assignee: true } },
       },
     });
 
-    for await (const f of followUps) {
-      const followUpOn = dayjs(f.date);
+    for await (const followUp of followUps) {
       const now = dayjs();
-      const diff = now.diff(followUpOn, "hour", true).toFixed(2);
+      const followUpOn = dayjs(followUp.date);
+      const diff = parseFloat(now.diff(followUpOn, "hour", true).toFixed(2));
 
-      if (followUpOn.isAfter(now) || parseFloat(diff) >= 1) continue;
+      if (followUpOn.isAfter(now) || diff >= 1) continue;
 
       const url =
-        f.actionItem.githubItems.length > 0
-          ? `${f.actionItem.githubItems.at(-1)?.repository.url}/issues/${
-              f.actionItem.githubItems.at(-1)?.number
+        followUp.parent.githubItems.length > 0
+          ? `${followUp.parent.githubItems.at(-1)?.repository.url}/issues/${
+              followUp.parent.githubItems.at(-1)?.number
             }`
           : `https://hackclub.slack.com/archives/${
-              f.actionItem.slackMessages.at(-1)?.channel?.slackId
-            }/p${f.actionItem.slackMessages.at(-1)?.ts.replace(".", "")}`;
+              followUp.parent.slackMessages.at(-1)?.channel?.slackId
+            }/p${followUp.parent.slackMessages.at(-1)?.ts.replace(".", "")}`;
 
-      await slack.client.chat.postMessage({
-        channel: f.user?.slackId ?? "",
-        text: `:wave: Hey, you asked us to follow up on <${url}|${f.actionItem.id}>. Take a look into it again if needed!`,
+      await prisma.followUp.update({
+        where: {
+          parentId_nextItemId: { parentId: followUp.parentId, nextItemId: followUp.nextItemId },
+        },
+        data: { nextItem: { update: { status: "open" } } },
       });
 
-      if (f.actionItem.assigneeId !== f.user?.id)
-        await slack.client.chat.postMessage({
-          channel: f.actionItem.assignee?.slackId ?? "",
-          text: `:wave: Hey, you asked us to follow up on <${url}|${f.actionItem.id}>. Take a look into it again if needed!`,
-        });
+      await slack.client.chat.postMessage({
+        channel: followUp.nextItem.assignee?.slackId ?? "",
+        text: `:wave: Hey, you asked us to follow up with you about <${url}|${followUp.parent.id}>. Take a look at it again!`,
+        blocks: [
+          {
+            type: "section",
+            text: {
+              type: "mrkdwn",
+              text: `:wave: Hey, you asked us to follow up with you about <${url}|${followUp.parent.id}>. Take a look at it again!`,
+            },
+            accessory: {
+              type: "button",
+              text: { type: "plain_text", text: "Follow up again" },
+              action_id: "followup",
+              value: followUp.parent.id,
+            },
+          },
+        ],
+      });
     }
   } catch (err) {
     console.log("🚨🚨 Error in follow up cron job 🚨🚨");
