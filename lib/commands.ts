@@ -845,10 +845,7 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
       }
 
       const volunteerFilters = ["", "all", "github", "issues", "pulls"];
-      let isVolunteer =
-        !maintainers.find((m) => m.slack === user_id) &&
-        project !== "all" &&
-        volunteerFilters.includes(filter);
+      let isVolunteer = !maintainers.find((m) => m.slack === user_id) && project !== "all";
 
       if (!user) {
         return await unauthorizedError({ client, user_id, channel_id });
@@ -869,6 +866,15 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
       }
 
       if (isVolunteer) {
+        if (!volunteerFilters.includes(filter)) {
+          await client.chat.postEphemeral({
+            user: user_id,
+            channel: channel_id,
+            text: `:warning: Invalid filter. Please check your command and try again. As a volunteer, available options: "all", "github", "issues", "pulls".`,
+          });
+          return;
+        }
+
         const data = await prisma.actionItem
           .findMany({
             where: {
@@ -941,14 +947,20 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
         .then((res) =>
           (res || [])
             .filter((i) => i.snoozedUntil === null || dayjs().isAfter(dayjs(i.snoozedUntil)))
-            .filter((i) => filterBySection(i, isfilteringSections(sections, filter)))
+            .filter((i) =>
+              isfilteringSections(sections, filter)
+                ? filterBySection(i, isfilteringSections(sections, filter))
+                : removeSectionItems(i, sections)
+            )
         );
 
       if (data.length < 1) {
         await client.chat.postEphemeral({
           user: user_id,
           channel: channel_id,
-          text: `:white_check_mark: No action items available. Please check back later.`,
+          text: `:white_check_mark: No action items available. Consider gimme-ing for sections: ${sections.map(
+            (s, i) => (i === sections.length - 1 ? "" : " ") + `"${s.name}"`
+          )} or check back later.`,
         });
         return;
       }
@@ -957,7 +969,7 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
 
       const item = await prisma.actionItem.update({
         where: { id },
-        data: { assignee: { connect: { id: user?.id } }, assignedOn: new Date() },
+        data: { assignee: { connect: { id: user.id } }, assignedOn: new Date() },
         include: {
           githubItems: { include: { author: true, repository: true } },
           slackMessages: { include: { author: true, channel: true } },
@@ -1277,6 +1289,25 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
     metrics.increment(`command.all.error`, 1);
     logger.error(err);
   }
+};
+
+const removeSectionItems = (
+  i: ActionItem & { slackMessages: SlackMessage[]; githubItems: GithubItem[] },
+  sections: { name: string; pattern: string }[]
+) => {
+  const regexes = sections.map((s) => new RegExp(s.pattern));
+
+  let bool = true;
+  regexes.forEach((r) => {
+    if (
+      r.test(i.githubItems[0]?.title || "") ||
+      r.test(i.githubItems[0]?.body || "") ||
+      r.test(i.slackMessages.map((m) => m.text).join(" "))
+    )
+      bool = false;
+  });
+
+  return bool;
 };
 
 const filterBySection = (
