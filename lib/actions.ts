@@ -8,6 +8,7 @@ import { indexDocument } from "./elastic";
 import metrics from "./metrics";
 import { getOctokitToken } from "./octokit";
 import { MAINTAINERS, logActivity } from "./utils";
+import { slack } from "..";
 
 export const markIrrelevant: Middleware<
   SlackActionMiddlewareArgs<SlackAction>,
@@ -336,7 +337,7 @@ export const assigned: Middleware<SlackActionMiddlewareArgs<SlackAction>, String
   await ack();
 
   try {
-    const { user, channel, actions } = body as any;
+    const { user, channel, actions, message } = body as any;
     const [actionId, assigneeId] = actions[0].selected_option.value.split("-");
 
     if (assigneeId === "unassigned") {
@@ -351,6 +352,7 @@ export const assigned: Middleware<SlackActionMiddlewareArgs<SlackAction>, String
         text: `:white_check_mark: Action item (id=${actionId}) unassigned.`,
       });
 
+      await removeResolveButton(channel?.id as string, message.ts, actionId);
       await indexDocument(actionId);
       await logActivity(client, user.id, actionId, "unassigned");
       metrics.increment("slack.unassigned", 1);
@@ -391,6 +393,12 @@ export const assigned: Middleware<SlackActionMiddlewareArgs<SlackAction>, String
       user: user.id,
       text: `:white_check_mark: Action item (id=${actionId}) assigned to <@${maintainer?.slack}>`,
     });
+
+    if (user.id !== maintainer?.slack) {
+      await removeResolveButton(channel?.id as string, message.ts, actionId);
+    } else {
+      await addResolveButton(channel?.id as string, message.ts, actionId);
+    }
 
     await indexDocument(actionId, { timesAssigned: 1 });
     await logActivity(client, user.id, actionId, "assigned", maintainer?.slack);
@@ -513,4 +521,74 @@ export const promptAssigneeNo: Middleware<
     metrics.increment("errors.github.assignee.response", 1);
     logger.error(err);
   }
+};
+
+const removeResolveButton = async (channelId: string, messageId: string, actionId: string) => {
+  const { messages } = await slack.client.conversations.history({
+    channel: channelId,
+    latest: messageId,
+    limit: 1,
+    inclusive: true,
+  });
+
+  const blocks = messages?.[0].blocks || [];
+  const idx = blocks.findIndex(
+    (block) => block.type === "section" && block.text?.text?.includes(actionId)
+  );
+
+  const hasResolveButton = blocks[idx]?.accessory?.action_id === "resolve";
+  if (!hasResolveButton) return;
+
+  const newBlocks = blocks.map((block, i) => {
+    if (i === idx) return { ...block, accessory: undefined };
+    return block;
+  }) as (Block | KnownBlock)[];
+
+  await slack.client.chat.update({
+    ts: messageId,
+    channel: channelId,
+    text: `Message updated: ${messageId}`,
+    blocks: newBlocks,
+  });
+};
+
+const addResolveButton = async (channelId: string, messageId: string, actionId: string) => {
+  const { messages } = await slack.client.conversations.history({
+    channel: channelId,
+    latest: messageId,
+    limit: 1,
+    inclusive: true,
+  });
+
+  const blocks = messages?.[0].blocks || [];
+  const idx = blocks.findIndex(
+    (block) => block.type === "section" && block.text?.text?.includes(actionId)
+  );
+
+  const hasAccessories = !!blocks[idx]?.accessory;
+  if (hasAccessories) return;
+
+  const newBlocks = blocks.map((block, i) => {
+    if (i === idx) {
+      return {
+        ...block,
+        accessory: {
+          type: "button",
+          text: { type: "plain_text", emoji: true, text: "Resolve" },
+          style: "primary",
+          value: actionId,
+          action_id: "resolve",
+        },
+      };
+    }
+
+    return block;
+  }) as (Block | KnownBlock)[];
+
+  await slack.client.chat.update({
+    ts: messageId,
+    channel: channelId,
+    text: `Message updated: ${messageId}`,
+    blocks: newBlocks,
+  });
 };
