@@ -121,3 +121,7 @@
 - id: kaleo
   slack: U033N1Y3YTB
   github: VelocityDesign
+
+- id: alex
+  slack: U04MDFEBL2U
+  github: ajs256
