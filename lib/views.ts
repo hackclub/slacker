@@ -193,7 +193,7 @@ export const irrelevantSubmit: Middleware<
 
       const logins = res.node.participants.nodes.map((node) => node.login);
       await syncGithubParticipants(logins, action.id);
-    } else if (action.slackMessages.length > 0) {
+    } else {
       await prisma.actionItem.update({
         where: { id: action.id },
         data: {
@@ -288,7 +288,7 @@ export const resolveSubmit: Middleware<
 
       const logins = res.node.participants.nodes.map((node) => node.login);
       await syncGithubParticipants(logins, action.id);
-    } else if (action.slackMessages.length > 0) {
+    } else {
       await prisma.actionItem.update({
         where: { id: action.id },
         data: { status: "closed", resolvedAt: new Date(), reason: reason ?? "" },
