@@ -53,8 +53,9 @@ export const slackItem = ({
     type: "section",
     text: {
       type: "mrkdwn",
-      text: `${isFollowUp ? ":information_source: Follow up :information_source:" : ""}
-      *Project:* ${project}\n*Action Id:* ${
+      text: `${
+        isFollowUp ? ":information_source: Follow up :information_source:" : ""
+      }\n*Project:* ${project}\n*Action Id:* ${
         isFollowUp ? followUpId : item.id
       }\n*Query:* ${item.slackMessages
         .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
