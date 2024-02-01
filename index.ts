@@ -41,6 +41,7 @@ import {
 } from "./lib/utils";
 import { irrelevantSubmit, notesSubmit, resolveSubmit, snoozeSubmit } from "./lib/views";
 import routes from "./routes";
+import { buttons, githubItem, slackItem } from "./lib/blocks";
 
 dayjs.extend(relativeTime);
 dayjs.extend(customParseFormat);
@@ -304,13 +305,14 @@ slack.event("message", async ({ event, client, logger, message }) => {
 
       const project = getProjectName({ channelId: event.channel });
       const details = getYamlFile(`${project}.yaml`);
-      const shouldGroup = details.grouping && typeof details.grouping.minutes;
+      const grouping = details.channels?.find((c) => c.id === event.channel)?.grouping;
+      const shouldGroup = grouping && typeof grouping?.minutes === "number";
 
-      const recentSlackMessage = details.grouping?.minutes
+      const recentSlackMessage = grouping?.minutes
         ? await prisma.slackMessage.findFirst({
             where: {
               channel: { slackId: event.channel },
-              createdAt: { gte: dayjs().subtract(details.grouping.minutes, "minute").toDate() },
+              createdAt: { gte: dayjs().subtract(grouping.minutes, "minute").toDate() },
               actionItem: { status: ActionStatus.open, assigneeId: null },
             },
             include: { actionItem: { select: { id: true } } },
@@ -541,9 +543,10 @@ cron.schedule("0 * * * *", async () => {
       include: {
         parent: {
           include: {
+            githubItems: { include: { author: true, repository: true } },
+            slackMessages: { include: { author: true, channel: true } },
+            participants: { include: { user: true } },
             assignee: true,
-            githubItems: { select: { repository: true, number: true } },
-            slackMessages: { select: { channel: true, ts: true } },
           },
         },
         nextItem: { include: { assignee: true } },
@@ -583,13 +586,18 @@ cron.schedule("0 * * * *", async () => {
               type: "mrkdwn",
               text: `:wave: Hey, you asked us to follow up with you about <${url}|${followUp.parent.id}>. Take a look at it again!`,
             },
-            accessory: {
-              type: "button",
-              text: { type: "plain_text", text: "Follow up again" },
-              action_id: "followup",
-              value: followUp.parent.id,
-            },
           },
+          ...(followUp.parent.githubItems.length > 0
+            ? [githubItem({ item: followUp.parent, isFollowUp: true })]
+            : followUp.parent.slackMessages.length > 0
+            ? [slackItem({ item: followUp.parent, isFollowUp: true })]
+            : []),
+          ...buttons({
+            item: followUp.parent,
+            showAssignee: true,
+            showActions: true,
+            followUpId: followUp.nextItemId,
+          }),
         ],
       });
     }
