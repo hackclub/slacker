@@ -229,6 +229,7 @@ export const listGithubItems = async (owner: string, name: string) => {
               totalCount
               nodes {
                 author {
+                  resourcePath
                   login
                 }
                 createdAt
@@ -276,6 +277,7 @@ export const listGithubItems = async (owner: string, name: string) => {
             comments(first: 100) {
               nodes {
                 author {
+                  resourcePath
                   login
                 }
                 createdAt
@@ -301,7 +303,14 @@ export const listGithubItems = async (owner: string, name: string) => {
 
   const res = (await octokit.graphql(query, { owner, name })) as GithubData;
 
-  const items = [...res.repository.issues.nodes, ...res.repository.pullRequests.nodes];
+  const items = [...res.repository.issues.nodes, ...res.repository.pullRequests.nodes].map((i) => ({
+    ...i,
+    comments: {
+      totalCount: i.comments.totalCount,
+      nodes: i.comments.nodes.filter((c) => !c.author.resourcePath.includes("apps")),
+    },
+  }));
+
   return items;
 };
 
@@ -337,6 +346,7 @@ export const getGithubItem = async (owner: string, name: string, id: string) => 
             totalCount
             nodes {
               author {
+                resourcePath
                 login
               }
               createdAt
@@ -378,6 +388,7 @@ export const getGithubItem = async (owner: string, name: string, id: string) => 
             totalCount
             nodes {
               author {
+                resourcePath
                 login
               }
               createdAt
@@ -400,7 +411,16 @@ export const getGithubItem = async (owner: string, name: string, id: string) => 
   const token = await getOctokitToken(owner, name);
   const octokit = new Octokit({ auth: "Bearer " + token });
   const res = (await octokit.graphql(query, { id })) as SingleIssueOrPullData;
-  return res;
+
+  return {
+    node: {
+      ...res.node,
+      comments: {
+        totalCount: res.node.comments.totalCount,
+        nodes: res.node.comments.nodes.filter((c) => !c.author.resourcePath.includes("apps")),
+      },
+    },
+  };
 };
 
 export const assignIssueToVolunteer = async (

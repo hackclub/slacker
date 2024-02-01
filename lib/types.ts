@@ -64,6 +64,7 @@ export type IssueOrPull = {
       totalCount: number;
       nodes: {
         author: {
+          resourcePath: string;
           login: string;
         };
         createdAt: string;
@@ -100,6 +101,7 @@ export type SingleIssueOrPullData = {
       totalCount: number;
       nodes: {
         author: {
+          resourcePath: string;
           login: string;
         };
         createdAt: string;
