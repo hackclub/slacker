@@ -205,69 +205,75 @@ export const logActivity = async (
     | "unassigned",
   notifyUser?: string
 ) => {
-  if (process.env.ACTIVITY_LOG_CHANNEL_ID === undefined) return;
+  try {
+    if (process.env.ACTIVITY_LOG_CHANNEL_ID === undefined) return;
 
-  const item = await prisma.actionItem.findUnique({
-    where: { id: actionId },
-    include: {
-      githubItems: { include: { repository: true, author: true } },
-      slackMessages: { include: { channel: true, author: true } },
-      assignee: true,
-    },
-  });
+    const item = await prisma.actionItem.findUnique({
+      where: { id: actionId },
+      include: {
+        githubItems: { include: { repository: true, author: true } },
+        slackMessages: { include: { channel: true, author: true } },
+        assignee: true,
+      },
+    });
 
-  const project = getProjectName({
-    channelId: item?.slackMessages[0]?.channel.slackId,
-    repoUrl: item?.githubItems[0]?.repository.url,
-  });
+    const project = getProjectName({
+      channelId: item?.slackMessages[0]?.channel.slackId,
+      repoUrl: item?.githubItems[0]?.repository.url,
+    });
 
-  const config = getYamlFile(`${project}.yaml`);
-  if (!item || config.logging === false) return;
+    if (!project) return;
 
-  const url =
-    item.githubItems.length > 0
-      ? `https://github.com/${item.githubItems[0].repository.owner}/${item.githubItems[0].repository.name}/issues/${item.githubItems[0].number}`
-      : item.slackMessages.length > 0
-      ? `https://hackclub.slack.com/archives/${
-          item.slackMessages[0].channel.slackId
-        }/p${item.slackMessages[0].ts.replace(".", "")}`
-      : undefined;
+    const config = getYamlFile(`${project}.yaml`);
+    if (!item || config.logging === false) return;
 
-  await client.chat.postMessage({
-    channel: process.env.ACTIVITY_LOG_CHANNEL_ID,
-    text: `:white_check_mark: ${
-      MAINTAINERS.find((u) => u.slack === user)?.id || user
-    } ${type} an action item. ${notifyUser && user !== notifyUser ? `cc:<@${notifyUser}>` : ""}${
-      type === "irrelevant" || type === "resolved" ? `\n\nReason: ${item.reason}` : ""
-    }\n\n${url ? `<${url}|View action item>` : ""}`,
-  });
-
-  if (notifyUser && user !== notifyUser && type === "assigned") {
-    const arr: any[] = [];
-
-    if (item.slackMessages.length > 0) arr.push(slackItem({ item }));
-    if (item.githubItems.length > 0) arr.push(githubItem({ item }));
-    arr.push(...buttons({ item, showAssignee: true, showActions: true }));
+    const url =
+      item.githubItems.length > 0
+        ? `https://github.com/${item.githubItems[0].repository.owner}/${item.githubItems[0].repository.name}/issues/${item.githubItems[0].number}`
+        : item.slackMessages.length > 0
+        ? `https://hackclub.slack.com/archives/${
+            item.slackMessages[0].channel.slackId
+          }/p${item.slackMessages[0].ts.replace(".", "")}`
+        : undefined;
 
     await client.chat.postMessage({
-      channel: notifyUser,
-      unfurl_links: false,
-      text: `Hey <@${notifyUser}>, ${
+      channel: process.env.ACTIVITY_LOG_CHANNEL_ID,
+      text: `:white_check_mark: ${
         MAINTAINERS.find((u) => u.slack === user)?.id || user
-      } ${type} an action item to you:`,
-      blocks: [
-        {
-          type: "section",
-          text: {
-            type: "mrkdwn",
-            text: `Hey <@${notifyUser}>, ${
-              MAINTAINERS.find((u) => u.slack === user)?.id || user
-            } ${type} an action item to you:`,
-          },
-        },
-        { type: "divider" },
-        ...arr.flat(),
-      ],
+      } ${type} an action item. ${notifyUser && user !== notifyUser ? `cc:<@${notifyUser}>` : ""}${
+        type === "irrelevant" || type === "resolved" ? `\n\nReason: ${item.reason}` : ""
+      }\n\n${url ? `<${url}|View action item>` : ""}`,
     });
+
+    if (notifyUser && user !== notifyUser && type === "assigned") {
+      const arr: any[] = [];
+
+      if (item.slackMessages.length > 0) arr.push(slackItem({ item }));
+      if (item.githubItems.length > 0) arr.push(githubItem({ item }));
+      arr.push(...buttons({ item, showAssignee: true, showActions: true }));
+
+      await client.chat.postMessage({
+        channel: notifyUser,
+        unfurl_links: false,
+        text: `Hey <@${notifyUser}>, ${
+          MAINTAINERS.find((u) => u.slack === user)?.id || user
+        } ${type} an action item to you:`,
+        blocks: [
+          {
+            type: "section",
+            text: {
+              type: "mrkdwn",
+              text: `Hey <@${notifyUser}>, ${
+                MAINTAINERS.find((u) => u.slack === user)?.id || user
+              } ${type} an action item to you:`,
+            },
+          },
+          { type: "divider" },
+          ...arr.flat(),
+        ],
+      });
+    }
+  } catch (err) {
+    console.error(err);
   }
 };

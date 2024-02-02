@@ -253,6 +253,7 @@ export const resolveSubmit: Middleware<
     include: {
       slackMessages: { include: { channel: true } },
       githubItems: { include: { repository: true } },
+      parentItems: true,
     },
   });
 
@@ -295,6 +296,8 @@ export const resolveSubmit: Middleware<
       });
     }
 
+    const isFollowUp = action.parentItems.length > 0;
+
     const { messages } = await client.conversations.history({
       channel: channelId,
       latest: messageId,
@@ -313,7 +316,7 @@ export const resolveSubmit: Middleware<
                 {
                   type: "button",
                   text: { type: "plain_text", emoji: true, text: "Follow Up" },
-                  value: action.id,
+                  value: isFollowUp ? action.parentItems[0].parentId : action.id,
                   action_id: "followup",
                 },
               ],
