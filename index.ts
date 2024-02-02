@@ -27,7 +27,7 @@ import {
 } from "./lib/actions";
 import { handleSlackerCommand } from "./lib/commands";
 import prisma from "./lib/db";
-import { indexDocument } from "./lib/elastic";
+import { elastic, indexDocument } from "./lib/elastic";
 import metrics from "./lib/metrics";
 import { getGithubItem, getOctokitToken, webhooks } from "./lib/octokit";
 import {
@@ -588,9 +588,21 @@ cron.schedule("0 * * * *", async () => {
             },
           },
           ...(followUp.parent.githubItems.length > 0
-            ? [githubItem({ item: followUp.parent, isFollowUp: true })]
+            ? [
+                githubItem({
+                  item: followUp.parent,
+                  isFollowUp: true,
+                  followUpId: followUp.nextItemId,
+                }),
+              ]
             : followUp.parent.slackMessages.length > 0
-            ? [slackItem({ item: followUp.parent, isFollowUp: true })]
+            ? [
+                slackItem({
+                  item: followUp.parent,
+                  isFollowUp: true,
+                  followUpId: followUp.nextItemId,
+                }),
+              ]
             : []),
           ...buttons({
             item: followUp.parent,
@@ -873,6 +885,9 @@ cron.schedule("0 12 * * *", async () => {
 });
 
 const backFill = async () => {
+  // await elastic.indices.delete({ index: "search-slacker-analytics" });
+  // await elastic.indices.create({ index: "search-slacker-analytics" });
+
   const actionItems = await prisma.actionItem.findMany({});
 
   for await (const item of actionItems) {

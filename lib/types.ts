@@ -111,6 +111,20 @@ export type SingleIssueOrPullData = {
   };
 };
 
+export enum State {
+  open = "open",
+  triaged = "triaged",
+  resolved = "resolved",
+  snoozed = "snoozed",
+}
+
+export enum ItemType {
+  issue = "issue",
+  pull = "pull",
+  message = "message",
+  followUp = "followUp",
+}
+
 export type ElasticDocument = {
   id?: string;
   author?: {
@@ -118,10 +132,12 @@ export type ElasticDocument = {
     github: string | null;
     slack: string | null;
   };
-  state?: "open" | "triaged" | "resolved" | "snoozed";
+  state?: State;
   project?: string;
   source?: string;
-  actionItemType?: "issue" | "pull" | "message";
+  actionItemType?: ItemType;
+  followUpDuration?: number;
+  followUpTo?: string;
   createdTime?: Date;
   resolvedTime?: Date | null;
   reason?: string;

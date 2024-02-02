@@ -239,6 +239,7 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
                       item: item.parentItems[0]?.parent,
                       showActions: false,
                       isFollowUp: true,
+                      followUpId: item.id,
                     })
                   );
                 }
@@ -248,6 +249,7 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
                       item: item.parentItems[0]?.parent,
                       showActions: false,
                       isFollowUp: true,
+                      followUpId: item.id,
                     })
                   );
                 }
@@ -764,10 +766,22 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
 
           if (isFollowUp) {
             if (item.parentItems[0]?.parent.slackMessages.length > 0) {
-              arr.push(slackItem({ item: item.parentItems[0]?.parent, isFollowUp: true }));
+              arr.push(
+                slackItem({
+                  item: item.parentItems[0]?.parent,
+                  isFollowUp: true,
+                  followUpId: item.id,
+                })
+              );
             }
             if (item.parentItems[0]?.parent.githubItems.length > 0) {
-              arr.push(githubItem({ item: item.parentItems[0]?.parent, isFollowUp: true }));
+              arr.push(
+                githubItem({
+                  item: item.parentItems[0]?.parent,
+                  isFollowUp: true,
+                  followUpId: item.id,
+                })
+              );
             }
           }
 

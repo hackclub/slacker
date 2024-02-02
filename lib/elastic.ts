@@ -4,7 +4,7 @@ import dayjs from "dayjs";
 import { config } from "dotenv";
 import prisma from "./db";
 import { getDisplayName } from "./octokit";
-import { ElasticDocument } from "./types";
+import { ElasticDocument, ItemType, State } from "./types";
 import { MAINTAINERS, getProjectName } from "./utils";
 import metrics from "./metrics";
 config();
@@ -80,6 +80,16 @@ export const indexDocument = async (id: string, data?: ElasticDocument) => {
       include: {
         slackMessages: { include: { channel: true, author: true } },
         githubItems: { include: { repository: true, author: true } },
+        parentItems: {
+          include: {
+            parent: {
+              include: {
+                slackMessages: { include: { channel: true, author: true } },
+                githubItems: { include: { repository: true, author: true } },
+              },
+            },
+          },
+        },
         assignee: true,
         snoozedBy: true,
         participants: { select: { user: true } },
@@ -92,13 +102,6 @@ export const indexDocument = async (id: string, data?: ElasticDocument) => {
       .get<ElasticDocument>({ id: item.id, index: INDEX_NAME })
       .then((res) => res)
       .catch(() => undefined);
-
-    const project = getProjectName({
-      channelId: item.slackMessages[0]?.channel.slackId,
-      repoUrl: item.githubItems[0]?.repository.url,
-    });
-
-    if (!project) return;
 
     let participants: ElasticDocument["actors"] = (doc?._source?.actors ?? []).filter(
       (p) =>
@@ -140,74 +143,165 @@ export const indexDocument = async (id: string, data?: ElasticDocument) => {
       item.githubItems[0]?.createdAt ||
       dayjs(item.slackMessages[0]?.ts?.split(".")[0], "X").toDate();
 
-    await elastic.index<ElasticDocument>({
-      id: item.id,
-      timeout: "1m",
-      index: "search-slacker-analytics",
-      document: {
+    const isFollowUp = item.parentItems.length > 0;
+
+    if (isFollowUp) {
+      const project = getProjectName({
+        channelId: item.parentItems[0].parent.slackMessages[0]?.channel.slackId,
+        repoUrl: item.parentItems[0].parent.githubItems[0]?.repository.url,
+      });
+
+      if (!project) return;
+
+      await elastic.index<ElasticDocument>({
         id: item.id,
-        actionItemType:
-          item.slackMessages.length > 0
-            ? "message"
-            : item.githubItems[0].type === "issue"
-            ? "issue"
-            : "pull",
-        createdTime: createdAt ?? item.createdAt,
-        resolvedTime: item.resolvedAt,
-        firstResponseTime: item.firstReplyOn,
-        reason: item.reason,
-        state:
-          item.snoozedUntil && dayjs(item.snoozedUntil).isAfter(dayjs())
-            ? "snoozed"
-            : item.status === ActionStatus.closed
-            ? item.slackMessages.length > 0
-              ? "resolved"
-              : "triaged"
-            : "open",
-        lastModifiedTime:
-          item.lastReplyOn ??
-          item.slackMessages.at(-1)?.updatedAt ??
-          item.githubItems[0].updatedAt ??
-          item.updatedAt,
-        project,
-        source:
-          item.githubItems.length > 0
-            ? item.githubItems[0].repository.owner + "/" + item.githubItems[0].repository.name
-            : `#${item.slackMessages[0].channel.name}`,
-        snoozedUntil: item.snoozedUntil,
-        timesCommented: item.totalReplies,
-        timesReopened: (doc?._source?.timesReopened ?? 0) + (data?.timesReopened ?? 0),
-        timesResolved: (doc?._source?.timesResolved ?? 0) + (data?.timesResolved ?? 0),
-        timesAssigned,
-        timesSnoozed: item.snoozeCount,
-        firstResponseTimeInS: item.firstReplyOn
-          ? dayjs(item.firstReplyOn).diff(createdAt, "seconds")
-          : null,
-        resolutionTimeInS: item.resolvedAt
-          ? dayjs(item.resolvedAt).diff(createdAt, "seconds")
-          : null,
-        actors: participants,
-        assignee: participants.find(
-          (actor) =>
-            actor.slack === item.assignee?.slackId || actor.github === item.assignee?.githubUsername
-        ),
-        author: participants.find(
-          (actor) =>
-            actor.slack ===
-              (item.slackMessages.length > 0 ? item.slackMessages : item.githubItems)[0].author
-                .slackId ||
-            actor.github ===
-              (item.slackMessages.length > 0 ? item.slackMessages : item.githubItems)[0].author
-                .githubUsername
-        ),
-        url:
-          item.githubItems.length > 0
-            ? `https://github.com/${item.githubItems[0].repository?.owner}/${item.githubItems[0].repository?.name}/issues/${item.githubItems[0].number}`
-            : `https://hackclub.slack.com/archives/${
-                item.slackMessages[0].channel.slackId
-              }/p${item.slackMessages[0]?.ts.replace(".", "")}`,
-      },
-    });
+        timeout: "1m",
+        index: "search-slacker-analytics",
+        document: {
+          id: item.id,
+          actionItemType: ItemType.followUp,
+          followUpDuration: dayjs(item.parentItems[0].date).diff(
+            item.parentItems[0].parent.resolvedAt,
+            "days"
+          ),
+          followUpTo: item.parentItems[0].parent.id,
+          createdTime: createdAt ?? item.createdAt,
+          resolvedTime: item.resolvedAt,
+          firstResponseTime: item.firstReplyOn,
+          reason: item.reason ?? item.notes,
+          state:
+            item.snoozedUntil && dayjs(item.snoozedUntil).isAfter(dayjs())
+              ? State.snoozed
+              : item.status === ActionStatus.closed
+              ? item.slackMessages.length > 0
+                ? State.resolved
+                : State.triaged
+              : State.open,
+          lastModifiedTime:
+            item.lastReplyOn ??
+            item.slackMessages.at(-1)?.updatedAt ??
+            item.githubItems[0].updatedAt ??
+            item.updatedAt,
+          project,
+          source:
+            item.parentItems[0].parent.githubItems.length > 0
+              ? item.parentItems[0].parent.githubItems[0].repository.owner +
+                "/" +
+                item.parentItems[0].parent.githubItems[0].repository.name
+              : `#${item.parentItems[0].parent.slackMessages[0].channel.name}`,
+          snoozedUntil: item.snoozedUntil,
+          timesCommented: item.totalReplies,
+          timesReopened: (doc?._source?.timesReopened ?? 0) + (data?.timesReopened ?? 0),
+          timesResolved: (doc?._source?.timesResolved ?? 0) + (data?.timesResolved ?? 0),
+          timesAssigned,
+          timesSnoozed: item.snoozeCount,
+          firstResponseTimeInS: item.firstReplyOn
+            ? dayjs(item.firstReplyOn).diff(createdAt, "seconds")
+            : null,
+          resolutionTimeInS: item.resolvedAt
+            ? dayjs(item.resolvedAt).diff(createdAt, "seconds")
+            : null,
+          actors: participants,
+          assignee: participants.find(
+            (actor) =>
+              actor.slack === item.assignee?.slackId ||
+              actor.github === item.assignee?.githubUsername
+          ),
+          author: participants.find(
+            (actor) =>
+              actor.slack ===
+                (item.slackMessages.length > 0 ? item.slackMessages : item.githubItems)[0].author
+                  .slackId ||
+              actor.github ===
+                (item.slackMessages.length > 0 ? item.slackMessages : item.githubItems)[0].author
+                  .githubUsername
+          ),
+          url:
+            item.parentItems[0].parent.githubItems.length > 0
+              ? `https://github.com/${item.parentItems[0].parent.githubItems[0].repository?.owner}/${item.parentItems[0].parent.githubItems[0].repository?.name}/issues/${item.githubItems[0].number}`
+              : `https://hackclub.slack.com/archives/${
+                  item.parentItems[0].parent.slackMessages[0].channel.slackId
+                }/p${item.parentItems[0].parent.slackMessages[0]?.ts.replace(".", "")}`,
+        },
+      });
+    } else {
+      const project = getProjectName({
+        channelId: item.slackMessages[0]?.channel.slackId,
+        repoUrl: item.githubItems[0]?.repository.url,
+      });
+
+      if (!project) return;
+
+      await elastic.index<ElasticDocument>({
+        id: item.id,
+        timeout: "1m",
+        index: "search-slacker-analytics",
+        document: {
+          id: item.id,
+          actionItemType:
+            item.slackMessages.length > 0
+              ? ItemType.message
+              : item.githubItems[0].type === "issue"
+              ? ItemType.issue
+              : ItemType.pull,
+          createdTime: createdAt ?? item.createdAt,
+          resolvedTime: item.resolvedAt,
+          firstResponseTime: item.firstReplyOn,
+          reason: item.reason,
+          state:
+            item.snoozedUntil && dayjs(item.snoozedUntil).isAfter(dayjs())
+              ? State.snoozed
+              : item.status === ActionStatus.closed
+              ? item.slackMessages.length > 0
+                ? State.resolved
+                : State.triaged
+              : State.open,
+          lastModifiedTime:
+            item.lastReplyOn ??
+            item.slackMessages.at(-1)?.updatedAt ??
+            item.githubItems[0].updatedAt ??
+            item.updatedAt,
+          project,
+          source:
+            item.githubItems.length > 0
+              ? item.githubItems[0].repository.owner + "/" + item.githubItems[0].repository.name
+              : `#${item.slackMessages[0].channel.name}`,
+          snoozedUntil: item.snoozedUntil,
+          timesCommented: item.totalReplies,
+          timesReopened: (doc?._source?.timesReopened ?? 0) + (data?.timesReopened ?? 0),
+          timesResolved: (doc?._source?.timesResolved ?? 0) + (data?.timesResolved ?? 0),
+          timesAssigned,
+          timesSnoozed: item.snoozeCount,
+          firstResponseTimeInS: item.firstReplyOn
+            ? dayjs(item.firstReplyOn).diff(createdAt, "seconds")
+            : null,
+          resolutionTimeInS: item.resolvedAt
+            ? dayjs(item.resolvedAt).diff(createdAt, "seconds")
+            : null,
+          actors: participants,
+          assignee: participants.find(
+            (actor) =>
+              actor.slack === item.assignee?.slackId ||
+              actor.github === item.assignee?.githubUsername
+          ),
+          author: participants.find(
+            (actor) =>
+              actor.slack ===
+                (item.slackMessages.length > 0 ? item.slackMessages : item.githubItems)[0].author
+                  .slackId ||
+              actor.github ===
+                (item.slackMessages.length > 0 ? item.slackMessages : item.githubItems)[0].author
+                  .githubUsername
+          ),
+          url:
+            item.githubItems.length > 0
+              ? `https://github.com/${item.githubItems[0].repository?.owner}/${item.githubItems[0].repository?.name}/issues/${item.githubItems[0].number}`
+              : `https://hackclub.slack.com/archives/${
+                  item.slackMessages[0].channel.slackId
+                }/p${item.slackMessages[0]?.ts.replace(".", "")}`,
+        },
+      });
+    }
   } catch (err) {
     metrics.increment("errors.elastic.index", 1);
     console.error(err);
