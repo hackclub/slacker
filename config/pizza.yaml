@@ -1,6 +1,11 @@
+---
 name: Pizza
 description: Pizza for everyone!
-maintainers: [thomas, arpan, sahiti, jasper]
+maintainers:
+  - thomas
+  - arpan
+  - sahiti
+  - jasper
 channels:
   - name: pizza-party
     id: C05RZ6K7RS5
@@ -20,8 +25,8 @@ channels:
       responseTime: 1h
   - name: pizza-queries
     id: C063JHFQV1S
-      sla:
-        responseTime: 24h
+    sla:
+      responseTime: 24h
   - name: pizza-dev
     id: C06CR1YQQAV
     sla:
