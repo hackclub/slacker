@@ -1,9 +1,0 @@
-name: HCPD
-description: Local HCPD Department. Enforcing the laws @ Hack Cub :)
-maintainers: [thomas, arpan, sahiti, jasper, max]
-channels:
-  - name: hcpd-pizza-crimes-division
-    id: C063JHFQV1S
-    sla:
-      responseTime: 1h
-repos: []
