@@ -34,7 +34,7 @@ channels:
 repos:
   - uri: https://github.com/hackclub/pizza-fund
     sla:
-      responseTime: 24h
+      responseTime: 48h
 sections:
   - name: india
     pattern: india
