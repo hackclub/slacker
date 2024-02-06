@@ -63,6 +63,7 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
         \n• *Get a project report:* \`/slacker report [project]\`
         \n• *Opt out of status report notifications:* \`/slacker optout\`
         \n• *Opt in to status report notifications:* \`/slacker optin\`
+        \n• *Clear your slack dms with slacker:* \`/slacker clear\`
         \n• *Help:* \`/slacker help\``,
       });
     } else if (args[0] === "list") {
@@ -1274,6 +1275,21 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
         channel: channel_id,
         text: `:white_check_mark: Cleanup complete. ${res.count} action items deleted.`,
       });
+    } else if (args[0] === "clear") {
+      const messages = await client.conversations.history({
+        channel: channel_id,
+        limit: 100,
+      });
+
+      const botMessages = messages.messages?.filter(
+        (m) => m.bot_profile?.name?.toLowerCase().includes("slacker") && m.ts
+      ) as SlackMessage[];
+
+      await Promise.all(
+        botMessages.map(async (m) => {
+          await client.chat.delete({ channel: channel_id, ts: m.ts });
+        })
+      );
     } else {
       const closest = closestMatch(args[0], [
         "list",
@@ -1287,6 +1303,12 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
         "me",
         "gimme",
         "help",
+        "gh",
+        "review",
+        "cleanup",
+        "clear",
+        "optout",
+        "optin",
       ]);
 
       await client.chat.postEphemeral({

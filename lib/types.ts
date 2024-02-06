@@ -3,7 +3,7 @@ export type Config = {
   description: string;
   maintainers: string[];
   clawback?: boolean; // removes assigned issues from github if not resolved in time
-  logging?: boolean; // log the slacker activity in the public channel
+  private?: boolean;
   channels?: {
     grouping?: { minutes: number };
     id: string;

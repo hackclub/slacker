@@ -225,7 +225,7 @@ export const logActivity = async (
     if (!project) return;
 
     const config = getYamlFile(`${project}.yaml`);
-    if (!item || config.logging === false) return;
+    if (!item || config.private) return;
 
     const url =
       item.githubItems.length > 0

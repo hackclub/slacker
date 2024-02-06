@@ -1,5 +1,6 @@
 name: Spam
 description: Bot spam testing
+private: true
 maintainers: [faisal]
 channels:
   - name: bot-spam
