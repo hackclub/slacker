@@ -1,6 +1,6 @@
 name: draw-dino
-description: Hack Club's workshop on submiting PRs on GitHub
-maintainers: [graham, josias, max, sam]
+description: Hack Club's workshop on submitting PRs on GitHub
+maintainers: [graham, josias, max]
 repos:
   - uri: https://github.com/hackclub/draw-dino
     sla:
