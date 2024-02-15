@@ -1,6 +1,6 @@
 name: DNS
 description: DNS stuff for Hack Club
-maintainers: [faisal, graham, sam, max, caleb, sean, reese]
+maintainers: [faisal, graham, sean, reese]
 channels:
   - name: dns
     id: CS8TQ86GN
