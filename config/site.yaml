@@ -1,0 +1,11 @@
+name: Hack Club Site
+description: The Hack Club website
+maintainers: [faisal, graham, josias]
+channels:
+repos:
+  - uri: https://github.com/hackclub/site
+    sla:
+      responseTime: 1h
+sections:
+  - name: sprig
+    pattern: sprig
