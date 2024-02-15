@@ -28,31 +28,26 @@ webhooks.on("pull_request.opened", async ({ payload }) => createGithubItem(paylo
 webhooks.on("pull_request.review_requested", async ({ payload }) => {
   metrics.increment("octokit.pull_request.review_requested");
 
-  const { pull_request, repository, sender } = payload;
+  const { pull_request, repository, sender, requested_reviewer } = payload as typeof payload & {
+    requested_reviewer?: { login: string };
+  };
+
   const project = getProjectName({ repoUrl: repository.html_url });
-  if (!project) return;
+  if (!project || !requested_reviewer) return;
 
-  for (let i = 0; i < pull_request.requested_reviewers.length; i++) {
-    const user =
-      MAINTAINERS.find(
-        (maintainer) => maintainer.github === (pull_request.requested_reviewers[i] as any)?.login
-      )?.slack ||
-      (
-        await prisma.user.findFirst({
-          where: { githubUsername: (pull_request.requested_reviewers[i] as any)?.login },
-        })
-      )?.slackId;
+  const user =
+    MAINTAINERS.find((maintainer) => maintainer.github === requested_reviewer.login)?.slack ||
+    (await prisma.user.findFirst({ where: { githubUsername: requested_reviewer.login } }))?.slackId;
 
-    if (sender.login === (pull_request.requested_reviewers[i] as any)?.login) continue;
+  if (sender.login === requested_reviewer.login) return;
 
-    if (user) {
-      await slack.client.chat.postMessage({
-        channel: user,
-        text: `You have been requested to review a pull request on ${project} by ${sender.login}.\n${pull_request.html_url}`,
-      });
-    } else {
-      console.log("No user found for", pull_request.requested_reviewers[i]);
-    }
+  if (user) {
+    await slack.client.chat.postMessage({
+      channel: user,
+      text: `You have been requested to review a pull request on ${project} by ${sender.login}.\n${pull_request.html_url}`,
+    });
+  } else {
+    console.log("No user found for", requested_reviewer);
   }
 });
 
