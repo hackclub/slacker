@@ -1,0 +1,7 @@
+name: draw-dino
+description: Hack Club's workshop on submitting PRs on GitHub
+maintainers: [graham, josias, max]
+repos:
+  - uri: https://github.com/hackclub/draw-dino
+    sla:
+      reponseTime: 1h
