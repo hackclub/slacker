@@ -10,8 +10,7 @@ dayjs.extend(customParseFormat);
 export const slackItem = ({
   item,
   showActions = true,
-  isFollowUp = false,
-  followUpId,
+  followUp,
 }: {
   item: ActionItem & {
     assignee: User | null | undefined;
@@ -19,8 +18,7 @@ export const slackItem = ({
     slackMessages: (SlackMessage & { channel: Channel; author: User })[];
   };
   showActions?: boolean;
-  isFollowUp?: boolean;
-  followUpId?: string;
+  followUp?: { id: string; duration: number };
 }) => {
   const diff = dayjs().diff(dayjs(item.lastReplyOn), "day");
   const project = getProjectName({ channelId: item.slackMessages[0].channel?.slackId });
@@ -54,9 +52,11 @@ export const slackItem = ({
     text: {
       type: "mrkdwn",
       text: `${
-        isFollowUp ? ":information_source: Follow up :information_source:" : ""
+        followUp?.id
+          ? `:information_source: Follow up (${followUp.duration} days) :information_source:`
+          : ""
       }\n*Project:* ${project}\n*Action Id:* ${
-        isFollowUp ? followUpId : item.id
+        followUp?.id ? followUp.id : item.id
       }\n*Query:* ${item.slackMessages
         .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
         .map((m) => `<@${m.author?.slackId}>: ${m.text}`)
@@ -75,7 +75,7 @@ export const slackItem = ({
           type: "button",
           text: { type: "plain_text", emoji: true, text: "Resolve" },
           style: "primary",
-          value: isFollowUp ? followUpId : item.id,
+          value: followUp?.id ? followUp.id : item.id,
           action_id: "resolve",
         }
       : {
@@ -85,10 +85,10 @@ export const slackItem = ({
             .filter((m) => !!m)
             .map((maintainer) => ({
               text: { type: "plain_text", text: maintainer!.id, emoji: true },
-              value: `${isFollowUp ? followUpId : item.id}-${maintainer?.id}`,
+              value: `${followUp?.id ? followUp.id : item.id}-${maintainer?.id}`,
             }))
             .concat(
-              isFollowUp
+              followUp?.id
                 ? []
                 : {
                     text: { type: "plain_text", text: "none", emoji: true },
@@ -104,7 +104,7 @@ export const slackItem = ({
                         text: `<@${currentAssignee?.slack}> (volunteer)`,
                         emoji: true,
                       },
-                      value: `${isFollowUp ? followUpId : item.id}-${currentAssignee?.id}`,
+                      value: `${followUp?.id ? followUp.id : item.id}-${currentAssignee?.id}`,
                     },
                   ]
                 : [])
@@ -118,9 +118,9 @@ export const slackItem = ({
                     : `<@${currentAssignee.slack}> (volunteer)`,
                   emoji: true,
                 },
-                value: `${isFollowUp ? followUpId : item.id}-${currentAssignee.id}`,
+                value: `${followUp?.id ? followUp.id : item.id}-${currentAssignee.id}`,
               }
-            : isFollowUp
+            : followUp?.id
             ? undefined
             : {
                 text: { type: "plain_text", text: "none", emoji: true },
@@ -134,8 +134,7 @@ export const slackItem = ({
 export const githubItem = ({
   item,
   showActions = true,
-  isFollowUp = false,
-  followUpId,
+  followUp,
 }: {
   item: ActionItem & {
     assignee: User | null | undefined;
@@ -143,8 +142,7 @@ export const githubItem = ({
     slackMessages: (SlackMessage & { channel: Channel; author: User })[];
   };
   showActions?: boolean;
-  isFollowUp?: boolean;
-  followUpId?: string;
+  followUp?: { id: string; duration: number };
 }) => {
   const diff = dayjs().diff(dayjs(item.lastReplyOn), "day");
   const url = `<https://github.com/${item.githubItems[0].repository?.owner}/${item.githubItems[0].repository?.name}/issues/${item.githubItems[0].number}|View on GitHub>`;
@@ -180,9 +178,11 @@ export const githubItem = ({
     text: {
       type: "mrkdwn",
       text: `${
-        isFollowUp ? ":information_source: Follow up :information_source:" : ""
+        followUp?.id
+          ? `:information_source: Follow up (${followUp.duration} days) :information_source:`
+          : ""
       }\n*Project:* ${project}\n*Action Id:* ${
-        isFollowUp ? followUpId : item.id
+        followUp?.id ? followUp.id : item.id
       }\n${text}\n\nOpened by ${item.githubItems[0].author?.githubUsername} on ${dayjs(
         item.githubItems[0].createdAt
       ).format("MMM DD, YYYY")} at ${dayjs(item.githubItems[0].createdAt).format("hh:mm A")}${
@@ -196,7 +196,7 @@ export const githubItem = ({
           type: "button",
           text: { type: "plain_text", emoji: true, text: "Resolve" },
           style: "primary",
-          value: isFollowUp ? followUpId : item.id,
+          value: followUp?.id ? followUp.id : item.id,
           action_id: "resolve",
         }
       : {
@@ -206,10 +206,10 @@ export const githubItem = ({
             .filter((m) => !!m)
             .map((maintainer) => ({
               text: { type: "plain_text", text: maintainer!.id, emoji: true },
-              value: `${isFollowUp ? followUpId : item.id}-${maintainer?.id}`,
+              value: `${followUp?.id ? followUp.id : item.id}-${maintainer?.id}`,
             }))
             .concat(
-              isFollowUp
+              followUp?.id
                 ? []
                 : {
                     text: { type: "plain_text", text: "none", emoji: true },
@@ -225,7 +225,7 @@ export const githubItem = ({
                         text: `<@${currentAssignee?.slack}> (volunteer)`,
                         emoji: true,
                       },
-                      value: `${isFollowUp ? followUpId : item.id}-${currentAssignee?.id}`,
+                      value: `${followUp?.id ? followUp.id : item.id}-${currentAssignee?.id}`,
                     },
                   ]
                 : [])
@@ -239,9 +239,9 @@ export const githubItem = ({
                     : `<@${currentAssignee.slack}> (volunteer)`,
                   emoji: true,
                 },
-                value: `${isFollowUp ? followUpId : item.id}-${currentAssignee.id}`,
+                value: `${followUp?.id ? followUp.id : item.id}-${currentAssignee.id}`,
               }
-            : isFollowUp
+            : followUp?.id
             ? undefined
             : {
                 text: { type: "plain_text", text: "none", emoji: true },

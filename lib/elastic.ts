@@ -161,14 +161,14 @@ export const indexDocument = async (id: string, data?: ElasticDocument) => {
           id: item.id,
           actionItemType: ItemType.followUp,
           followUpDuration: dayjs(item.parentItems[0].date).diff(
-            item.parentItems[0].parent.resolvedAt,
+            item.parentItems[0].parent.resolvedAt ?? item.parentItems[0].createdAt,
             "days"
           ),
           followUpTo: item.parentItems[0].parent.id,
           createdTime: createdAt ?? item.createdAt,
           resolvedTime: item.resolvedAt,
           firstResponseTime: item.firstReplyOn,
-          reason: item.reason ?? item.notes,
+          reason: item.notes,
           state:
             item.snoozedUntil && dayjs(item.snoozedUntil).isAfter(dayjs())
               ? State.snoozed
@@ -180,7 +180,7 @@ export const indexDocument = async (id: string, data?: ElasticDocument) => {
           lastModifiedTime:
             item.lastReplyOn ??
             item.slackMessages.at(-1)?.updatedAt ??
-            item.githubItems[0].updatedAt ??
+            item.githubItems[0]?.updatedAt ??
             item.updatedAt,
           project,
           source:
@@ -210,15 +210,17 @@ export const indexDocument = async (id: string, data?: ElasticDocument) => {
           author: participants.find(
             (actor) =>
               actor.slack ===
-                (item.slackMessages.length > 0 ? item.slackMessages : item.githubItems)[0].author
-                  .slackId ||
+                (item.parentItems[0].parent.slackMessages.length > 0
+                  ? item.parentItems[0].parent.slackMessages
+                  : item.parentItems[0].parent.githubItems)[0].author.slackId ||
               actor.github ===
-                (item.slackMessages.length > 0 ? item.slackMessages : item.githubItems)[0].author
-                  .githubUsername
+                (item.parentItems[0].parent.slackMessages.length > 0
+                  ? item.parentItems[0].parent.slackMessages
+                  : item.parentItems[0].parent.githubItems)[0].author.githubUsername
           ),
           url:
             item.parentItems[0].parent.githubItems.length > 0
-              ? `https://github.com/${item.parentItems[0].parent.githubItems[0].repository?.owner}/${item.parentItems[0].parent.githubItems[0].repository?.name}/issues/${item.githubItems[0].number}`
+              ? `https://github.com/${item.parentItems[0].parent.githubItems[0].repository?.owner}/${item.parentItems[0].parent.githubItems[0].repository?.name}/issues/${item.parentItems[0].parent.githubItems[0].number}`
               : `https://hackclub.slack.com/archives/${
                   item.parentItems[0].parent.slackMessages[0].channel.slackId
                 }/p${item.parentItems[0].parent.slackMessages[0]?.ts.replace(".", "")}`,

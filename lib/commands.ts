@@ -239,8 +239,15 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
                     slackItem({
                       item: item.parentItems[0]?.parent,
                       showActions: false,
-                      isFollowUp: true,
-                      followUpId: item.id,
+                      followUp: {
+                        id: item.id,
+                        duration: dayjs(item.parentItems[0].date).diff(
+                          dayjs(
+                            item.parentItems[0].parent.resolvedAt ?? item.parentItems[0].createdAt,
+                            "day"
+                          )
+                        ),
+                      },
                     })
                   );
                 }
@@ -249,8 +256,15 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
                     githubItem({
                       item: item.parentItems[0]?.parent,
                       showActions: false,
-                      isFollowUp: true,
-                      followUpId: item.id,
+                      followUp: {
+                        id: item.id,
+                        duration: dayjs(item.parentItems[0].date).diff(
+                          dayjs(
+                            item.parentItems[0].parent.resolvedAt ?? item.parentItems[0].createdAt,
+                            "day"
+                          )
+                        ),
+                      },
                     })
                   );
                 }
@@ -770,8 +784,15 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
               arr.push(
                 slackItem({
                   item: item.parentItems[0]?.parent,
-                  isFollowUp: true,
-                  followUpId: item.id,
+                  followUp: {
+                    id: item.id,
+                    duration: dayjs(item.parentItems[0].date).diff(
+                      dayjs(
+                        item.parentItems[0].parent.resolvedAt ?? item.parentItems[0].createdAt,
+                        "day"
+                      )
+                    ),
+                  },
                 })
               );
             }
@@ -779,8 +800,15 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
               arr.push(
                 githubItem({
                   item: item.parentItems[0]?.parent,
-                  isFollowUp: true,
-                  followUpId: item.id,
+                  followUp: {
+                    id: item.id,
+                    duration: dayjs(item.parentItems[0].date).diff(
+                      dayjs(
+                        item.parentItems[0].parent.resolvedAt ?? item.parentItems[0].createdAt,
+                        "day"
+                      )
+                    ),
+                  },
                 })
               );
             }

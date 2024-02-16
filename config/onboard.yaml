@@ -1,0 +1,27 @@
+name: Onboard
+description: Teens make a PCB for $100 and get it shipped for free
+maintainers: [prophetorpheus]
+channels:
+  - name: onboard
+    id: C056AMWSFKJ
+    sla:
+      responseTime: 1h
+  - name: onboard-bts
+    id: C05AB4G6PPV
+    sla:
+      responseTime: 1h
+  - name: onboard-help
+    id: C0593MG26TT
+    sla:
+      responseTime: 1h
+  - name: onboard-grant-requests
+    id: C063HR4LB4H
+    sla:
+      responseTime: 1h
+repos:
+  - uri: https://github.com/hackclub/onboard
+    sla:
+      responseTime: 1h
+sections:
+  - name: grants
+    pattern: A new Onboard grant has been requested

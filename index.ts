@@ -576,6 +576,11 @@ cron.schedule("0 * * * *", async () => {
         data: { nextItem: { update: { status: "open" } } },
       });
 
+      const followUpDuration = dayjs(followUp.date).diff(
+        followUp.parent.resolvedAt ?? followUp.createdAt,
+        "day"
+      );
+
       await slack.client.chat.postMessage({
         channel: followUp.nextItem.assignee?.slackId ?? "",
         text: `:wave: Hey, you asked us to follow up with you about <${url}|${followUp.parent.id}>. Take a look at it again!`,
@@ -591,16 +596,14 @@ cron.schedule("0 * * * *", async () => {
             ? [
                 githubItem({
                   item: followUp.parent,
-                  isFollowUp: true,
-                  followUpId: followUp.nextItemId,
+                  followUp: { id: followUp.nextItemId, duration: followUpDuration },
                 }),
               ]
             : followUp.parent.slackMessages.length > 0
             ? [
                 slackItem({
                   item: followUp.parent,
-                  isFollowUp: true,
-                  followUpId: followUp.nextItemId,
+                  followUp: { id: followUp.nextItemId, duration: followUpDuration },
                 }),
               ]
             : []),
@@ -888,11 +891,28 @@ const backFill = async () => {
   // await elastic.indices.delete({ index: "search-slacker-analytics" });
   // await elastic.indices.create({ index: "search-slacker-analytics" });
 
-  const actionItems = await prisma.actionItem.findMany({});
+  const actionItems = await prisma.actionItem.findMany({ select: { id: true } });
+  const batchSize = 10; // Set the desired batch size
 
-  for await (const item of actionItems) {
-    console.log(`Backfilling ${actionItems.indexOf(item) + 1}/${actionItems.length}`);
-    await indexDocument(item.id);
+  const chunk = <T>(array: T[], size: number): T[][] => {
+    return Array.from({ length: Math.ceil(array.length / size) }, (_, index) =>
+      array.slice(index * size, index * size + size)
+    );
+  };
+
+  const backfillBatch = async (batch: { id: string }[]) => {
+    await Promise.allSettled(
+      batch.map(async (item, index) => {
+        await indexDocument(item.id);
+      })
+    );
+  };
+
+  const batches = chunk(actionItems, batchSize);
+
+  for (const batch of batches) {
+    console.log(`Backfilling batch #${batches.indexOf(batch) + 1}/${batches.length}`);
+    await backfillBatch(batch);
   }
 };
 
