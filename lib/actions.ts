@@ -285,6 +285,18 @@ export const notes: Middleware<SlackActionMiddlewareArgs<SlackAction>, StringInd
               text: "Add notes for this action item",
             },
           },
+          ...(action.reason.length > 0
+            ? [
+                {
+                  type: "section",
+                  text: {
+                    type: "plain_text",
+                    text: `**Reason:** ${action.reason}`,
+                    emoji: true,
+                  },
+                } as Block,
+              ]
+            : []),
         ],
       },
     });
