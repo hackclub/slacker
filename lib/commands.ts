@@ -243,9 +243,9 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
                         id: item.id,
                         duration: dayjs(item.parentItems[0].date).diff(
                           dayjs(
-                            item.parentItems[0].parent.resolvedAt ?? item.parentItems[0].createdAt,
-                            "day"
-                          )
+                            item.parentItems[0].parent.resolvedAt ?? item.parentItems[0].createdAt
+                          ),
+                          "days"
                         ),
                       },
                     })
@@ -260,9 +260,9 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
                         id: item.id,
                         duration: dayjs(item.parentItems[0].date).diff(
                           dayjs(
-                            item.parentItems[0].parent.resolvedAt ?? item.parentItems[0].createdAt,
-                            "day"
-                          )
+                            item.parentItems[0].parent.resolvedAt ?? item.parentItems[0].createdAt
+                          ),
+                          "days"
                         ),
                       },
                     })
@@ -787,10 +787,8 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
                   followUp: {
                     id: item.id,
                     duration: dayjs(item.parentItems[0].date).diff(
-                      dayjs(
-                        item.parentItems[0].parent.resolvedAt ?? item.parentItems[0].createdAt,
-                        "day"
-                      )
+                      dayjs(item.parentItems[0].parent.resolvedAt ?? item.parentItems[0].createdAt),
+                      "days"
                     ),
                   },
                 })
@@ -803,10 +801,8 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
                   followUp: {
                     id: item.id,
                     duration: dayjs(item.parentItems[0].date).diff(
-                      dayjs(
-                        item.parentItems[0].parent.resolvedAt ?? item.parentItems[0].createdAt,
-                        "day"
-                      )
+                      dayjs(item.parentItems[0].parent.resolvedAt ?? item.parentItems[0].createdAt),
+                      "days"
                     ),
                   },
                 })

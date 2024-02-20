@@ -240,7 +240,7 @@ export const logActivity = async (
       channel: process.env.ACTIVITY_LOG_CHANNEL_ID,
       text: `:white_check_mark: ${
         MAINTAINERS.find((u) => u.slack === user)?.id || user
-      } ${type} an action item. ${notifyUser && user !== notifyUser ? `cc:<@${notifyUser}>` : ""}${
+      } ${type} an action item. ${
         type === "irrelevant" || type === "resolved" ? `\n\nReason: ${item.reason}` : ""
       }\n\n${url ? `<${url}|View action item>` : ""}`,
     });
