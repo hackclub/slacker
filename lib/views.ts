@@ -7,15 +7,11 @@ import {
 } from "@slack/bolt";
 import { StringIndexed } from "@slack/bolt/dist/types/helpers";
 import dayjs from "dayjs";
-import customParseFormat from "dayjs/plugin/customParseFormat";
-import relativeTime from "dayjs/plugin/relativeTime";
 import prisma from "./db";
 import { indexDocument } from "./elastic";
 import { getGithubItem } from "./octokit";
 import { logActivity, syncGithubParticipants } from "./utils";
 import metrics from "./metrics";
-dayjs.extend(relativeTime);
-dayjs.extend(customParseFormat);
 
 export const snoozeSubmit: Middleware<
   SlackViewMiddlewareArgs<SlackViewAction>,
@@ -99,7 +95,9 @@ export const snoozeSubmit: Middleware<
       user: user.id,
       text: `:white_check_mark: Action item (id=${actionId}) ${
         view.title.text === "Snooze" ? "snoozed until" : "will be followed up on"
-      } ${dayjs(snoozedUntil).format("MMM DD, YYYY hh:mm A")} ${
+      } *<!date^${dayjs(snoozedUntil).unix()}^{date_short_pretty} at {time}|${dayjs(
+        snoozedUntil
+      ).format("MMM DD, YYYY hh:mm A")}>* ${
         view.title.text === "Snooze"
           ? `by <@${user.id}> (Snooze count: ${action.snoozeCount + 1})`
           : ""
