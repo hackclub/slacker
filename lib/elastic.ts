@@ -162,7 +162,7 @@ export const indexDocument = async (id: string, data?: ElasticDocument) => {
           actionItemType: ItemType.followUp,
           followUpDuration: dayjs(item.parentItems[0].date).diff(
             item.parentItems[0].parent.resolvedAt ?? item.parentItems[0].createdAt,
-            "days"
+            "minutes"
           ),
           followUpTo: item.parentItems[0].parent.id,
           createdTime: createdAt ?? item.createdAt,
