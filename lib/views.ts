@@ -248,12 +248,21 @@ export const resolveSubmit: Middleware<
 
   const reason = view.state.values.reason["reason-action"].value;
 
-  const action = await prisma.actionItem.findFirst({
+  const action = await prisma.actionItem.findUnique({
     where: { id: actionId },
     include: {
       slackMessages: { include: { channel: true } },
       githubItems: { include: { repository: true } },
-      parentItems: true,
+      parentItems: {
+        include: {
+          parent: {
+            include: {
+              slackMessages: { include: { channel: true } },
+              githubItems: { include: { repository: true } },
+            },
+          },
+        },
+      },
     },
   });
 
@@ -307,19 +316,26 @@ export const resolveSubmit: Middleware<
 
     const blocks = messages?.[0].blocks || [];
     const idx = blocks.findIndex((block: any) => block.text && block.text.text.includes(actionId));
+    const text = isFollowUp
+      ? action.parentItems[0].parent.slackMessages?.[0]?.text ||
+        action.parentItems[0].parent.githubItems?.[0]?.title
+      : action.slackMessages?.[0]?.text || action.githubItems?.[0]?.title;
+
     const newBlocks = blocks
       .map((b, i) =>
         i === idx
           ? {
-              type: "actions",
-              elements: [
-                {
-                  type: "button",
-                  text: { type: "plain_text", emoji: true, text: "Follow Up" },
-                  value: isFollowUp ? action.parentItems[0].parentId : action.id,
-                  action_id: "followup",
-                },
-              ],
+              type: "section",
+              text: {
+                type: "mrkdwn",
+                text: `:white_check_mark: *Resolved* (${text.slice(0, 50)}...)`,
+              },
+              accessory: {
+                type: "button",
+                text: { type: "plain_text", emoji: true, text: "Follow Up" },
+                value: isFollowUp ? action.parentItems[0].parentId : action.id,
+                action_id: "followup",
+              },
             }
           : i === idx + 1
           ? null
