@@ -8,6 +8,10 @@ channels:
       minutes: 10
     sla:
       responseTime: 1h
+  - name: sprig-stuck-requests
+    id: C06L5SNPPL6
+    sla:
+      responseTime: 1h
   - name: sprig-platform
     id: C04S1A8NT44
     grouping:
