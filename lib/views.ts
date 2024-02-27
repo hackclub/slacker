@@ -326,7 +326,9 @@ export const resolveSubmit: Middleware<
               type: "section",
               text: {
                 type: "mrkdwn",
-                text: `:white_check_mark: *Resolved* (${text.slice(0, 50)}...)`,
+                text: `:white_check_mark: *Resolved* ${
+                  text ? "(" + text.slice(0, 50) + ")..." : ""
+                }`,
               },
               accessory: {
                 type: "button",
