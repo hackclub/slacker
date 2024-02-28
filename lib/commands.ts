@@ -1056,7 +1056,7 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
             elements: [
               {
                 type: "mrkdwn",
-                text: `*Remaining items in queue:* ${data.length} | ${
+                text: `*Remaining items in queue:* ${data.length - 1} | ${
                   user?.githubUsername
                     ? ""
                     : `In order to get github items, please <${process.env.DEPLOY_URL}/auth?id=${user_id}|authenticate> slacker to access your github account.`
