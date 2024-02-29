@@ -51,6 +51,65 @@ webhooks.on("pull_request.review_requested", async ({ payload }) => {
   }
 });
 
+webhooks.on("workflow_job", async ({ payload }) => {
+  metrics.increment("octokit.workflow_job");
+
+  const project = getProjectName({ repoUrl: payload.repository.html_url });
+  if (!project) return;
+
+  const repo = payload.repository.html_url.split("/").slice(-2).join("/");
+
+  console.log(">> Workflow job in", `${repo}:`, payload.workflow_job.name, {
+    started_at: payload.workflow_job.started_at,
+    status: payload.workflow_job.status,
+    conclusion: payload.workflow_job.conclusion,
+  });
+});
+
+webhooks.on("workflow_run", async ({ payload }) => {
+  metrics.increment("octokit.workflow_run");
+
+  const project = getProjectName({ repoUrl: payload.repository.html_url });
+  if (!project) return;
+
+  const repo = payload.repository.html_url.split("/").slice(-2).join("/");
+
+  console.log(">> Workflow run in", `${repo}:`, payload.workflow_run.name, {
+    started_at: payload.workflow_run.run_started_at,
+    status: payload.workflow_run.status,
+    conclusion: payload.workflow_run.conclusion,
+  });
+});
+
+webhooks.on("check_run", async ({ payload }) => {
+  metrics.increment("octokit.check_run");
+
+  const project = getProjectName({ repoUrl: payload.repository.html_url });
+  if (!project) return;
+
+  const repo = payload.repository.html_url.split("/").slice(-2).join("/");
+
+  console.log(">> Check run in", `${repo}:`, payload.check_run.name, {
+    started_at: payload.check_run.started_at,
+    status: payload.check_run.status,
+    conclusion: payload.check_run.conclusion,
+  });
+});
+
+webhooks.on("check_suite", async ({ payload }) => {
+  metrics.increment("octokit.check_suite");
+
+  const project = getProjectName({ repoUrl: payload.repository.html_url });
+  if (!project) return;
+
+  const repo = payload.repository.html_url.split("/").slice(-2).join("/");
+
+  console.log(">> Check run in", `${repo}:`, payload.check_suite.app.name, {
+    status: payload.check_suite.status,
+    conclusion: payload.check_suite.conclusion,
+  });
+});
+
 export const createGithubItem = async (payload) => {
   metrics.increment("octokit.create.item");
   console.log("🧶🧶 Running github webhook 🧶🧶");
