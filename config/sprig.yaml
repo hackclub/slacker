@@ -53,3 +53,5 @@ sections:
     pattern: A new Sprig device has been requested
   - name: devices-india
     pattern: A new Sprig device *in India* has been requested
+  - name: stuck
+    pattern: got stuck in Sprig
