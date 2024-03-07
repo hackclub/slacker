@@ -30,7 +30,7 @@ export const snoozeSubmit: Middleware<
 
     if (!dbUser) return;
 
-    if (view.title.text === "Snooze")
+    if (view.title.text === "Snooze") {
       await prisma.actionItem.update({
         where: { id: actionId },
         data: {
@@ -40,10 +40,14 @@ export const snoozeSubmit: Middleware<
           reason: reason ?? "",
         },
       });
-    else {
-      const alreadyFollowingUp = await prisma.followUp.findFirst({ where: { parentId: actionId } });
+    } else {
+      const alreadyFollowingUp = await prisma.followUp.findFirst({
+        where: { parentId: actionId },
+        orderBy: { date: "desc" },
+      });
 
-      if (alreadyFollowingUp) {
+      // We only update the current follow up if it's in the future, otherwise we always create a new one
+      if (alreadyFollowingUp && alreadyFollowingUp.date > new Date()) {
         await prisma.followUp.update({
           where: {
             parentId_nextItemId: { parentId: actionId, nextItemId: alreadyFollowingUp.nextItemId },
@@ -260,6 +264,8 @@ export const resolveSubmit: Middleware<
             },
           },
         },
+        orderBy: { date: "desc" },
+        take: 1,
       },
     },
   });

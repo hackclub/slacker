@@ -89,6 +89,8 @@ export const indexDocument = async (id: string, data?: ElasticDocument) => {
               },
             },
           },
+          orderBy: { date: "desc" },
+          take: 1,
         },
         assignee: true,
         snoozedBy: true,

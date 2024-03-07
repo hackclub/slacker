@@ -200,6 +200,8 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
                   },
                 },
               },
+              orderBy: { date: "desc" },
+              take: 1,
             },
           },
           orderBy: { createdAt: "asc" },
@@ -758,6 +760,8 @@ export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, String
                   },
                 },
               },
+              orderBy: { date: "desc" },
+              take: 1,
             },
           },
         })
