@@ -1,6 +1,6 @@
 name: Welcomers
 description: A group of people that give warm welcomes to new Hack Clubbers!
-maintainers: [arav, toby, kara, faisal, dev, thomas, arpan, sahiti, gaurav, jasper, karmanyaah, kaleo, alex, zoya, shubhampatil, khaleelgibran]
+maintainers: [arav, toby, kara, faisal, dev, thomas, arpan, sahiti, gaurav, jasper, karmanyaah, kaleo, alex, zoya, shubhampatil, khaleel]
 channels:
   - name: welcome-committee
     id: GLFAEL1SL
