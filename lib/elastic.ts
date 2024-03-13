@@ -141,10 +141,6 @@ export const indexDocument = async (id: string, data?: ElasticDocument) => {
     let timesAssigned = (doc?._source?.timesAssigned ?? 0) + (data?.timesAssigned ?? 0);
     timesAssigned = timesAssigned === 0 && item.assignee ? 1 : timesAssigned;
 
-    const createdAt =
-      item.githubItems[0]?.createdAt ||
-      dayjs(item.slackMessages[0]?.ts?.split(".")[0], "X").toDate();
-
     const isFollowUp = item.parentItems.length > 0;
 
     if (isFollowUp) {
@@ -167,7 +163,7 @@ export const indexDocument = async (id: string, data?: ElasticDocument) => {
             "minutes"
           ),
           followUpTo: item.parentItems[0].parent.id,
-          createdTime: createdAt ?? item.createdAt,
+          createdTime: item.createdAt,
           resolvedTime: item.resolvedAt,
           firstResponseTime: item.firstReplyOn,
           reason: item.notes,
@@ -179,11 +175,7 @@ export const indexDocument = async (id: string, data?: ElasticDocument) => {
                 ? State.resolved
                 : State.triaged
               : State.open,
-          lastModifiedTime:
-            item.lastReplyOn ??
-            item.slackMessages.at(-1)?.updatedAt ??
-            item.githubItems[0]?.updatedAt ??
-            item.updatedAt,
+          lastModifiedTime: item.lastReplyOn ?? item.updatedAt,
           project,
           source:
             item.parentItems[0].parent.githubItems.length > 0
@@ -198,10 +190,10 @@ export const indexDocument = async (id: string, data?: ElasticDocument) => {
           timesAssigned,
           timesSnoozed: item.snoozeCount,
           firstResponseTimeInS: item.firstReplyOn
-            ? dayjs(item.firstReplyOn).diff(createdAt, "seconds")
+            ? dayjs(item.firstReplyOn).diff(item.createdAt, "seconds")
             : null,
           resolutionTimeInS: item.resolvedAt
-            ? dayjs(item.resolvedAt).diff(createdAt, "seconds")
+            ? dayjs(item.resolvedAt).diff(item.createdAt, "seconds")
             : null,
           actors: participants,
           assignee: participants.find(
@@ -229,6 +221,10 @@ export const indexDocument = async (id: string, data?: ElasticDocument) => {
         },
       });
     } else {
+      const createdAt =
+        item.githubItems[0]?.createdAt ||
+        dayjs(item.slackMessages[0]?.ts?.split(".")[0], "X").toDate();
+
       const project = getProjectName({
         channelId: item.slackMessages[0]?.channel.slackId,
         repoUrl: item.githubItems[0]?.repository.url,
