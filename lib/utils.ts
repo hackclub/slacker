@@ -214,12 +214,27 @@ export const logActivity = async (
         githubItems: { include: { repository: true, author: true } },
         slackMessages: { include: { channel: true, author: true } },
         assignee: true,
+        parentItems: {
+          include: {
+            parent: {
+              include: {
+                githubItems: { include: { author: true, repository: true } },
+                slackMessages: { include: { author: true, channel: true } },
+                participants: { include: { user: true } },
+                assignee: true,
+              },
+            },
+          },
+        },
       },
     });
 
+    const msg = item?.slackMessages[0] || item?.parentItems[0]?.parent?.slackMessages[0];
+    const gh = item?.githubItems[0] || item?.parentItems[0]?.parent?.githubItems[0];
+
     const project = getProjectName({
-      channelId: item?.slackMessages[0]?.channel.slackId,
-      repoUrl: item?.githubItems[0]?.repository.url,
+      channelId: msg?.channel.slackId,
+      repoUrl: gh?.repository.url,
     });
 
     if (!project) return;
@@ -227,14 +242,11 @@ export const logActivity = async (
     const config = getYamlFile(`${project}.yaml`);
     if (!item || config.private) return;
 
-    const url =
-      item.githubItems.length > 0
-        ? `https://github.com/${item.githubItems[0].repository.owner}/${item.githubItems[0].repository.name}/issues/${item.githubItems[0].number}`
-        : item.slackMessages.length > 0
-        ? `https://hackclub.slack.com/archives/${
-            item.slackMessages[0].channel.slackId
-          }/p${item.slackMessages[0].ts.replace(".", "")}`
-        : undefined;
+    const url = gh
+      ? `https://github.com/${gh.repository.owner}/${gh.repository.name}/issues/${gh.number}`
+      : msg
+      ? `https://hackclub.slack.com/archives/${msg.channel.slackId}/p${msg.ts.replace(".", "")}`
+      : undefined;
 
     await client.chat.postMessage({
       channel: process.env.ACTIVITY_LOG_CHANNEL_ID,
@@ -248,9 +260,16 @@ export const logActivity = async (
     if (notifyUser && user !== notifyUser && type === "assigned") {
       const arr: any[] = [];
 
-      if (item.slackMessages.length > 0) arr.push(slackItem({ item }));
-      if (item.githubItems.length > 0) arr.push(githubItem({ item }));
-      arr.push(...buttons({ item, showAssignee: true, showActions: true }));
+      if (msg) arr.push(slackItem({ item }));
+      if (gh) arr.push(githubItem({ item }));
+      arr.push(
+        ...buttons({
+          item,
+          showAssignee: true,
+          showActions: true,
+          followUpId: item.parentItems.length > 0 ? item.id : undefined,
+        })
+      );
 
       await client.chat.postMessage({
         channel: notifyUser,

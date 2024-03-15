@@ -188,7 +188,7 @@ const receiver = new ExpressReceiver({
 });
 
 export const slack = new App({
-  logLevel: LogLevel.DEBUG,
+  logLevel: LogLevel.INFO,
   token: process.env.SLACK_BOT_TOKEN,
   receiver,
 });
