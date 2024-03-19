@@ -583,13 +583,13 @@ cron.schedule("0 * * * *", async () => {
 
       await slack.client.chat.postMessage({
         channel: followUp.nextItem.assignee?.slackId ?? "",
-        text: `:wave: Hey, you asked us to follow up with you about <${url}|${followUp.parent.id}>. Take a look at it again!`,
+        text: `:wave: Hey, you asked us to follow up on <${url}|${followUp.parent.id}>. Take a look at it again!`,
         blocks: [
           {
             type: "section",
             text: {
               type: "mrkdwn",
-              text: `:wave: Hey, you asked us to follow up with you about <${url}|${followUp.parent.id}>. Take a look at it again!`,
+              text: `:wave: Hey, you asked us to follow up on <${url}|${followUp.parent.id}>. Take a look at it again!`,
             },
           },
           ...(followUp.parent.githubItems.length > 0
@@ -768,124 +768,124 @@ cron.schedule(
   { timezone: "America/New_York" }
 );
 
-cron.schedule("0 12 * * *", async () => {
-  console.log("⏳⏳ Running stale assigned issues cron job ⏳⏳");
+// cron.schedule("0 12 * * *", async () => {
+//   console.log("⏳⏳ Running stale assigned issues cron job ⏳⏳");
 
-  try {
-    const items = await prisma.actionItem.findMany({
-      where: { githubItems: { some: { state: "open" } } },
-      select: { githubItems: { include: { repository: true } } },
-    });
+//   try {
+//     const items = await prisma.actionItem.findMany({
+//       where: { githubItems: { some: { state: "open" } } },
+//       select: { githubItems: { include: { repository: true } } },
+//     });
 
-    for (let i = 0; i < items.length; i++) {
-      const item = items[i];
-      if (item.githubItems.length < 1) continue;
+//     for (let i = 0; i < items.length; i++) {
+//       const item = items[i];
+//       if (item.githubItems.length < 1) continue;
 
-      const gh = item.githubItems.at(-1);
-      if (!gh) continue;
+//       const gh = item.githubItems.at(-1);
+//       if (!gh) continue;
 
-      const project = getProjectName({ repoUrl: gh.repository.url });
-      if (!project) continue;
+//       const project = getProjectName({ repoUrl: gh.repository.url });
+//       if (!project) continue;
 
-      const config = getYamlFile(`${project}.yaml`);
-      if (!config.clawback) continue;
+//       const config = getYamlFile(`${project}.yaml`);
+//       if (!config.clawback) continue;
 
-      const ghItem = await getGithubItem(gh.repository.owner, gh.repository.name, gh.nodeId);
+//       const ghItem = await getGithubItem(gh.repository.owner, gh.repository.name, gh.nodeId);
 
-      if (ghItem.node.assignees.nodes.length < 1) continue;
-      const assignedOn = dayjs(
-        gh.lastAssignedOn || ghItem.node.timelineItems.edges[0]?.node.createdAt
-      );
-      let deadline = assignedOn;
+//       if (ghItem.node.assignees.nodes.length < 1) continue;
+//       const assignedOn = dayjs(
+//         gh.lastAssignedOn || ghItem.node.timelineItems.edges[0]?.node.createdAt
+//       );
+//       let deadline = assignedOn;
 
-      let count = 0;
+//       let count = 0;
 
-      while (count < 5) {
-        deadline = deadline.add(1, "day");
-        if (deadline.day() !== 0 && deadline.day() !== 6) count++;
-      }
+//       while (count < 5) {
+//         deadline = deadline.add(1, "day");
+//         if (deadline.day() !== 0 && deadline.day() !== 6) count++;
+//       }
 
-      if (dayjs().isBefore(deadline)) continue;
+//       if (dayjs().isBefore(deadline)) continue;
 
-      // it's been over the deadline since it was assigned. now we either have to prompt them to confirm or unassign them.
-      if (gh.lastPromptedOn && dayjs(gh.lastPromptedOn).isAfter(deadline)) {
-        // they have been prompted, unassign them after two days
-        const unassignDeadline = dayjs(deadline).add(2, "day");
-        if (dayjs().isBefore(unassignDeadline)) continue;
+//       // it's been over the deadline since it was assigned. now we either have to prompt them to confirm or unassign them.
+//       if (gh.lastPromptedOn && dayjs(gh.lastPromptedOn).isAfter(deadline)) {
+//         // they have been prompted, unassign them after two days
+//         const unassignDeadline = dayjs(deadline).add(2, "day");
+//         if (dayjs().isBefore(unassignDeadline)) continue;
 
-        const assignee = await prisma.user.findFirst({
-          where: { githubUsername: ghItem.node.assignees.nodes[0].login },
-        });
+//         const assignee = await prisma.user.findFirst({
+//           where: { githubUsername: ghItem.node.assignees.nodes[0].login },
+//         });
 
-        const octokit = new Octokit({
-          auth: "Bearer " + (await getOctokitToken(gh.repository.owner, gh.repository.name)),
-        });
+//         const octokit = new Octokit({
+//           auth: "Bearer " + (await getOctokitToken(gh.repository.owner, gh.repository.name)),
+//         });
 
-        await octokit.rest.issues.removeAssignees({
-          owner: gh.repository.owner,
-          repo: gh.repository.name,
-          issue_number: gh.number,
-          assignees: [ghItem.node.assignees.nodes[0].login],
-        });
+//         await octokit.rest.issues.removeAssignees({
+//           owner: gh.repository.owner,
+//           repo: gh.repository.name,
+//           issue_number: gh.number,
+//           assignees: [ghItem.node.assignees.nodes[0].login],
+//         });
 
-        await slack.client.chat.postMessage({
-          channel: assignee?.slackId ?? "",
-          text: `:warning: Hey, we unassigned #${gh.number} *<${gh.repository.url}/issues/${gh.number}|${gh.title}>* from you because you didn't resolve it in time. Feel free to pick it up again!`,
-        });
+//         await slack.client.chat.postMessage({
+//           channel: assignee?.slackId ?? "",
+//           text: `:warning: Hey, we unassigned #${gh.number} *<${gh.repository.url}/issues/${gh.number}|${gh.title}>* from you because you didn't resolve it in time. Feel free to pick it up again!`,
+//         });
 
-        metrics.increment("gh.clawback.unassign", 1);
-      } else {
-        // prompt them to confirm
-        const assignee = await prisma.user.findFirst({
-          where: { githubUsername: ghItem.node.assignees.nodes[0].login },
-        });
+//         metrics.increment("gh.clawback.unassign", 1);
+//       } else {
+//         // prompt them to confirm
+//         const assignee = await prisma.user.findFirst({
+//           where: { githubUsername: ghItem.node.assignees.nodes[0].login },
+//         });
 
-        await slack.client.chat.postMessage({
-          channel: assignee?.slackId ?? "",
-          text: `:wave: Hey, we noticed that you've been assigned #${gh.number} *<${gh.repository.url}/issues/${gh.number}|${gh.title}>* for a while now. Are you still working on it?`,
-          blocks: [
-            {
-              type: "section",
-              text: {
-                type: "mrkdwn",
-                text: `:wave: Hey, we noticed that you've been assigned #${gh.number} *<${gh.repository.url}/issues/${gh.number}|${gh.title}>* for a while now. Are you still working on it?`,
-              },
-            },
-            {
-              type: "actions",
-              elements: [
-                {
-                  type: "button",
-                  text: { type: "plain_text", text: "Yes, I'm still working on it" },
-                  style: "primary",
-                  action_id: "prompt-assignee-yes",
-                  value: gh.nodeId,
-                },
-                {
-                  type: "button",
-                  text: { type: "plain_text", text: "No, I'm not working on it anymore" },
-                  style: "danger",
-                  action_id: "prompt-assignee-no",
-                  value: `${gh.nodeId}-${ghItem.node.assignees.nodes[0].login}`,
-                },
-              ],
-            },
-          ],
-        });
+//         await slack.client.chat.postMessage({
+//           channel: assignee?.slackId ?? "",
+//           text: `:wave: Hey, we noticed that you've been assigned #${gh.number} *<${gh.repository.url}/issues/${gh.number}|${gh.title}>* for a while now. Are you still working on it?`,
+//           blocks: [
+//             {
+//               type: "section",
+//               text: {
+//                 type: "mrkdwn",
+//                 text: `:wave: Hey, we noticed that you've been assigned #${gh.number} *<${gh.repository.url}/issues/${gh.number}|${gh.title}>* for a while now. Are you still working on it?`,
+//               },
+//             },
+//             {
+//               type: "actions",
+//               elements: [
+//                 {
+//                   type: "button",
+//                   text: { type: "plain_text", text: "Yes, I'm still working on it" },
+//                   style: "primary",
+//                   action_id: "prompt-assignee-yes",
+//                   value: gh.nodeId,
+//                 },
+//                 {
+//                   type: "button",
+//                   text: { type: "plain_text", text: "No, I'm not working on it anymore" },
+//                   style: "danger",
+//                   action_id: "prompt-assignee-no",
+//                   value: `${gh.nodeId}-${ghItem.node.assignees.nodes[0].login}`,
+//                 },
+//               ],
+//             },
+//           ],
+//         });
 
-        await prisma.githubItem.update({
-          where: { id: gh.id },
-          data: { lastPromptedOn: new Date() },
-        });
+//         await prisma.githubItem.update({
+//           where: { id: gh.id },
+//           data: { lastPromptedOn: new Date() },
+//         });
 
-        metrics.increment("gh.clawback.prompt", 1);
-      }
-    }
-  } catch (err) {
-    console.log("🚨🚨 Error in stale assigned issues cron job 🚨🚨");
-    console.error(err);
-  }
-});
+//         metrics.increment("gh.clawback.prompt", 1);
+//       }
+//     }
+//   } catch (err) {
+//     console.log("🚨🚨 Error in stale assigned issues cron job 🚨🚨");
+//     console.error(err);
+//   }
+// });
 
 const backFill = async () => {
   // await elastic.indices.delete({ index: "search-slacker-analytics" });
