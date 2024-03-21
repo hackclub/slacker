@@ -4,12 +4,8 @@ maintainers: [faisal, graham, sean, reese]
 channels:
   - name: dns
     id: CS8TQ86GN
-    sla:
-      responseTime: 1h
 repos:
   - uri: https://github.com/hackclub/dns
-    sla:
-      responseTime: 1h
 resources:
   - name: github
     uri: https://github.com/hackclub/dns

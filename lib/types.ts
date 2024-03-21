@@ -8,11 +8,11 @@ export type Config = {
     grouping?: { minutes: number };
     id: string;
     name: string;
-    sla: { responseTime: number };
+    notify: string[];
   }[];
   repos: {
     uri: string;
-    sla: { responseTime: number };
+    notify: string[];
   }[];
   resources?: {
     name: string;
@@ -21,6 +21,7 @@ export type Config = {
   sections?: {
     name: string;
     pattern: string;
+    notify: string[];
   }[];
 };
 

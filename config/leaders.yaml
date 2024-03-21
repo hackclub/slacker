@@ -4,12 +4,8 @@ maintainers: [thomas, arpan, sahiti, jasper]
 channels:
   - name: leaders
     id: C02PA5G01ND
-    sla:
-      responseTime: 4h
   - name: application-conspiracy
     id: C02F9GD407J
-    sla:
-      responseTime: 24h
 repos:
   - uri: https://github.com/hackclub/jams
     sla:

@@ -4,9 +4,5 @@ maintainers: [chris, elliot]
 channels:
   - name: gamedev
     id: C6LHL48G2
-    sla:
-      responseTime: 1h
 repos:
   - uri: https://github.com/hackclub/sinerider
-    sla:
-      responseTime: 1h

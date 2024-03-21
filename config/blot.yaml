@@ -4,12 +4,8 @@ maintainers: [leo, shawn, kara]
 channels:
   - name: blot
     id: C04GCH8A91D
-    sla:
-      responseTime: 1h
 repos:
   - uri: https://github.com/hackclub/blot
-    sla:
-      responseTime: 1h
 resources:
   - name: github
     uri: https://github.com/hackclub/blot

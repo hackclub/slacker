@@ -6,29 +6,17 @@ channels:
     id: C02UN35M7LG
     grouping:
       minutes: 10
-    sla:
-      responseTime: 1h
   - name: sprig-stuck-requests
     id: C06L5SNPPL6
-    sla:
-      responseTime: 1h
   - name: sprig-platform
     id: C04S1A8NT44
     grouping:
       minutes: 10
-    sla:
-      responseTime: 24h
   - name: sprig-device-requests
     id: C063DFZ532M
-    sla:
-      responseTime: 24h
 repos:
   - uri: https://github.com/hackclub/sprig
-    sla:
-      responseTime: 1h
   - uri: https://github.com/hackclub/spade
-    sla:
-      responseTime: 24h
 resources:
   - name: github-sprig-editor
     uri: https://github.com/hackclub/sprig

@@ -4,6 +4,4 @@ maintainers: [arav, toby, kara, faisal, dev, thomas, arpan, sahiti, gaurav, jasp
 channels:
   - name: welcome-committee
     id: GLFAEL1SL
-    sla:
-      responseTime: 1h
 repos: []

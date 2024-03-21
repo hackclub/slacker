@@ -3,8 +3,6 @@ description: Hack Club URL infrastructure
 maintainers: [faisal, graham, josias, max]
 repos:
   - uri: https://github.com/hackclub/hack.af
-    sla:
-      responseTime: 1h
 resources:
   - name: github
     uri: https://github.com/hackclub/hack.af

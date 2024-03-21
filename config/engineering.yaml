@@ -7,24 +7,14 @@ channels:
     grouping:
       minutes: 10
     id: C05G25Y9M6V
-    sla:
-      responseTime: 1h
   - name: hq-engineering
     grouping:
       minutes: 10
     id: C05SVRTCDGV
-    sla:
-      responseTime: 1h
 repos:
   - uri: https://github.com/hackclub/slacker
-    sla:
-      responseTime: 1h
   - uri: https://github.com/hackclub/infra
-    sla:
-      responseTime: 1h
   - uri: https://github.com/hackclub/global
-    sla:
-      responseTime: 1h
 resources:
   - name: hq-eng-slack-channel
     uri: https://hackclub.slack.com/archives/C05SVRTCDGV

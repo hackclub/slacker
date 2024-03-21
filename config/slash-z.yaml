@@ -4,12 +4,8 @@ maintainers: [graham, josias, max]
 channels:
   - name: development-of-slash-z
     id: C0179FFFRRV
-    sla:
-      responseTime: 1h
 repos:
   - uri: https://github.com/hackclub/slash-z
-    sla:
-      responseTime: 1h
 resources:
   - name: github
     uri: https://github.com/hackclub/slash-z

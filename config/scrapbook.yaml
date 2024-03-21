@@ -3,11 +3,7 @@ description: Hack Club Scrapbook infrastructure
 maintainers: [graham, josias]
 repos:
   - uri: https://github.com/hackclub/scrappy
-    sla:
-      responseTime: 1h
   - uri: https://github.com/hackclub/scrapbook
-    sla:
-      responseTime: 1h
 resources:
   - name: github-scrapbook
     uri: https://github.com/hackclub/scrapbook
