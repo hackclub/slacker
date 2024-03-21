@@ -191,6 +191,80 @@ export const getProjectDetails = async (
   };
 };
 
+export const checkNeedsNotifying = async (actionId: string) => {
+  const item = await prisma.actionItem.findUnique({
+    where: { id: actionId },
+    include: {
+      githubItems: { include: { repository: true, author: true } },
+      slackMessages: { include: { channel: true, author: true } },
+      assignee: true,
+    },
+  });
+
+  if (!item) return;
+
+  const msg = item?.slackMessages[0];
+  const gh = item?.githubItems[0];
+
+  const project = getProjectName({ channelId: msg?.channel.slackId, repoUrl: gh?.repository.url });
+  if (!project) return;
+
+  const config = getYamlFile(`${project}.yaml`);
+  let maintainers: Maintainer[] = [];
+
+  if (gh) {
+    const usersToNotify = config.repos?.find((r) => r.uri === gh.repository.url)?.notify || [];
+
+    const section = config.sections?.filter((s) => {
+      const regex = new RegExp(s.pattern);
+      return regex.test(gh.title || "") || regex.test(gh.body || "");
+    });
+
+    const sectionUsers = section?.map((s) => s.notify).flat() || [];
+    const allUsers = Array.from(new Set([...usersToNotify, ...sectionUsers]));
+
+    maintainers = allUsers.map((id) => MAINTAINERS.find((user) => user.id === id) as Maintainer);
+  } else if (msg) {
+    const usersToNotify = config.channels?.find((c) => c.id === msg.channel.slackId)?.notify || [];
+
+    const section = config.sections?.filter((s) => {
+      const regex = new RegExp(s.pattern);
+      return regex.test(msg.text || "");
+    });
+
+    const sectionUsers = section?.map((s) => s.notify).flat() || [];
+    const allUsers = Array.from(new Set([...usersToNotify, ...sectionUsers]));
+
+    maintainers = allUsers.map((id) => MAINTAINERS.find((user) => user.id === id) as Maintainer);
+  }
+
+  const arr: any[] = [];
+
+  if (msg) arr.push(slackItem({ item }));
+  if (gh) arr.push(githubItem({ item }));
+  arr.push(...buttons({ item, showAssignee: true, showActions: true }));
+
+  for await (const maintainer of maintainers) {
+    if (!maintainer?.slack) continue;
+
+    await slack.client.chat.postMessage({
+      channel: maintainer.slack,
+      text: `Hey <@${maintainer.slack}>, you asked us to notify for a new action item:`,
+      blocks: [
+        {
+          type: "section",
+          text: {
+            type: "mrkdwn",
+            text: `Hey <@${maintainer.slack}>, you asked us to notify for a new action item:`,
+          },
+        },
+        { type: "divider" },
+        ...arr.flat(),
+      ],
+    });
+  }
+};
+
 export const logActivity = async (
   client: typeof slack.client,
   user: string,

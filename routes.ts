@@ -5,7 +5,7 @@ import { ElizaService } from "./gen/eliza_connect";
 import prisma from "./lib/db";
 import { indexDocument } from "./lib/elastic";
 import { getGithubItem, listGithubItems } from "./lib/octokit";
-import { getYamlFile, syncGithubParticipants } from "./lib/utils";
+import { checkNeedsNotifying, getYamlFile, syncGithubParticipants } from "./lib/utils";
 
 export default (router: ConnectRouter) =>
   router.service(ElizaService, {
@@ -115,6 +115,7 @@ export default (router: ConnectRouter) =>
 
                   const logins = item.participants.nodes.map((node) => node.login);
                   await syncGithubParticipants(logins, githubItem.actionItem!.id);
+                  !actionItem && (await checkNeedsNotifying(githubItem.actionItem!.id));
                   indexDocument(githubItem.actionItem!.id);
                 }
 

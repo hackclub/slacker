@@ -32,6 +32,7 @@ import metrics from "./lib/metrics";
 import { getGithubItem, getOctokitToken, webhooks } from "./lib/octokit";
 import {
   MAINTAINERS,
+  checkNeedsNotifying,
   getMaintainers,
   getProjectDetails,
   getProjectName,
@@ -418,6 +419,7 @@ slack.event("message", async ({ event, client, logger, message }) => {
 
       await syncParticipants(participants, slackMessage.actionItem!.id);
       await indexDocument(slackMessage.actionItem!.id);
+      await checkNeedsNotifying(slackMessage.actionItem!.id);
     }
   } catch (err) {
     metrics.increment("errors.slack.message", 1);
