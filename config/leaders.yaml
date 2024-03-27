@@ -4,12 +4,20 @@ maintainers: [thomas, arpan, sahiti, jasper, sarah]
 channels:
   - name: leaders
     id: C02PA5G01ND
+    notify: [sarah]
   - name: application-conspiracy
     id: C02F9GD407J
+    notify: [sarah, jasper]
 repos:
   - uri: https://github.com/hackclub/jams
-    sla:
-      responseTime: 48h
+    # notify: [jasper]
   - uri: https://github.com/hackclub/toolbox
-    sla:
-      responseTime: 48h
+    # notify: [jasper]
+  - uri: https://github.com/hackclub/workshops
+    # notify: [jasper]
+  - uri: https://github.com/hackclub/application-viewer
+    notify: [jasper]
+  - uri: https://github.com/hackclub/apply
+    notify: [jasper]
+  - uri: https://github.com/hackclub/turnover
+    notify: [jasper]
