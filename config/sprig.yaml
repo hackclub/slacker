@@ -16,7 +16,6 @@ channels:
     id: C063DFZ532M
 repos:
   - uri: https://github.com/hackclub/sprig
-  - uri: https://github.com/hackclub/spade
 resources:
   - name: github-sprig-editor
     uri: https://github.com/hackclub/sprig
