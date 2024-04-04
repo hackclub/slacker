@@ -4,4 +4,6 @@ maintainers: [arav, toby, chris, faisal, dev, thomas, arpan, sahiti, gaurav, jas
 channels:
   - name: welcome-committee
     id: GLFAEL1SL
+  - name: welcome
+    id: C75M7C0SY
 repos: []
