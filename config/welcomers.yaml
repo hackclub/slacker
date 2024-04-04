@@ -6,4 +6,9 @@ channels:
     id: GLFAEL1SL
   - name: welcome
     id: C75M7C0SY
+resources:
+ - name: welcomers-leaderboard
+    uri: https://welcomers-leaderboard.hackclub.dev/
+  - name: welcome-scripts
+    uri: https://hackclub.slack.com/docs/T0266FRGM/F054X091EG2
 repos: []
