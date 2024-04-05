@@ -47,6 +47,11 @@ export const slackItem = ({
         }
       : undefined;
 
+  const text = item.slackMessages
+    .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
+    .map((m) => `<@${m.author?.slackId}>: ${m.text}`)
+    .join("\n");
+
   return {
     type: "section",
     text: {
@@ -57,12 +62,11 @@ export const slackItem = ({
           : ""
       }\n*Project:* ${project}\n*Action Id:* ${
         followUp?.id ? followUp.id : item.id
-      }\n*Query:* ${item.slackMessages
-        .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
-        .map((m) => `<@${m.author?.slackId}>: ${m.text}`)
-        .join("\n")}\n\nOpened by <@${item.slackMessages[0].author?.slackId}> on ${dayjs(
+      }\n*Query:* ${text.slice(0, 2000)}${text.length > 2000 ? "..." : ""}\n\nOpened by <@${
+        item.slackMessages[0].author?.slackId
+      }> on ${dayjs(item.slackMessages[0].createdAt).format("MMM DD, YYYY")} at ${dayjs(
         item.slackMessages[0].createdAt
-      ).format("MMM DD, YYYY")} at ${dayjs(item.slackMessages[0].createdAt).format("hh:mm A")}${
+      ).format("hh:mm A")}${
         item.lastReplyOn
           ? `\n*Last reply:* ${dayjs(item.lastReplyOn).fromNow()} ${diff > 10 ? ":panik:" : ""}`
           : "\n:panik: *No replies yet*"

@@ -318,7 +318,7 @@ export const resolveSubmit: Middleware<
       inclusive: true,
     });
 
-    const blocks = messages?.[0].blocks || [];
+    const blocks = messages?.[0]?.blocks || [];
     const idx = blocks.findIndex((block: any) => block.text && block.text.text.includes(actionId));
     const text = isFollowUp
       ? action.parentItems[0].parent.slackMessages?.[0]?.text ||
