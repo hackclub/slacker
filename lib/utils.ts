@@ -328,7 +328,7 @@ export const logActivity = async (
         MAINTAINERS.find((u) => u.slack === user)?.id || user
       } ${type} an action item. ${
         type === "irrelevant" || type === "resolved" ? `\n\nReason: ${item.reason}` : ""
-      }\n\n${url ? `<${url}|View action item>` : ""}`,
+      }\n\n${url ? `<${url}|View action item>` : ""} id=${actionId}`,
     });
 
     if (notifyUser && user !== notifyUser && type === "assigned") {
