@@ -1,5 +1,5 @@
-name: Leaders
-description: Place where leaders get help
+name: Clubs Team
+description: Place for helping the leaders of Hack Clubs
 maintainers: [thomas, arpan, sahiti, jasper, sarah]
 channels:
   - name: leaders
@@ -7,6 +7,9 @@ channels:
     notify: [sarah]
   - name: application-conspiracy
     id: C02F9GD407J
+    notify: [sarah, jasper]
+  - name: the-clubhouse
+    id: C06TK8S9L3V
     notify: [sarah, jasper]
 repos:
   - uri: https://github.com/hackclub/jams
