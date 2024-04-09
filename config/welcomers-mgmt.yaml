@@ -1,0 +1,17 @@
+name: Welcomers Management
+description: A group of people that manage the welcome team & welcome bot!
+maintainers: [jasper, chris]
+channels: 
+  - name: welcome-bot-dev
+    id: C06TKSWLHUG
+resources:
+ - name: welcomers-leaderboard
+   uri: https://welcomers-leaderboard.hackclub.dev/
+ - name: welcome-bot-repo
+   uri: https://github.com/hackclub/professor-bloom
+ - name: bot-description
+   uri: https://hackclub.slack.com/archives/C06TKSWLHUG/p1712454230306659
+ - name: bot-v1-tasks
+   uri: https://github.com/hackclub/professor-bloom/issues/1
+repos: 
+  - uri: https://github.com/hackclub/professor-bloom
