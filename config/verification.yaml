@@ -1,0 +1,7 @@
+name: Verification Team
+description: Centralized ID Verification for Hack Clubbers
+maintainers: [faisal, graham]
+channels:
+  - name: verification-requests
+    id: C06TP6YPWKC
+    notify: [faisal, graham]
