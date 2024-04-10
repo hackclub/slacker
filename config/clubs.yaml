@@ -13,13 +13,13 @@ channels:
     notify: [sarah, jasper, arpan]
 repos:
   - uri: https://github.com/hackclub/jams
-    # notify: [jasper]
+    notify: [jasper]
   - uri: https://github.com/hackclub/toolbox
     notify: [arpan]
   - uri: https://github.com/hackclub/workshops
-    # notify: [jasper]
-  - uri: https://github.com/hackclub/application-viewer
     notify: [jasper]
+  - uri: https://github.com/hackclub/application-viewer
+    notify: [jasper, arpan]
   - uri: https://github.com/hackclub/apply
     notify: [jasper]
   - uri: https://github.com/hackclub/turnover
