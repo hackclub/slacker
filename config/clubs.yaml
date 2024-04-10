@@ -10,16 +10,16 @@ channels:
     notify: [sarah, jasper]
   - name: the-clubhouse
     id: C06TK8S9L3V
-    notify: [sarah, jasper]
+    notify: [sarah, jasper, arpan]
 repos:
   - uri: https://github.com/hackclub/jams
-    # notify: [jasper]
-  - uri: https://github.com/hackclub/toolbox
-    # notify: [jasper]
-  - uri: https://github.com/hackclub/workshops
-    # notify: [jasper]
-  - uri: https://github.com/hackclub/application-viewer
     notify: [jasper]
+  - uri: https://github.com/hackclub/toolbox
+    notify: [arpan]
+  - uri: https://github.com/hackclub/workshops
+    notify: [jasper]
+  - uri: https://github.com/hackclub/application-viewer
+    notify: [jasper, arpan]
   - uri: https://github.com/hackclub/apply
     notify: [jasper]
   - uri: https://github.com/hackclub/turnover
