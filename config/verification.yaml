@@ -5,3 +5,4 @@ channels:
   - name: verification-requests
     id: C06TP6YPWKC
     notify: [faisal, graham]
+repos: []
