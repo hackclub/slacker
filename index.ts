@@ -195,7 +195,7 @@ export const slack = new App({
 });
 
 // Airtable, Toriel, Pizza Bot
-const ALLOWED_BOTS = ["B03QGF0H9FU", "B03701P4QN8", "B05SHCXE1UY"];
+const ALLOWED_BOTS = ["B03QGF0H9FU", "B03701P4QN8", "B05SHCXE1UY", "B02F604SCGP"];
 slack.event("message", async ({ event, client, logger, message }) => {
   try {
     if (message.subtype === "message_deleted") {
