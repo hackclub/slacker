@@ -1,0 +1,11 @@
+name: You Ship We Ship
+description: Centralized You Ship We Ship for Hack Clubbers
+maintainers: [faisal, graham]
+channels:
+  - name: verification-requests
+    id: C06TP6YPWKC
+    notify: [faisal, graham]
+repos: []
+sections:
+  - name: verify
+    pattern: A new verification request has been submitted
