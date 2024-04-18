@@ -7,11 +7,13 @@ channels:
     notify: [faisal, graham]
   - name: ysws-submissions
     id: C06U25JH0E5
-    notify: [graham]
-    
-repos: []
+    notify: [graham]    
+repos:
+  - uri: https://github.com/hackclub/ysws
 sections:
   - name: verify
     pattern: A new verification request has been submitted
   - name: projects
     pattern: A new YSWS project has been submitted
+  - name: feedback
+    pattern: Feedback:
