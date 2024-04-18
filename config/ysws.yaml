@@ -5,7 +5,13 @@ channels:
   - name: verification-requests
     id: C06TP6YPWKC
     notify: [faisal, graham]
+  - name: ysws-submissions
+    id: C06U25JH0E5
+    notify: [graham]
+    
 repos: []
 sections:
   - name: verify
     pattern: A new verification request has been submitted
+  - name: projects
+    pattern: A new YSWS project has been submitted
