@@ -16,4 +16,4 @@ sections:
   - name: projects
     pattern: A new YSWS project has been submitted
   - name: feedback
-    pattern: Feedback:
+    pattern: Feedback
