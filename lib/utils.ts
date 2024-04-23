@@ -1,9 +1,10 @@
 import fs, { readFileSync, readdirSync } from "fs";
 import yaml from "js-yaml";
 import { slack } from "..";
-import prisma from "./db";
-import { Config, Maintainer } from "./types";
 import { buttons, githubItem, slackItem } from "./blocks";
+import prisma from "./db";
+import { indexDocument } from "./elastic";
+import { Config, Maintainer } from "./types";
 
 export const MAINTAINERS = yaml.load(readFileSync(`./maintainers.yaml`, "utf-8")) as Maintainer[];
 
@@ -368,5 +369,63 @@ export const logActivity = async (
     }
   } catch (err) {
     console.error(err);
+  }
+};
+
+export const checkDuplicateResources = async () => {
+  console.log("⏳⏳ Checking for duplicates ⏳⏳");
+  const { channels, repositories } = await getProjectDetails("all", undefined, null, false);
+
+  const hasChannelDuplicates = channels.some(
+    (channel) => channels.filter((c) => c.id === channel.id).length > 1
+  );
+
+  const hasRepoDuplicates = repositories.some(
+    (repo) => repositories.filter((r) => r.uri === repo.uri).length > 1
+  );
+
+  if (hasChannelDuplicates || hasRepoDuplicates) {
+    console.log("🚨🚨 Found duplicates. Aborting 🚨🚨");
+    console.log("Channels:");
+    console.log(
+      channels.filter((channel) => channels.filter((c) => c.id === channel.id).length > 1)
+    );
+    console.log("Repositories:");
+    console.log(
+      repositories.filter((repo) => repositories.filter((r) => r.uri === repo.uri).length > 1)
+    );
+
+    process.exit(1);
+  }
+
+  console.log("✅✅ No duplicates found ✅✅");
+};
+
+export const backFill = async () => {
+  // await elastic.indices.delete({ index: "search-slacker-analytics" });
+  // await elastic.indices.create({ index: "search-slacker-analytics" });
+
+  const actionItems = await prisma.actionItem.findMany({ select: { id: true } });
+  const batchSize = 10; // Set the desired batch size
+
+  const chunk = <T>(array: T[], size: number): T[][] => {
+    return Array.from({ length: Math.ceil(array.length / size) }, (_, index) =>
+      array.slice(index * size, index * size + size)
+    );
+  };
+
+  const backfillBatch = async (batch: { id: string }[]) => {
+    await Promise.allSettled(
+      batch.map(async (item, index) => {
+        await indexDocument(item.id);
+      })
+    );
+  };
+
+  const batches = chunk(actionItems, batchSize);
+
+  for (const batch of batches) {
+    console.log(`Backfilling batch #${batches.indexOf(batch) + 1}/${batches.length}`);
+    await backfillBatch(batch);
   }
 };
