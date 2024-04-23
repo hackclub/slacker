@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { Empty, SyncResponse } from "./eliza_pb.js";
+import { ActionItemRequest, AssignRequest, DelayRequest, Empty, NoteRequest, Response, SlackActionItemRequest, SlackActionItemResponse } from "./eliza_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -18,7 +18,70 @@ export const ElizaService = {
     syncGithubItems: {
       name: "SyncGithubItems",
       I: Empty,
-      O: SyncResponse,
+      O: Response,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc connectrpc.eliza.v1.ElizaService.AssignActionItem
+     */
+    assignActionItem: {
+      name: "AssignActionItem",
+      I: AssignRequest,
+      O: Response,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc connectrpc.eliza.v1.ElizaService.ResolveActionItem
+     */
+    resolveActionItem: {
+      name: "ResolveActionItem",
+      I: ActionItemRequest,
+      O: Response,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc connectrpc.eliza.v1.ElizaService.IrrelevantActionItem
+     */
+    irrelevantActionItem: {
+      name: "IrrelevantActionItem",
+      I: ActionItemRequest,
+      O: Response,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc connectrpc.eliza.v1.ElizaService.UpdateNotes
+     */
+    updateNotes: {
+      name: "UpdateNotes",
+      I: NoteRequest,
+      O: Response,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc connectrpc.eliza.v1.ElizaService.SnoozeActionItem
+     */
+    snoozeActionItem: {
+      name: "SnoozeActionItem",
+      I: DelayRequest,
+      O: Response,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc connectrpc.eliza.v1.ElizaService.FollowUpActionItem
+     */
+    followUpActionItem: {
+      name: "FollowUpActionItem",
+      I: DelayRequest,
+      O: Response,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc connectrpc.eliza.v1.ElizaService.GetSlackActionItem
+     */
+    getSlackActionItem: {
+      name: "GetSlackActionItem",
+      I: SlackActionItemRequest,
+      O: SlackActionItemResponse,
       kind: MethodKind.Unary,
     },
   }

@@ -2,6 +2,17 @@ syntax = "proto3";
 
 package connectrpc.eliza.v1;
 
+service ElizaService   {
+  rpc SyncGithubItems(Empty) returns (Response) {}
+  rpc AssignActionItem(AssignRequest) returns (Response) {}
+  rpc ResolveActionItem(ActionItemRequest) returns (Response) {}
+  rpc IrrelevantActionItem(ActionItemRequest) returns (Response) {}
+  rpc UpdateNotes(NoteRequest) returns (Response) {}
+  rpc SnoozeActionItem(DelayRequest) returns (Response) {}
+  rpc FollowUpActionItem(DelayRequest) returns (Response) {}
+  rpc GetSlackActionItem(SlackActionItemRequest) returns (SlackActionItemResponse) {}
+}
+
 message SyncRequest {
   string project = 1;
 }
@@ -9,10 +20,36 @@ message SyncRequest {
 message Empty {
 }
 
-message SyncResponse {
+message Response {
   string response = 1;
 }
 
-service ElizaService   {
-  rpc SyncGithubItems(Empty) returns (SyncResponse) {}
+message AssignRequest {
+  string actionId = 1;
+  string userId = 2;
+}
+
+message ActionItemRequest {
+  string actionId = 1;
+  optional string reason = 2;
+}
+
+message SlackActionItemRequest {
+  string slackId = 1;
+}
+
+message SlackActionItemResponse {
+  string actionId = 1;
+}
+
+message NoteRequest {
+  string actionId = 1;
+  string note = 2;
+}
+
+message DelayRequest {
+  string actionId = 1;
+  string userId = 2;
+  string datetime = 3;
+  string reason = 4;
 }

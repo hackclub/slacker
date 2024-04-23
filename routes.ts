@@ -182,4 +182,145 @@ export default (router: ConnectRouter) =>
         return { response: err.message };
       }
     },
+    async assignActionItem(req) {
+      const { actionId, userId } = req;
+      const user = await prisma.user.findFirst({ where: { slackId: userId } });
+      if (!user) return { response: "User not found" };
+
+      const actionItem = await prisma.actionItem.findFirst({ where: { id: actionId } });
+      if (!actionItem) return { response: "Action item not found" };
+
+      await prisma.actionItem.update({
+        where: { id: actionId },
+        data: { assigneeId: user.id, assignedOn: new Date() },
+      });
+
+      return { response: "ok" };
+    },
+    async resolveActionItem(req) {
+      const { actionId, reason } = req;
+
+      const actionItem = await prisma.actionItem.findFirst({ where: { id: actionId } });
+      if (!actionItem) return { response: "Action item not found" };
+
+      await prisma.actionItem.update({
+        where: { id: actionId },
+        data: { status: "closed", flag: "resolved", resolvedAt: new Date(), reason },
+      });
+
+      return { response: "ok" };
+    },
+    async irrelevantActionItem(req) {
+      const { actionId, reason } = req;
+
+      const actionItem = await prisma.actionItem.findFirst({ where: { id: actionId } });
+      if (!actionItem) return { response: "Action item not found" };
+
+      await prisma.actionItem.update({
+        where: { id: actionId },
+        data: { status: "closed", flag: "irrelevant", resolvedAt: new Date(), reason },
+      });
+
+      return { response: "ok" };
+    },
+    async updateNotes(req) {
+      const { actionId, note } = req;
+
+      await prisma.actionItem.update({
+        where: { id: actionId },
+        data: { notes: note },
+      });
+
+      return { response: "ok" };
+    },
+    async snoozeActionItem(req) {
+      const { actionId, datetime, reason, userId } = req;
+
+      const user = await prisma.user.findFirst({ where: { slackId: userId } });
+      if (!user) return { response: "User not found" };
+
+      await prisma.actionItem.update({
+        where: { id: actionId },
+        data: {
+          snoozeCount: { increment: 1 },
+          snoozedUntil: new Date(datetime),
+          snoozedById: user.id,
+          reason,
+        },
+      });
+
+      return { response: "ok" };
+    },
+    async followUpActionItem(req) {
+      const { actionId, datetime, reason, userId } = req;
+
+      const action = await prisma.actionItem.findFirst({ where: { id: actionId } });
+      if (!action) return { response: "Action item not found" };
+
+      const user = await prisma.user.findFirst({ where: { slackId: userId } });
+      if (!user) return { response: "User not found" };
+
+      const alreadyFollowingUp = await prisma.followUp.findFirst({
+        where: { parentId: actionId },
+        orderBy: { date: "desc" },
+      });
+
+      // We only update the current follow up if it's in the future, otherwise we always create a new one
+      if (alreadyFollowingUp && alreadyFollowingUp.date > new Date()) {
+        await prisma.followUp.update({
+          where: {
+            parentId_nextItemId: { parentId: actionId, nextItemId: alreadyFollowingUp.nextItemId },
+          },
+          data: {
+            date: datetime,
+            nextItem: {
+              create: {
+                status: "followUp",
+                totalReplies: 0,
+                snoozedUntil: datetime,
+                snoozedById: user.id,
+                assigneeId: action.assigneeId,
+                notes: reason ?? "",
+              },
+              update: {
+                status: "followUp",
+                totalReplies: 0,
+                snoozedUntil: datetime,
+                snoozedById: user.id,
+                assigneeId: action.assigneeId,
+                notes: reason ?? "",
+              },
+            },
+          },
+        });
+      } else {
+        await prisma.followUp.create({
+          data: {
+            parent: { connect: { id: actionId } },
+            date: datetime,
+            nextItem: {
+              create: {
+                status: "followUp",
+                totalReplies: 0,
+                snoozedUntil: datetime,
+                snoozedById: user.id,
+                assigneeId: action.assigneeId,
+                notes: reason ?? "",
+              },
+            },
+          },
+        });
+      }
+
+      return { response: "ok" };
+    },
+    async getSlackActionItem(req) {
+      const { slackId } = req;
+
+      const actionItem = await prisma.actionItem.findFirst({
+        where: { slackMessages: { some: { ts: slackId } } },
+      });
+
+      return { actionId: actionItem?.id };
+    },
   });
