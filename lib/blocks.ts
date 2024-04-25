@@ -1,11 +1,7 @@
 import { ActionItem, Channel, GithubItem, Repository, SlackMessage, User } from "@prisma/client";
 import dayjs from "dayjs";
-import customParseFormat from "dayjs/plugin/customParseFormat";
-import relativeTime from "dayjs/plugin/relativeTime";
-import { getMaintainers, getProjectName } from "./utils";
 import metrics from "./metrics";
-dayjs.extend(relativeTime);
-dayjs.extend(customParseFormat);
+import { getMaintainers, getProjectName } from "./utils";
 
 export const slackItem = ({
   item,

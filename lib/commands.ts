@@ -3,18 +3,14 @@ import { Middleware, SlackCommandMiddlewareArgs } from "@slack/bolt";
 import { StringIndexed } from "@slack/bolt/dist/types/helpers";
 import { closestMatch } from "closest-match";
 import dayjs from "dayjs";
-import customParseFormat from "dayjs/plugin/customParseFormat";
-import relativeTime from "dayjs/plugin/relativeTime";
 import { readdirSync } from "fs";
 import { Octokit } from "octokit";
 import { buttons, githubItem, slackItem, unauthorizedError } from "./blocks";
 import prisma from "./db";
 import { indexDocument } from "./elastic";
 import metrics from "./metrics";
-import { MAINTAINERS, getMaintainers, getProjectDetails, getYamlFile, logActivity } from "./utils";
 import { assignIssueToVolunteer } from "./octokit";
-dayjs.extend(relativeTime);
-dayjs.extend(customParseFormat);
+import { MAINTAINERS, getMaintainers, getProjectDetails, getYamlFile, logActivity } from "./utils";
 
 export const handleSlackerCommand: Middleware<SlackCommandMiddlewareArgs, StringIndexed> = async ({
   command,

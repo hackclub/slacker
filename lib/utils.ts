@@ -58,7 +58,9 @@ export const getMaintainers = ({
     } catch (err) {}
   });
 
-  return arr.map((id) => MAINTAINERS.find((user) => user.id === id));
+  return arr
+    .map((id) => MAINTAINERS.find((user) => user.id === id))
+    .filter((user) => user) as Maintainer[];
 };
 
 export const getProjectName = ({
