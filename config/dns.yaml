@@ -1,11 +1,12 @@
 name: DNS
 description: DNS stuff for Hack Club
-maintainers: [faisal, graham, sean]
+maintainers: [faisal, graham, sean, jasper]
 channels:
   - name: dns
     id: CS8TQ86GN
 repos:
   - uri: https://github.com/hackclub/dns
+    notify: [jasper]
 resources:
   - name: github
     uri: https://github.com/hackclub/dns
