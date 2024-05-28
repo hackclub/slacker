@@ -9,6 +9,16 @@ import { config } from "dotenv";
 import express from "express";
 import cron from "node-cron";
 import responseTime from "response-time";
+import {
+  assign,
+  followUp,
+  gimmeAgain,
+  markIrrelevant,
+  notes,
+  resolve,
+  snooze,
+  unsnooze,
+} from "./actions";
 import { authHandler } from "./api/auth";
 import { callbackHandler } from "./api/auth/callback";
 import { indexHandler } from "./api/index";
@@ -18,18 +28,6 @@ import { reviewCron } from "./cron/review";
 import { unassignCron } from "./cron/unassign";
 import { unsnoozeCron } from "./cron/unsnooze";
 import { messageEvent } from "./events/message";
-import {
-  assigned,
-  followUp,
-  gimmeAgain,
-  markIrrelevant,
-  notes,
-  promptAssigneeNo,
-  promptAssigneeYes,
-  resolve,
-  snooze,
-  unsnooze,
-} from "./lib/actions";
 import { handleSlackerCommand } from "./lib/commands";
 import metrics from "./lib/metrics";
 import { webhooks } from "./lib/octokit";
@@ -81,10 +79,8 @@ slack.action("snooze", snooze);
 slack.action("followup", followUp);
 slack.action("unsnooze", unsnooze);
 slack.action("irrelevant", markIrrelevant);
-slack.action("assigned", assigned);
+slack.action("assigned", assign);
 slack.action("notes", notes);
-slack.action("prompt-assignee-yes", promptAssigneeYes);
-slack.action("prompt-assignee-no", promptAssigneeNo);
 slack.action("gimme_again", gimmeAgain);
 slack.view("snooze_submit", snoozeSubmit);
 slack.view("notes_submit", notesSubmit);
