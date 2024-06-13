@@ -7,7 +7,7 @@ channels:
     notify: [graham]   
   - name: verification-requests
     id: C06TP6YPWKC
-    notify: [faisal, graham] 
+    notify: [] 
 repos:
   - uri: https://github.com/hackclub/ysws
 sections:
