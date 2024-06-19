@@ -6,7 +6,7 @@ channels:
     id: CS8TQ86GN
 repos:
   - uri: https://github.com/hackclub/dns
-    notify: [jasper]
+    notify: []
 resources:
   - name: github
     uri: https://github.com/hackclub/dns
