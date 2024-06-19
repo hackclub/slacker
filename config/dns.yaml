@@ -1,6 +1,6 @@
 name: DNS
 description: DNS stuff for Hack Club
-maintainers: [faisal, graham, jasper]
+maintainers: [faisal, graham]
 channels:
   - name: dns
     id: CS8TQ86GN
