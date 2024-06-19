@@ -1,7 +1,7 @@
 ---
 name: Pizza
 description: Pizza for everyone!
-maintainers: [thomas, arpan, sahiti, jasper, sarah]
+maintainers: [thomas, arpan, sahiti]
 channels:
   - name: pizza-party
     id: C05RZ6K7RS5
