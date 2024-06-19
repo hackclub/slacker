@@ -7,10 +7,7 @@ channels:
     notify: [sarah]
   - name: application-conspiracy
     id: C02F9GD407J
-    notify: [sarah, jasper]
-  - name: the-clubhouse
-    id: C06TK8S9L3V
-    notify: [sarah, jasper, arpan]
+    notify: []
 repos:
   - uri: https://github.com/hackclub/jams
     notify: [jasper]
