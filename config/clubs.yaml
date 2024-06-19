@@ -1,6 +1,6 @@
 name: Clubs Team
 description: Place for helping the leaders of Hack Clubs
-maintainers: [thomas, arpan, sahiti, jasper, sarah]
+maintainers: [thomas, arpan, sahiti]
 channels:
   - name: leaders
     id: C02PA5G01ND
