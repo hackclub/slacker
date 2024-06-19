@@ -8,23 +8,20 @@ channels:
     notify: [jasper, sarah]
   - name: pizza-grant-approval
     id: C05RZATA3QR
-    notify: [sarah, jasper]
+    notify: []
   - name: pizza-grant-renewal
     id: C06HR3TE6TA
-    notify: [jasper]
-  - name: pizza-pizza
-    id: C06H2A574FL
-    notify: [jasper]
+    notify: []
   - name: pizza-queries
     id: C063JHFQV1S
-    notify: [jasper]
+    notify: []
   - name: pizza-dev
     id: C06CR1YQQAV
-    notify: [jasper]
+    notify: []
 repos:
   - uri: https://github.com/hackclub/pizza-fund
-    notify: [jasper]
+    notify: []
 sections:
   - name: india
     pattern: india
-    notify: [jasper, arpan]
+    notify: [arpan]
