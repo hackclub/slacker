@@ -1,6 +1,8 @@
 import dayjs from "dayjs";
 import { slack } from "..";
-import { buttons, githubItem, slackItem } from "../lib/blocks";
+import { buttons } from "../blocks/buttons";
+import { githubItem } from "../blocks/githubItem";
+import { slackItem } from "../blocks/slackItem";
 import prisma from "../lib/db";
 
 // Runs every day at 12:00 AM
