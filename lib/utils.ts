@@ -1,7 +1,9 @@
 import fs, { readFileSync, readdirSync } from "fs";
 import yaml from "js-yaml";
 import { slack } from "..";
-import { buttons, githubItem, slackItem } from "./blocks";
+import { buttons } from "../blocks/buttons";
+import { githubItem } from "../blocks/githubItem";
+import { slackItem } from "../blocks/slackItem";
 import prisma from "./db";
 import { indexDocument } from "./elastic";
 import { Config, Maintainer } from "./types";

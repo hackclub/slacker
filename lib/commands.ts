@@ -5,7 +5,7 @@ import { closestMatch } from "closest-match";
 import dayjs from "dayjs";
 import { readdirSync } from "fs";
 import { Octokit } from "octokit";
-import { buttons, githubItem, slackItem, unauthorizedError } from "./blocks";
+import { buttons, githubItem, slackItem, unauthorizedError } from "../blocks";
 import prisma from "./db";
 import { indexDocument } from "./elastic";
 import metrics from "./metrics";
