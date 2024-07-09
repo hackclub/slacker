@@ -32,7 +32,7 @@ import { handleSlackerCommand } from "./lib/commands";
 import metrics from "./lib/metrics";
 import { webhooks } from "./lib/octokit";
 import { checkDuplicateResources, joinChannels } from "./lib/utils";
-import { irrelevantSubmit, notesSubmit, resolveSubmit, snoozeSubmit } from "./lib/views";
+import { irrelevantSubmit, notesSubmit, resolveSubmit, snoozeSubmit } from "./views/";
 import routes from "./routes";
 
 dayjs.extend(relativeTime);
@@ -98,10 +98,10 @@ cron.schedule("0 12 * * FRI", reviewCron, { timezone: "America/New_York" });
   try {
     metrics.increment("server.start.increment", 1);
     await checkDuplicateResources();
-    await slack.start(process.env.PORT || 5000);
+    await slack.start(process.env.PORT || 5001);
     await joinChannels();
     // await backFill();
-    console.log(`Server running on http://localhost:5000`);
+    console.log(`Server running on http://localhost:5001`);
   } catch (err) {
     metrics.increment("server.start.error", 1);
     console.error(err);
