@@ -6,8 +6,9 @@ import { slack } from "../..";
 import prisma from "../../lib/db";
 
 export const callbackHandler = async (req: Request, res: Response) => {
-  const { code, id } = req.query;
+  const { code, id, error, error_description } = req.query;
 
+  if (error && error_description) return res.json({ error, error_description });
   if (!code) return res.json({ error: "No code provided" });
   if (!id) return res.json({ error: "No slackId provided" });
 
