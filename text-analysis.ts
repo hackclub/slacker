@@ -5,8 +5,8 @@ import prisma from "./lib/db";
 async function analyze() {
   const items = await prisma.actionItem.findMany({
     select: {
-      githubItem: { select: { body: true, title: true } },
-      slackMessage: { select: { text: true } },
+      githubItems: { select: { body: true, title: true } },
+      slackMessages: { select: { text: true } },
       status: true,
       flag: true,
     },
@@ -28,7 +28,7 @@ async function analyze() {
   };
 
   for (const item of items) {
-    const text = item.slackMessage?.text || item.githubItem?.title || item.githubItem?.body || "";
+    const text = (item.slackMessages?.[0]?.text || item.githubItems?.[0]?.title || item.githubItems?.[0]?.body || "");
     const characterCount = text.length;
     const words = text.split(" ").length;
     const questionMarks = text.split("?").length - 1;
