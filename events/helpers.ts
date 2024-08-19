@@ -14,7 +14,7 @@ export interface ParentMessage extends SlackMessage {
   };
 }
 
-const ALLOWED_BOTS = ["B03QGF0H9FU", "B03701P4QN8", "B05SHCXE1UY", "B02F604SCGP"];
+const ALLOWED_BOTS = ["B03QGF0H9FU", "B03701P4QN8", "B05SHCXE1UY", "B02F604SCGP", "B07FX3F8BFD", "B07HM2ZHJTA"];
 
 export const checkMessageConditions = async (message: KnownEventFromType<"message">) => {
   const invalid = { channel: null, parent: null };
