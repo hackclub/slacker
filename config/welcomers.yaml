@@ -1,11 +1,13 @@
 name: Welcomers
 description: A group of people that give warm welcomes to new Hack Clubbers!
-maintainers: [chris, gaurav, kaleo, khaleel, vivian, ryan, arthur, arav]
+maintainers: [chris, gaurav, kaleo, khaleel, vivian, ryan, arthur, arav, cskartikey]
 channels:
   - name: welcome-committee
     id: GLFAEL1SL
   - name: welcome
     id: C75M7C0SY
+  - name: bloom-dev-spam
+    id: C06SU9YMC6R
 resources:
  - name: welcomers-leaderboard
    uri: https://welcomers-leaderboard.hackclub.dev/
